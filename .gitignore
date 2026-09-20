@@ -1,0 +1,60 @@
+# Python build/cache artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environments
+.pixi/
+.venv*/
+.venvs/
+venv*/
+env*/
+
+# Local secrets and machine-specific config
+.env
+.env.*
+!.env.example
+key.txt
+*.pem
+*.key
+.ssh/
+configs/*.json
+configs/*.yaml
+configs/*.yml
+configs/archive/
+configs/local/
+configs/tmp/
+
+# Large/generated data
+data/raw/
+data/processed/*
+!data/processed/.gitkeep
+*.grib
+*.idx
+data/mastr
+
+# Local model weights and package caches
+.cache/
+*.ckpt
+
+# Generated experiment/report artifacts
+results/*
+!results/.gitkeep
+output/*
+!output/.gitkeep
+!output/figures/
+output/figures/*
+!output/figures/.gitkeep
+
+# Jupyter/editor/OS noise
+.ipynb_checkpoints/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

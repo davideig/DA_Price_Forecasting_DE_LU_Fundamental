@@ -1,0 +1,13 @@
+kind: entsoe_load_forecast_benchmark
+config:
+  repo_root: "."
+  target_tz: Europe/Berlin
+  country_code_entsoe: DE_LU
+  entsoe_api_key_env: ENTSOE_API_KEY
+  entsoe_start_date: "2025-08-01"
+  entsoe_end_date: "2026-07-31"
+  test_start: "2026-02-01"
+  test_end: "2026-07-31"
+  actual_load_file: data/processed/load_forecast/actual_load.csv
+  forecast_file: data/processed/load_forecast/entsoe_load_forecast.csv
+  export_dir: results/load_forecast_results/entsoe_load_forecast_benchmark_paper_febjul

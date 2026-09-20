@@ -1,0 +1,18 @@
+kind: sqra
+plot: false
+config:
+  repo_root: "."
+  target_tz: Europe/Berlin
+  import_paths:
+    - results/lear_op_results/exaa_only/d56_point_example/forecast.csv
+  quantiles:
+    - 0.1
+    - 0.25
+    - 0.5
+    - 0.75
+    - 0.9
+  test_start: "2026-04-16T00:00:00+02:00"
+  test_end: "2026-04-23T23:45:00+02:00"
+  train_days_rolling: 60
+  experiment_name: sqra_from_lear_exaa_only_d56_example
+  export_dir: results/sqra_results/exaa_only_d56_example

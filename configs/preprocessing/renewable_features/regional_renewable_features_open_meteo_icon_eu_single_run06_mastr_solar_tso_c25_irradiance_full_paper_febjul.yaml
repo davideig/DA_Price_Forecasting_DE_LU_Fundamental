@@ -1,0 +1,54 @@
+kind: regional_renewable_features
+config:
+  repo_root: "."
+  weather_source: open_meteo
+  feature_mode: full
+  target_tz: Europe/Berlin
+
+  cluster_file: data/clustering/icon_d2_mastr_solar_tso_c25.csv
+  capacity_file: data/raw/renewable_capacity/installed_capacity.csv
+  capacity_map_file: data/processed/renewable_proxy/open_meteo_icon_eu_single_run06_mastr_solar_tso_c25_irradiance_full_capacity_map.csv
+  output_file: data/processed/renewable_proxy/open_meteo_icon_eu_single_run06_mastr_solar_tso_c25_irradiance_full_features.csv
+
+  open_meteo_weather_file: data/processed/open_meteo/open_meteo_icon_eu_single_run06_mastr_solar_tso_c25_irradiance_full_weather.csv
+  open_meteo_base_url: https://customer-single-runs-api.open-meteo.com/v1/forecast
+  open_meteo_api_key_env: OPEN_METEO_API_KEY
+  open_meteo_api_mode: single_run
+  open_meteo_model: icon_eu
+  open_meteo_single_run_hour_utc: "06:00"
+  open_meteo_single_run_forecast_days: 2
+  open_meteo_start_date: "2026-04-03"
+  open_meteo_end_date: "2026-07-31"
+  open_meteo_batch_size: 40
+  open_meteo_cell_selection: nearest
+  open_meteo_force_download: false
+  open_meteo_point_selection: centroid
+  open_meteo_request_pause_seconds: 0.5
+  open_meteo_retry_attempts: 8
+  open_meteo_retry_backoff_seconds: 60.0
+  open_meteo_skip_unavailable_runs: true
+  open_meteo_fallback_previous_runs: true
+  open_meteo_fallback_step_hours: 2
+  open_meteo_fallback_max_lookback_hours: 24
+  open_meteo_hourly_variables:
+    - shortwave_radiation
+    - direct_radiation
+    - direct_normal_irradiance
+    - diffuse_radiation
+    - temperature_2m
+    - relative_humidity_2m
+    - dew_point_2m
+    - vapour_pressure_deficit
+    - surface_pressure
+    - pressure_msl
+    - cloud_cover
+    - cloud_cover_low
+    - cloud_cover_mid
+    - cloud_cover_high
+    - precipitation
+    - snow_depth
+
+  solar_region_strategy: state_tso_proxy
+  include_ramps: true
+  include_spatial_spread_features: true
+

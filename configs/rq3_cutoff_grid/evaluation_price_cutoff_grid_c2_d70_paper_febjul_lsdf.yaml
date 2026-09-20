@@ -1,0 +1,61 @@
+kind: evaluation
+config:
+  repo_root: .
+  target_tz: Europe/Berlin
+  test_start: "2026-02-01T00:00:00+01:00"
+  test_end: "2026-07-31T23:45:00+02:00"
+  skip_dates:
+    - "2026-06-19"
+  frequency: 15min
+  n_periods: 96
+  y_true_column: y_true
+  validate_inputs: true
+  run_gw_tests: false
+  point_forecasts:
+    - name: p_0700_load_ren_weather_lsdf
+      path: results/price_forecast_results/rq3_cutoff_grid/price_0700_noexaa_direct_load_renewables_weather_c2_run06_d70_lsdf/forecast.csv
+      kind: point
+      value_column: y_pred
+      y_true_column: y_true
+    - name: p_0800_load_ren_weather_lsdf
+      path: results/price_forecast_results/rq3_cutoff_grid/price_0800_noexaa_direct_load_renewables_weather_c2_run06_d70_lsdf/forecast.csv
+      kind: point
+      value_column: y_pred
+      y_true_column: y_true
+    - name: p_0900_load_ren_weather_lsdf
+      path: results/price_forecast_results/rq3_cutoff_grid/price_0900_noexaa_direct_load_renewables_weather_c2_run06_d70_lsdf/forecast.csv
+      kind: point
+      value_column: y_pred
+      y_true_column: y_true
+    - name: p_1000_load_ren_weather_lsdf
+      path: results/price_forecast_results/rq3_cutoff_grid/price_1000_noexaa_direct_load_renewables_weather_c2_run09_d70_lsdf/forecast.csv
+      kind: point
+      value_column: y_pred
+      y_true_column: y_true
+    - name: p_1100_load_ren_weather_lsdf
+      path: results/price_forecast_results/rq3_cutoff_grid/price_1100_noexaa_residual_load_renewables_weather_c2_run09_d70_lsdf/forecast.csv
+      kind: point
+      value_column: y_pred
+      y_true_column: y_true
+    - name: p_1200_load_ren_weather_lsdf
+      path: results/price_forecast_results/rq3_cutoff_grid/price_1200_exaa_residual_load_renewables_weather_c2_run09_d70_lsdf/forecast.csv
+      kind: point
+      value_column: y_pred
+      y_true_column: y_true
+    - name: p_1200_exaa_only_lsdf
+      path: results/price_forecast_results/rq3_cutoff_grid/price_1200_exaa_only_c2_d70_lsdf/forecast.csv
+      kind: point
+      value_column: y_pred
+      y_true_column: y_true
+  quantile_forecasts:
+    - name: sqra_cutoff_grid_1200_lsdf
+      path: results/sqra_results/price_cutoff_grid_c2_d70_paper_febjul_lsdf/forecast.csv
+      kind: quantile
+      y_true_column: y_true
+      quantile_columns:
+        - q0.100
+        - q0.250
+        - q0.500
+        - q0.750
+        - q0.900
+  output_dir: results/evaluation/price_rq3_cutoff_grid_c2_d70_paper_febjul_lsdf

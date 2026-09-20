@@ -1,0 +1,143 @@
+[workspace]
+name = "da-price-forecasting"
+version = "0.1.0"
+description = "Modular forecasting pipelines for German day-ahead electricity prices."
+authors = ["Davide Igelsperger"]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[environments]
+default = ["package", "core"]
+core = ["package", "core"]
+forecast = ["package", "lear"]
+lear = ["package", "lear"]
+ops = ["package", "core", "lear"]
+sqra = ["package", "sqra"]
+tabpfn = ["package", "tabpfn"]
+dev = ["package", "core", "dev"]
+
+[feature.package.pypi-dependencies]
+da-price-forecasting = { path = ".", editable = true }
+pyyaml = ">=6.0,<7"
+
+[feature.core.dependencies]
+python = "3.11.*"
+pip = "*"
+numpy = ">=2.4,<2.5"
+proj = ">=9,<10"
+pyogrio = ">=0.12,<1"
+pyproj = ">=3.7,<4"
+tectonic = ">=0.16.9,<0.17"
+
+[feature.core.pypi-dependencies]
+pydantic = ">=2.11,<3"
+python-dotenv = ">=1.0,<2"
+requests = ">=2.32,<3"
+openpyxl = ">=3.1,<4"
+yfinance = ">=0.2,<0.3"
+matplotlib = "==3.10.8"
+pandas = "==3.0.2"
+geopandas = "==1.1.3"
+shapely = "==2.1.2"
+scikit-learn = "==1.8.0"
+scipy = "==1.17.1"
+xarray = "==2026.4.0"
+cdsapi = ">=0.7.7"
+cfgrib = ">=0.9"
+pyarrow = ">=19"
+
+[feature.lear.dependencies]
+python = "3.11.*"
+pip = "*"
+llvm-openmp = "*"
+
+[feature.lear.pypi-dependencies]
+pydantic = ">=2.11,<3"
+python-dotenv = "==1.2.2"
+requests = ">=2.32,<3"
+entsoe-py = "==0.8.0"
+holidays = "==0.95"
+openpyxl = ">=3.1,<4"
+matplotlib = "==3.10.8"
+numpy = "==2.4.4"
+pandas = "==3.0.2"
+scikit-learn = "==1.8.0"
+scipy = "==1.17.1"
+statsmodels = "==0.14.6"
+lightgbm = ">=4.6,<5"
+pyarrow = ">=19"
+
+[feature.sqra.dependencies]
+python = "3.11.*"
+pip = "*"
+
+[feature.sqra.pypi-dependencies]
+pydantic = ">=2.11,<3"
+python-dotenv = "==1.2.2"
+requests = ">=2.32,<3"
+remodels = "==1.0.1"
+matplotlib = ">=3.7,<3.8"
+numpy = ">=1.26,<2"
+pandas = "==1.5.3"
+scikit-learn = ">=1.4,<1.6"
+scipy = ">=1.11,<1.13"
+
+[feature.tabpfn.dependencies]
+python = "3.11.*"
+pip = "*"
+
+[feature.tabpfn.pypi-dependencies]
+pydantic = ">=2.11,<3"
+python-dotenv = ">=1.0,<2"
+requests = ">=2.32,<3"
+entsoe-py = "==0.8.0"
+holidays = "==0.95"
+yfinance = ">=0.2,<0.3"
+numpy = ">=1.26,<2"
+pandas = ">=2.2,<3"
+scikit-learn = ">=1.4,<1.7"
+tabpfn = "==7.1.1"
+tabpfn-time-series = "==1.0.10"
+datasets = ">=2.15,<4"
+fev = "==0.7.0"
+fsspec = ">=2023.1.0,<=2026.2.0"
+huggingface-hub = ">=0.25,<2"
+aiohttp = "==3.13.5"
+multidict = "==6.7.1"
+
+[feature.dev.dependencies]
+python = "3.11.*"
+pip = "*"
+
+[feature.dev.pypi-dependencies]
+pytest = ">=8,<9"
+entsoe-py = "==0.8.0"
+holidays = "==0.95"
+shap = ">=0.49,<0.50"
+
+[tasks]
+era5-download = { cmd = "da-price-forecast --config configs/era5_download.yaml", default-environment = "core" }
+era5-aggregate = { cmd = "da-price-forecast --config configs/era5_aggregate.yaml", default-environment = "core" }
+icon-aggregate = { cmd = "da-price-forecast --config configs/icon_aggregate.yaml", default-environment = "core" }
+visualization-report = { cmd = "da-price-forecast --config configs/visualization_report.yaml", default-environment = "core" }
+evaluation = { cmd = "da-price-forecast --config configs/evaluation.yaml", default-environment = "core" }
+lear-operational = { cmd = "da-price-forecast --config configs/deployment/lear_point_predictions.yaml", default-environment = "lear" }
+lear-anc = { cmd = "da-price-forecast --config configs/lear_anc.yaml", default-environment = "lear" }
+sqra = { cmd = "da-price-forecast --config configs/deployment/sqra_quantile_predictions.yaml", default-environment = "sqra" }
+tabpfn-ts = { cmd = "da-price-forecast --config configs/tabpfn_ts.yaml", default-environment = "tabpfn" }
+tabpfn-local = { cmd = "da-price-forecast --config configs/tabpfn_local.yaml", default-environment = "tabpfn" }
+energy-arena-point = { cmd = "da-price-forecast --config configs/deployment/energy_arena_point_submission.yaml", default-environment = "forecast" }
+energy-arena-daily = { cmd = "da-price-energy-arena-daily", default-environment = "forecast" }
+energy-arena-load-daily = { cmd = "da-price-energy-arena-load-daily", default-environment = "forecast" }
+energy-arena-load-open-meteo-daily = { cmd = "da-price-energy-arena-load-daily --model-config configs/final/load/load_forecast_hybrid_entsoe_residual_open_meteo_p10_morning1015_daily_weather_lightgbm_paper_febjul_tw224_f180_pop_weighted_quantiles.yaml --approach-name load_open_meteo_p10_morning1015_lightgbm_pop_weighted_quantiles", default-environment = "forecast" }
+energy-arena-load-daily-with-weather = { cmd = "da-price-energy-arena-load-daily-with-weather", default-environment = "ops" }
+energy-arena-renewable-daily = { cmd = "da-price-energy-arena-renewable-daily", default-environment = "forecast" }
+dwd-icon-daily-update = { cmd = "da-price-dwd-icon-daily-update", default-environment = "ops" }
+open-meteo-availability = { cmd = "da-price-open-meteo-availability", default-environment = "forecast" }
+forecast-load-final = { cmd = "da-price-forecast --config configs/final/load/load_forecast_hybrid_entsoe_residual_open_meteo_p10_morning1015_daily_weather_lightgbm_paper_febjul_tw224_f180_pop_weighted_quantiles.yaml", default-environment = "forecast" }
+forecast-load-direct = { cmd = "da-price-forecast --config configs/final/load/load_forecast_direct_actual_open_meteo_p10_morning0915_daily_weather_lightgbm_paper_febjul_tw224_f180_pop_weighted_quantiles.yaml", default-environment = "forecast" }
+forecast-solar-final = { cmd = "da-price-forecast --config configs/final/renewable/renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_cloud_geometry_physics_residual_own_region_daylight_suspicious_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_paper_febjul.yaml", default-environment = "forecast" }
+forecast-solar-ensemble = { cmd = "da-price-forecast --config configs/final/renewable/renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_multi_provider7_irradiance_full_geometry_physics_residual_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_paper_febjul.yaml", default-environment = "forecast" }
+forecast-wind-final = { cmd = "da-price-forecast --config configs/final/renewable/renewable_generation_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_summary_meanstd_onoff_split_wind_hub_p80_common_hgb_wind_struct_minleaf60_maxfeat08_bias30_mtu_s08_d180_cutoff1000_paper_febjul.yaml", default-environment = "forecast" }
+forecast-wind-full-weather = { cmd = "da-price-forecast --config configs/final/renewable/renewable_generation_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_summary_meanstd_onoff_split_wind_hub_p80_full_weather_hgb_wind_struct_minleaf60_maxfeat08_bias30_mtu_s08_d90_cutoff1000_paper_febjul.yaml", default-environment = "forecast" }
+test = { cmd = "pytest", default-environment = "dev" }

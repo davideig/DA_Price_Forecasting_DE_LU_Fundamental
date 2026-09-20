@@ -1,0 +1,46 @@
+kind: energy_arena_submit
+submit: true
+config:
+  repo_root: "."
+  source:
+    kind: sqra
+    run_before_submit: true
+    config:
+      repo_root: "."
+      target_tz: Europe/Berlin
+      import_paths:
+        - results/energy_arena_work/exaa_only/2026-04-28/sqra_point_base/forecast.csv
+      quantiles:
+        - 0.1
+        - 0.25
+        - 0.5
+        - 0.75
+        - 0.9
+      test_start: "2026-04-28T00:00:00+02:00"
+      test_end: "2026-04-28T23:45:00+02:00"
+      train_days_rolling: 60
+      experiment_name: sqra_exaa_only_d60_energy_arena
+      export_dir: results/energy_arena_work/exaa_only/2026-04-28/sqra_forecast
+  forecast_date: "2026-04-28"
+  challenge_id: 8
+  target_tz: Europe/Berlin
+  objective: quantile
+  quantile_columns:
+    - q0.100
+    - q0.250
+    - q0.500
+    - q0.750
+    - q0.900
+  api_base_url: https://api.energy-arena.org
+  submit_url: null
+  api_key_env: ENERGY_ARENA_API_KEY
+  api_key_header_name: X-API-Key
+  api_key_prefix: ""
+  forecast_visibility: closed
+  leaderboard_visibility: public
+  approach_name: sqra_exaa_only
+  approach_description: SQRA quantile forecast calibrated from EXAA-only LEAR point forecasts.
+  repo_url: null
+  payload_template_path: configs/examples/energy_arena_dense_payload_template.example.json
+  artifacts_dir: results/energy_arena_submissions
+  request_timeout_seconds: 30

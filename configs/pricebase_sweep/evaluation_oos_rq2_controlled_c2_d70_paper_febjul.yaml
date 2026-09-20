@@ -1,0 +1,25 @@
+kind: evaluation
+config:
+  repo_root: "."
+  target_tz: Europe/Berlin
+  test_start: "2026-02-01T00:00:00+01:00"
+  test_end: "2026-07-31T23:45:00+02:00"
+  skip_dates:
+    - "2026-06-19"
+  frequency: 15min
+  n_periods: 96
+  run_gw_tests: false
+  output_dir: results/evaluation/price_rq2_controlled_c2_d70_paper_febjul
+  point_forecasts:
+    - name: p_base_weather_entsoe_load
+      kind: point
+      path: results/price_forecast_results/pricebase/stage4_oos/oos_pbase_c2_d70/forecast.csv
+    - name: p_load_weather
+      kind: point
+      path: results/price_forecast_results/pricebase/stage4_oos/oos_pload_c2_d70/forecast.csv
+    - name: p_ren_weather
+      kind: point
+      path: results/price_forecast_results/pricebase/stage4_oos/oos_pren_c2_d70/forecast.csv
+    - name: p_gen_weather
+      kind: point
+      path: results/price_forecast_results/pricebase/stage4_oos/oos_pgen_c2_d70/forecast.csv

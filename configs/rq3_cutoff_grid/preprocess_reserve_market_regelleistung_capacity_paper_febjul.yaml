@@ -1,0 +1,19 @@
+kind: reserve_market
+config:
+  repo_root: .
+  target_tz: Europe/Berlin
+  start_date: "2025-10-01"
+  end_date: "2026-07-31"
+  raw_dir: data/raw/reserve_market/regelleistung
+  output_file: data/processed/reserve_market/regelleistung_capacity_features_paper_febjul.csv
+  metadata_file: data/processed/reserve_market/regelleistung_capacity_downloads_paper_febjul.csv
+  product_types:
+    - FCR
+    - aFRR
+    - mFRR
+  force_download: false
+  fail_on_missing: false
+  publication_times:
+    FCR: "08:30"
+    aFRR: "09:30"
+    mFRR: "10:30"

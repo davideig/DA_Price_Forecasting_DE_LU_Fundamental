@@ -1,0 +1,61 @@
+[release]
+name = "da-price-forecasting-de-lu"
+description = "Clean thesis/reuse export for DE-LU load, renewable generation, and price forecasting."
+
+[include]
+paths = [
+  "README.md",
+  "pixi.toml",
+  "pixi.lock",
+  "pyproject.toml",
+  ".env.example",
+  ".gitignore",
+  "release_manifest.toml",
+  "src",
+  "tests",
+  "configs/FINAL_MODELS.md",
+  "configs/README.md",
+  "configs/examples",
+  "configs/final",
+  "configs/preprocessing",
+  "configs/pricebase_sweep",
+  "configs/rq3_cutoff_grid",
+  "configs/deployment",
+  "configs/diagnostics",
+  "configs/feature_allowlists",
+  "deployment",
+  "docs",
+  "data/README.md",
+  "scripts/export_release_repo.py",
+]
+
+optional_paths = [
+  "data/sample",
+]
+
+[exclude]
+patterns = [
+  ".git",
+  "__pycache__",
+  "*.pyc",
+  ".DS_Store",
+  ".pytest_cache",
+  ".mypy_cache",
+  ".ruff_cache",
+  ".pixi",
+  ".venv",
+  ".venvs",
+  "configs/archive",
+  "configs/local",
+  "configs/tmp",
+  "data/raw",
+  "data/cache",
+  "data/processed",
+  "data/mastr",
+  "results",
+  "output",
+  "logs",
+  "notebooks",
+  "Final Paper",
+  "Example Paper",
+]

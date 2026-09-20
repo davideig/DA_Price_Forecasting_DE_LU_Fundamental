@@ -1,0 +1,20 @@
+kind: sqra
+plot: false
+config:
+  repo_root: .
+  target_tz: Europe/Berlin
+  import_paths:
+    - results/price_forecast_results/rq3_cutoff_grid/price_0700_noexaa_direct_load_renewables_weather_c2_run06_d70_lsdf/forecast.csv
+    - results/price_forecast_results/rq3_cutoff_grid/price_0800_noexaa_direct_load_renewables_weather_c2_run06_d70_lsdf/forecast.csv
+    - results/price_forecast_results/rq3_cutoff_grid/price_0900_noexaa_direct_load_renewables_weather_c2_run06_d70_lsdf/forecast.csv
+    - results/price_forecast_results/rq3_cutoff_grid/price_1000_noexaa_direct_load_renewables_weather_c2_run09_d70_lsdf/forecast.csv
+    - results/price_forecast_results/rq3_cutoff_grid/price_1100_noexaa_residual_load_renewables_weather_c2_run09_d70_lsdf/forecast.csv
+    - results/price_forecast_results/rq3_cutoff_grid/price_1200_exaa_residual_load_renewables_weather_c2_run09_d70_lsdf/forecast.csv
+    - results/price_forecast_results/rq3_cutoff_grid/price_1200_exaa_only_c2_d70_lsdf/forecast.csv
+  quantiles: [0.1, 0.25, 0.5, 0.75, 0.9]
+  test_start: "2026-02-01T00:00:00+01:00"
+  test_end: "2026-07-31T23:45:00+02:00"
+  train_days_rolling: 60
+  target_availability_lag_days: 0
+  experiment_name: sqra_price_cutoff_grid_c2_d70_paper_febjul_lsdf
+  export_dir: results/sqra_results/price_cutoff_grid_c2_d70_paper_febjul_lsdf

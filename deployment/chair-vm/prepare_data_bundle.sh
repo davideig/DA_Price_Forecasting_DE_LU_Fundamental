@@ -4,10 +4,11 @@ set -euo pipefail
 out="${1:-chair_vm_operational_data_$(date +%Y%m%d).tar.gz}"
 
 paths=(
-  "configs/energy_arena_point_submission.yaml"
-  "configs/energy_arena_sqra_quantile_submission.yaml"
+  "configs/deployment/energy_arena_point_submission.yaml"
+  "configs/deployment/energy_arena_sqra_quantile_submission.yaml"
   "data/clustering"
   "data/raw/renewable_capacity"
+  "data/processed/load_forecast"
   "data/processed/open_meteo"
   "data/processed/renewable_proxy"
   "data/processed/renewable_generation"
@@ -33,4 +34,3 @@ echo "[bundle] Writing $out"
 tar -czf "$out" "${existing[@]}"
 echo "[bundle] Done: $out"
 echo "[bundle] Note: .env is intentionally not included. Create/copy it separately on the VM."
-

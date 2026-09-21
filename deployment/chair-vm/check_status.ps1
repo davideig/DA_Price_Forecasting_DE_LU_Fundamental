@@ -1,5 +1,5 @@
 param(
-    [string]$RepoLinuxPath = "/home/$env:USERNAME/DA_Price_Forecasting_Pipeline_DE_LU",
+    [string]$RepoLinuxPath = "/home/$env:USERNAME/DA_Price_Forecasting_Pipeline_DE_LU_release",
     [string]$TaskPrefix = "DAForecast"
 )
 
@@ -29,4 +29,3 @@ Write-Host ""
 Write-Host "--- Submission responses from WSL ---"
 $bashCommand = "cd '$RepoLinuxPath' && ./deployment/chair-vm/run_scheduled_job.sh status"
 wsl.exe bash -lc $bashCommand
-

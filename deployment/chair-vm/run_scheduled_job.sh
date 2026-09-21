@@ -24,6 +24,12 @@ find_pixi() {
 }
 
 PIXI="$(find_pixi)"
+DWD_WIND_CONFIG="configs/preprocessing/weather_aggregation/dwd_icon_mastr_wind_c100_run06_daily_update.yaml"
+DWD_SOLAR_CONFIG="configs/preprocessing/weather_aggregation/dwd_icon_mastr_solar_tso_c25_run06_daily_update.yaml"
+SOLAR_FEATURE_CONFIG="configs/preprocessing/renewable_features/regional_renewable_features_dwd_icon_mastr_solar_tso_c25_run06_solar_spread.yaml"
+SOLAR_EXTRA_FEATURE_CONFIG="configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover.yaml"
+SOLAR_MODEL_CONFIG="configs/final/renewable/renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_cloud_geometry_physics_residual_own_region_daylight_suspicious_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_paper_febjul.yaml"
+WIND_MODEL_CONFIG="configs/final/renewable/renewable_generation_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_summary_meanstd_onoff_split_wind_hub_p80_common_hgb_wind_struct_minleaf60_maxfeat08_bias30_mtu_s08_d180_cutoff1000_paper_febjul.yaml"
 
 status() {
   local target
@@ -62,7 +68,7 @@ case "$job" in
   dwd-wind-update)
     cleanup_raw_dwd
     "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config configs/dwd_icon_mastr_wind_c100_run06_daily_update.yaml \
+      --config "$DWD_WIND_CONFIG" \
       --no-catch-up-missing-days
     cleanup_raw_dwd
     ;;
@@ -70,14 +76,14 @@ case "$job" in
   dwd-solar-update)
     cleanup_raw_dwd
     "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config configs/dwd_icon_mastr_solar_tso_c25_run06_daily_update.yaml \
+      --config "$DWD_SOLAR_CONFIG" \
       --no-catch-up-missing-days
     cleanup_raw_dwd
     ;;
 
   renewable-wind-warmup)
     "$PIXI" run energy-arena-renewable-daily \
-      --model-config configs/renewable_generation_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_summary_meanstd_onoff_split_wind_hub_p80_common_hgb_wind_struct_minleaf60_maxfeat08_bias30_mtu_s08_d90_cutoff1000_febmay22.yaml \
+      --model-config "$WIND_MODEL_CONFIG" \
       --skip-solar \
       --wind-value-column Wind_Onshore_Model_MW \
       --wind-approach-name renewable_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_onshore \
@@ -86,9 +92,9 @@ case "$job" in
 
   renewable-solar-submit)
     "$PIXI" run energy-arena-renewable-daily \
-      --feature-config configs/regional_renewable_features_dwd_icon_mastr_solar_tso_c25_run06_solar_spread.yaml \
-      --extra-feature-config configs/regional_renewable_features_open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover.yaml \
-      --model-config configs/renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_cloud_geometry_physics_residual_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_febmay22.yaml \
+      --feature-config "$SOLAR_FEATURE_CONFIG" \
+      --extra-feature-config "$SOLAR_EXTRA_FEATURE_CONFIG" \
+      --model-config "$SOLAR_MODEL_CONFIG" \
       --skip-wind \
       --solar-approach-name renewable_dwd_icon_mastr_solar_tso_c25_run06_cloud_geometry_physics_hgb_solar \
       --retry-until 11:55 \
@@ -97,7 +103,7 @@ case "$job" in
 
   renewable-wind-submit)
     "$PIXI" run energy-arena-renewable-daily \
-      --model-config configs/renewable_generation_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_summary_meanstd_onoff_split_wind_hub_p80_common_hgb_wind_struct_minleaf60_maxfeat08_bias30_mtu_s08_d90_cutoff1000_febmay22.yaml \
+      --model-config "$WIND_MODEL_CONFIG" \
       --skip-solar \
       --wind-value-column Wind_Onshore_Model_MW \
       --wind-approach-name renewable_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_onshore \
@@ -118,9 +124,9 @@ case "$job" in
     ;;
 
   load-quantile-submit)
-    "$PIXI" run energy-arena-load-open-meteo-quantile-daily \
-      --retry-until 11:55 \
-      --retry-interval-minutes 5
+    echo "Load quantile submission is not packaged in this release repo yet." >&2
+    echo "Port a load config with include_rolling_residual_quantiles before scheduling this job." >&2
+    exit 2
     ;;
 
   *)
@@ -130,4 +136,3 @@ case "$job" in
 esac
 
 echo "=== $(date -Is) job=$job complete ==="
-

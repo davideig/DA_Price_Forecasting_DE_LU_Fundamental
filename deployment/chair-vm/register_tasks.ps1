@@ -1,5 +1,5 @@
 param(
-    [string]$RepoLinuxPath = "/home/$env:USERNAME/DA_Price_Forecasting_Pipeline_DE_LU",
+    [string]$RepoLinuxPath = "/home/$env:USERNAME/DA_Price_Forecasting_Pipeline_DE_LU_release",
     [string]$TaskPrefix = "DAForecast",
     [switch]$WhatIfOnly
 )
@@ -13,8 +13,7 @@ $jobs = @(
     @{ Name = "renewable-solar-submit"; Time = "11:10"; Job = "renewable-solar-submit"; DurationHours = 2 },
     @{ Name = "renewable-wind-submit"; Time = "11:20"; Job = "renewable-wind-submit"; DurationHours = 2 },
     @{ Name = "price-submit"; Time = "11:30"; Job = "price-submit"; DurationHours = 2 },
-    @{ Name = "load-point-submit"; Time = "11:35"; Job = "load-point-submit"; DurationHours = 2 },
-    @{ Name = "load-quantile-submit"; Time = "11:40"; Job = "load-quantile-submit"; DurationHours = 2 }
+    @{ Name = "load-point-submit"; Time = "11:35"; Job = "load-point-submit"; DurationHours = 2 }
 )
 
 function New-WslAction {
@@ -55,4 +54,3 @@ Write-Host "  Get-ScheduledTask -TaskName '$TaskPrefix-*'"
 Write-Host ""
 Write-Host "Run one manually, for example:"
 Write-Host "  Start-ScheduledTask -TaskName '$TaskPrefix-load-point-submit'"
-

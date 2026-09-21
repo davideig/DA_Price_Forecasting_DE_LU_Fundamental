@@ -26,8 +26,8 @@ Inside WSL:
 
 ```bash
 cd ~
-git clone git@github.com:philipprisk/DA_Price_Forecasting_Pipeline_DE_LU.git
-cd DA_Price_Forecasting_Pipeline_DE_LU
+git clone https://github.com/davideig/DA_Price_Forecasting_DE_LU_Fundamental.git DA_Price_Forecasting_Pipeline_DE_LU_release
+cd DA_Price_Forecasting_Pipeline_DE_LU_release
 bash deployment/chair-vm/setup_wsl_repo.sh
 ```
 
@@ -44,7 +44,6 @@ Required keys:
 ENTSOE_API_KEY
 ENERGY_ARENA_API_KEY
 ENERGY_ARENA_LOAD_CHALLENGE_ID
-ENERGY_ARENA_LOAD_QUANTILE_CHALLENGE_ID
 ENERGY_ARENA_SOLAR_CHALLENGE_ID
 ENERGY_ARENA_WIND_CHALLENGE_ID
 ```
@@ -80,17 +79,16 @@ Run these inside WSL after `.env` and data are in place:
 ./deployment/chair-vm/run_scheduled_job.sh dwd-solar-update
 
 pixi run energy-arena-load-open-meteo-daily --dry-run
-pixi run energy-arena-load-open-meteo-quantile-daily --dry-run
 
 pixi run energy-arena-renewable-daily \
-  --feature-config configs/regional_renewable_features_dwd_icon_mastr_solar_tso_c25_run06_solar_spread.yaml \
-  --extra-feature-config configs/regional_renewable_features_open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover.yaml \
-  --model-config configs/renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_cloud_geometry_physics_residual_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_febmay22.yaml \
+  --feature-config configs/preprocessing/renewable_features/regional_renewable_features_dwd_icon_mastr_solar_tso_c25_run06_solar_spread.yaml \
+  --extra-feature-config configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover.yaml \
+  --model-config configs/final/renewable/renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_cloud_geometry_physics_residual_own_region_daylight_suspicious_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_paper_febjul.yaml \
   --skip-wind \
   --dry-run
 
 pixi run energy-arena-renewable-daily \
-  --model-config configs/renewable_generation_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_summary_meanstd_onoff_split_wind_hub_p80_common_hgb_wind_struct_minleaf60_maxfeat08_bias30_mtu_s08_d90_cutoff1000_febmay22.yaml \
+  --model-config configs/final/renewable/renewable_generation_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_summary_meanstd_onoff_split_wind_hub_p80_common_hgb_wind_struct_minleaf60_maxfeat08_bias30_mtu_s08_d180_cutoff1000_paper_febjul.yaml \
   --skip-solar \
   --wind-value-column Wind_Onshore_Model_MW \
   --dry-run
@@ -109,13 +107,13 @@ From Windows PowerShell in the checked-out repo directory mounted through WSL, r
 The default WSL repo path is:
 
 ```text
-/home/<WindowsUserName>/DA_Price_Forecasting_Pipeline_DE_LU
+/home/<WindowsUserName>/DA_Price_Forecasting_Pipeline_DE_LU_release
 ```
 
 If your WSL username differs, pass it explicitly:
 
 ```powershell
-.\deployment\chair-vm\register_tasks.ps1 -RepoLinuxPath "/home/<wsl-user>/DA_Price_Forecasting_Pipeline_DE_LU"
+.\deployment\chair-vm\register_tasks.ps1 -RepoLinuxPath "/home/<wsl-user>/DA_Price_Forecasting_Pipeline_DE_LU_release"
 ```
 
 The tasks are:
@@ -128,7 +126,6 @@ The tasks are:
 11:20 renewable-wind-submit
 11:30 price-submit
 11:35 load-point-submit
-11:40 load-quantile-submit
 ```
 
 ## 6. Check Status
@@ -150,4 +147,3 @@ Logs are written under:
 ```text
 logs/chair_vm_tasks/
 ```
-

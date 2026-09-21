@@ -25,6 +25,8 @@ da-price-energy-arena-load-daily-with-weather = "da_price_forecasting.scripts.en
 da-price-energy-arena-renewable-daily = "da_price_forecasting.scripts.energy_arena_renewable_daily:main"
 da-price-dwd-icon-daily-update = "da_price_forecasting.scripts.dwd_icon_daily_update:main"
 da-price-open-meteo-availability = "da_price_forecasting.scripts.open_meteo_availability:main"
+da-price-create-feature-pack = "da_price_forecasting.scripts.create_feature_pack:main"
+da-price-check-data-pack = "da_price_forecasting.scripts.check_data_pack:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

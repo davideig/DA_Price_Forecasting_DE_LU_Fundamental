@@ -46,3 +46,19 @@ data_processed_feature_pack_thesis_febjul.tar.zst
 
 The feature pack should unpack into `data/processed/` and, if needed,
 `data/cache/entsoe/`.
+
+This repository includes helper commands for that workflow:
+
+```bash
+pixi run create-feature-pack --dry-run
+pixi run create-feature-pack
+pixi run create-feature-pack --include-results
+pixi run check-data-final
+pixi run check-data-pack --profile thesis
+```
+
+Use `--include-results` when the pack should also contain first-stage forecasts
+and price/evaluation outputs. That is useful for reproducing thesis tables
+without rerunning load, solar, and wind models first.
+
+See `docs/data_pack.md` for the full workflow.

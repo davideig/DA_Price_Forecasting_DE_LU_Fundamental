@@ -134,6 +134,9 @@ energy-arena-load-daily-with-weather = { cmd = "da-price-energy-arena-load-daily
 energy-arena-renewable-daily = { cmd = "da-price-energy-arena-renewable-daily", default-environment = "forecast" }
 dwd-icon-daily-update = { cmd = "da-price-dwd-icon-daily-update", default-environment = "ops" }
 open-meteo-availability = { cmd = "da-price-open-meteo-availability", default-environment = "forecast" }
+create-feature-pack = { cmd = "da-price-create-feature-pack", default-environment = "core" }
+check-data-pack = { cmd = "da-price-check-data-pack", default-environment = "core" }
+check-data-final = { cmd = "da-price-check-data-pack --profile final", default-environment = "core" }
 forecast-load-final = { cmd = "da-price-forecast --config configs/final/load/load_forecast_hybrid_entsoe_residual_open_meteo_p10_morning1015_daily_weather_lightgbm_paper_febjul_tw224_f180_pop_weighted_quantiles.yaml", default-environment = "forecast" }
 forecast-load-direct = { cmd = "da-price-forecast --config configs/final/load/load_forecast_direct_actual_open_meteo_p10_morning0915_daily_weather_lightgbm_paper_febjul_tw224_f180_pop_weighted_quantiles.yaml", default-environment = "forecast" }
 forecast-solar-final = { cmd = "da-price-forecast --config configs/final/renewable/renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_cloud_geometry_physics_residual_own_region_daylight_suspicious_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_paper_febjul.yaml", default-environment = "forecast" }

@@ -56,3 +56,19 @@ Users can work in three modes:
 3. Full rebuild mode: refetch ENTSO-E/Open-Meteo/DWD/MaStR data and rerun preprocessing.
 
 See `docs/data_catalog.md` for the required files.
+
+## Recommended Reuse Path
+
+For most users, the practical path is feature-pack mode:
+
+```bash
+tar -xzf DA_Price_Forecasting_DE_LU_Fundamental_data_v0.1.0.tar.gz
+pixi run check-data-final
+pixi run forecast-load-final
+pixi run forecast-solar-final
+pixi run forecast-wind-final
+```
+
+The data pack is not stored in Git. Download it from the matching GitHub
+Release, Zenodo, OSF, or the distribution location named in the release notes.
+See `docs/data_pack.md` for packaging and verification details.

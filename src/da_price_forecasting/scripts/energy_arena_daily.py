@@ -128,6 +128,7 @@ def build_point_submission_payload(
     _normalise_common_submission_fields(config, forecast_date)
     config["objective"] = "point"
     config["value_column"] = config.get("value_column") or "y_pred"
+    config["enable_operational_fallback"] = True
     config["source"] = {
         "kind": "forecast_file",
         "path": str(point_forecast_path),
@@ -150,6 +151,7 @@ def build_quantile_submission_payload(
     payload = dict(quantile_payload)
     config = dict(_config_body(payload))
     _normalise_common_submission_fields(config, forecast_date)
+    config["enable_operational_fallback"] = True
 
     source = dict(config.get("source") or {})
     if source.get("kind") != "sqra":

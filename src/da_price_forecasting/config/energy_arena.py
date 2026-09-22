@@ -129,6 +129,9 @@ class EnergyArenaSubmissionConfig(RepoConfigModel):
     payload_template_path: Path | None = None
     artifacts_dir: Path = Path("results/energy_arena_submissions")
     request_timeout_seconds: int = 30
+    enable_operational_fallback: bool = False
+    operational_fallback_lags_days: list[int] = Field(default_factory=lambda: [1, 7, 2, 3, 4, 5, 6, 14])
+    operational_fallback_max_lookback_days: int = 30
 
     @model_validator(mode="before")
     @classmethod

@@ -304,6 +304,7 @@ def build_renewable_submission_payload(
             "approach_name": approach_name,
             "approach_description": approach_description or DEFAULT_APPROACH_DESCRIPTION,
             "artifacts_dir": "results/energy_arena_submissions",
+            "enable_operational_fallback": True,
         },
     }
 

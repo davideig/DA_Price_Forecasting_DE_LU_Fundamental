@@ -112,16 +112,35 @@ def _run_or_load_lear(
     from ...pipelines.lear import run_lear_operational_prediction_pipeline
 
     config = _load_embedded_or_path_config(source, LearOperationalConfig, submission_config)
+    cached_forecast_path = config.resolved_export_dir / "forecast.csv"
+    fallback_metadata: dict[str, Any] = {}
     if source.run_before_submit:
-        result = run_lear_operational_prediction_pipeline(
-            config=config,
-            forecast_date=_forecast_day(submission_config),
-            save_outputs=True,
-            export_dir=forecast_dir,
-        )
-        forecast = result["forecast"]
+        try:
+            result = run_lear_operational_prediction_pipeline(
+                config=config,
+                forecast_date=_forecast_day(submission_config),
+                save_outputs=True,
+                export_dir=forecast_dir,
+            )
+            forecast = result["forecast"]
+        except Exception as exc:
+            if not submission_config.enable_operational_fallback or not cached_forecast_path.exists():
+                raise
+            print(
+                "[fallback] LEAR source refresh failed; using cached forecast CSV "
+                f"{cached_forecast_path}: {exc}",
+                flush=True,
+            )
+            forecast = load_forecast_frame(cached_forecast_path, config.target_tz)
+            fallback_metadata = {
+                "source_refresh_fallback": {
+                    "type": "cached_forecast_file",
+                    "path": str(cached_forecast_path),
+                    "error": str(exc),
+                },
+            }
     else:
-        forecast = load_forecast_frame(config.resolved_export_dir / "forecast.csv", config.target_tz)
+        forecast = load_forecast_frame(cached_forecast_path, config.target_tz)
 
     return EnergyArenaForecastResult(
         forecast=forecast,
@@ -131,6 +150,7 @@ def _run_or_load_lear(
             "source_kind": source.kind,
             "run_before_submit": source.run_before_submit,
         }
+        | fallback_metadata
         | _source_config_metadata(source),
         default_value_column="y_pred",
     )
@@ -144,15 +164,34 @@ def _run_or_load_sqra(
     from ...pipelines.sqra import run_sqra_pipeline
 
     config = _load_embedded_or_path_config(source, SqraConfig, submission_config)
+    cached_forecast_path = config.export_dir / "forecast.csv"
+    fallback_metadata: dict[str, Any] = {}
     if source.run_before_submit:
         forecast_day = _forecast_day(submission_config)
         config.test_start = forecast_day.to_pydatetime()
         config.test_end = (forecast_day + pd.Timedelta(minutes=15 * 95)).to_pydatetime()
         config.export_dir = forecast_dir
-        result = run_sqra_pipeline(config=config, save_outputs=True, plot=False)
-        forecast = result["forecast"]
+        try:
+            result = run_sqra_pipeline(config=config, save_outputs=True, plot=False)
+            forecast = result["forecast"]
+        except Exception as exc:
+            if not submission_config.enable_operational_fallback or not cached_forecast_path.exists():
+                raise
+            print(
+                "[fallback] SQRA source refresh failed; using cached forecast CSV "
+                f"{cached_forecast_path}: {exc}",
+                flush=True,
+            )
+            forecast = load_forecast_frame(cached_forecast_path, config.target_tz)
+            fallback_metadata = {
+                "source_refresh_fallback": {
+                    "type": "cached_forecast_file",
+                    "path": str(cached_forecast_path),
+                    "error": str(exc),
+                },
+            }
     else:
-        forecast = load_forecast_frame(config.export_dir / "forecast.csv", config.target_tz)
+        forecast = load_forecast_frame(cached_forecast_path, config.target_tz)
 
     quantile_columns = source.quantile_columns or config.quantile_columns
     default_value_column = source.value_column
@@ -167,6 +206,7 @@ def _run_or_load_sqra(
             "source_kind": source.kind,
             "run_before_submit": source.run_before_submit,
         }
+        | fallback_metadata
         | _source_config_metadata(source),
         default_value_column=default_value_column,
         default_quantile_columns=quantile_columns,
@@ -270,6 +310,8 @@ def _run_or_load_load_forecast_model(
 
     config = _load_embedded_or_path_config(source, LoadForecastModelConfig, submission_config)
     source_name = config.export_dir.name
+    cached_forecast_path = config.export_dir / "forecast.csv"
+    fallback_metadata: dict[str, Any] = {}
     if source.run_before_submit:
         forecast_day = _forecast_day(submission_config)
         if submission_config.objective.value == "quantile" and config.include_rolling_residual_quantiles:
@@ -282,10 +324,27 @@ def _run_or_load_load_forecast_model(
         if config.weather_source == "open_meteo":
             config.open_meteo_end_date = forecast_day.date()
         config.export_dir = forecast_dir
-        result = run_load_forecast_pipeline(config=config, save_outputs=True)
-        forecast = result["forecast"]
+        try:
+            result = run_load_forecast_pipeline(config=config, save_outputs=True)
+            forecast = result["forecast"]
+        except Exception as exc:
+            if not submission_config.enable_operational_fallback or not cached_forecast_path.exists():
+                raise
+            print(
+                "[fallback] Load forecast refresh failed; using cached forecast CSV "
+                f"{cached_forecast_path}: {exc}",
+                flush=True,
+            )
+            forecast = load_forecast_frame(cached_forecast_path, config.target_tz)
+            fallback_metadata = {
+                "source_refresh_fallback": {
+                    "type": "cached_forecast_file",
+                    "path": str(cached_forecast_path),
+                    "error": str(exc),
+                },
+            }
     else:
-        forecast = load_forecast_frame(config.export_dir / "forecast.csv", config.target_tz)
+        forecast = load_forecast_frame(cached_forecast_path, config.target_tz)
 
     return EnergyArenaForecastResult(
         forecast=forecast,
@@ -295,6 +354,7 @@ def _run_or_load_load_forecast_model(
             "source_kind": source.kind,
             "run_before_submit": source.run_before_submit,
         }
+        | fallback_metadata
         | _source_config_metadata(source),
         default_value_column=source.value_column or "Load_Model_MW",
     )

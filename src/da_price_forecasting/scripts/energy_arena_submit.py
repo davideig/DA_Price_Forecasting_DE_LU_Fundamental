@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+from typing import Any
 from urllib.parse import urljoin
 
 import pandas as pd
@@ -16,6 +17,7 @@ except ImportError:
 
 from ..config import EnergyArenaSubmissionConfig, load_config
 from ..integrations.energy_arena.client import EnergyArenaClient
+from ..integrations.energy_arena.fallbacks import apply_operational_submission_fallback
 from ..integrations.energy_arena.formatters import (
     build_candidate_payload,
     build_submission_context,
@@ -62,14 +64,44 @@ def _resolve_submit_url(config: EnergyArenaSubmissionConfig) -> str | None:
 def _build_payload(
     submission_config: EnergyArenaSubmissionConfig,
     forecast_result: EnergyArenaForecastResult,
-) -> tuple[dict, pd.DataFrame]:
+) -> tuple[dict, pd.DataFrame, dict[str, Any] | None]:
+    value_column = submission_config.value_column or forecast_result.default_value_column
+    quantile_columns = submission_config.quantile_columns or forecast_result.default_quantile_columns
+    if submission_config.objective.value == "point":
+        value_column = value_column or "y_pred"
+        submission_columns = [value_column]
+    else:
+        submission_columns = quantile_columns
+    fallback_info = None
+    forecast_df = forecast_result.forecast
+    if submission_config.enable_operational_fallback and submission_columns:
+        forecast_df, fallback_info = apply_operational_submission_fallback(
+            forecast_df,
+            forecast_date=submission_config.forecast_date,
+            target_tz=getattr(forecast_result.model_config, "target_tz", submission_config.target_tz),
+            columns=list(submission_columns),
+            lags_days=submission_config.operational_fallback_lags_days,
+            max_lookback_days=submission_config.operational_fallback_max_lookback_days,
+            source_name=forecast_result.source_name,
+        )
+        if fallback_info is not None:
+            print(
+                "[fallback] Filled Energy Arena submission day "
+                f"{fallback_info['target_day']} from donor day {fallback_info['donor_day']} "
+                f"for columns {fallback_info['columns']}.",
+                flush=True,
+            )
+            forecast_result.forecast = forecast_df
+            forecast_result.metadata = dict(forecast_result.metadata or {})
+            forecast_result.metadata["operational_fallback"] = fallback_info
+
     predictions = extract_submission_predictions(
-        forecast_df=forecast_result.forecast,
+        forecast_df=forecast_df,
         forecast_date=submission_config.forecast_date,
         objective=submission_config.objective.value,
         target_tz=getattr(forecast_result.model_config, "target_tz", submission_config.target_tz),
-        value_column=submission_config.value_column or forecast_result.default_value_column,
-        quantile_columns=submission_config.quantile_columns or forecast_result.default_quantile_columns,
+        value_column=value_column,
+        quantile_columns=quantile_columns,
     )
 
     if submission_config.payload_template_path is None:
@@ -79,7 +111,7 @@ def _build_payload(
             model_config=forecast_result.model_config,
             source_metadata=forecast_result.metadata,
         )
-        return payload, predictions
+        return payload, predictions, fallback_info
 
     template = load_payload_template(submission_config.payload_template_path)
     context = build_submission_context(
@@ -89,7 +121,7 @@ def _build_payload(
         source_metadata=forecast_result.metadata,
     )
     payload = render_payload_template(template, context)
-    return payload, predictions
+    return payload, predictions, fallback_info
 
 
 def run_energy_arena_submission(
@@ -113,7 +145,7 @@ def run_energy_arena_submission(
         forecast_dir=forecast_dir,
     )
 
-    payload, predictions = _build_payload(
+    payload, predictions, fallback_info = _build_payload(
         submission_config=submission_config,
         forecast_result=forecast_result,
     )
@@ -127,6 +159,9 @@ def run_energy_arena_submission(
         json.dump(payload, handle, indent=2)
     with open(artifact_dir / "submission_config.json", "w", encoding="utf-8") as handle:
         json.dump(submission_config.model_dump(mode="json"), handle, indent=2)
+    if fallback_info is not None:
+        with open(artifact_dir / "operational_fallback.json", "w", encoding="utf-8") as handle:
+            json.dump(fallback_info, handle, indent=2)
     if forecast_result.model_config is not None and hasattr(forecast_result.model_config, "model_dump"):
         with open(artifact_dir / "source_config.json", "w", encoding="utf-8") as handle:
             json.dump(forecast_result.model_config.model_dump(mode="json"), handle, indent=2)

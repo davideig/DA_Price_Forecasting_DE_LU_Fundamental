@@ -195,6 +195,7 @@ def _build_submission_payload(
             "approach_name": approach_name,
             "approach_description": approach_description,
             "artifacts_dir": "results/energy_arena_submissions",
+            "enable_operational_fallback": True,
         },
     }
 
@@ -269,12 +270,22 @@ def run_daily_price_final_energy_arena(
     price_config = validate_config_payload(_config_body(price_payload), LearOperationalConfig, repo_root=repo_root)
 
     print("\n--- Running final P_gen price forecast ---")
-    forecast_path = run_point_base_forecasts(
-        lear_config=price_config,
-        forecast_date=day,
-        history_days=point_history_days,
-        export_dir=paths.price_export_dir,
-    )
+    try:
+        forecast_path = run_point_base_forecasts(
+            lear_config=price_config,
+            forecast_date=day,
+            history_days=point_history_days,
+            export_dir=paths.price_export_dir,
+        )
+    except Exception as exc:
+        forecast_path = paths.price_export_dir / "forecast.csv"
+        if not forecast_path.exists():
+            raise
+        print(
+            "[fallback] Final price model refresh failed; using cached forecast CSV "
+            f"{forecast_path}: {exc}",
+            flush=True,
+        )
 
     payload = _build_submission_payload(
         forecast_path=forecast_path,

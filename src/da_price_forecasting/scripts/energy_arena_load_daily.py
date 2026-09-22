@@ -113,6 +113,7 @@ def build_load_submission_payload(
             "approach_description": approach_description
             or "Hybrid ENTSO-E residual load forecast with DWD ICON weather features.",
             "artifacts_dir": "results/energy_arena_submissions",
+            "enable_operational_fallback": True,
         },
     }
 

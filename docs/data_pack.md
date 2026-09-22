@@ -1,12 +1,60 @@
-# Data Pack Guide
+# Data Archive And Pack Guide
 
-The Git repository intentionally tracks code, configs, and documentation, not
-large historical weather/API caches. To make the thesis models reusable, publish
-a versioned data pack next to the Git release.
+The Git repository intentionally avoids raw weather/API downloads. For reusable
+model inputs, it supports two layers:
+
+1. a Git-tracked operational archive under `data/archive/operational/`;
+2. optional immutable data packs for GitHub Releases, Zenodo, or OSF.
+
+The operational archive is the default for the chair VM and for users who want
+to clone the repo and run the final models directly. It stores processed CSV
+caches as compressed Parquet and restores them into the normal runtime layout.
+
+## Git-Tracked Operational Archive
+
+Restore the archive after cloning:
+
+```bash
+pixi run operational-archive restore
+pixi run check-data-thesis
+```
+
+Export a new archive from a machine that has up-to-date live caches:
+
+```bash
+pixi run operational-archive export --dry-run
+pixi run operational-archive export
+git add data/archive/operational
+git commit -m "Update operational data archive YYYY-MM-DD"
+git push
+```
+
+The export includes these live paths by default:
+
+```text
+data/clustering/
+data/raw/renewable_capacity/
+data/cache/entsoe/
+data/processed/
+results/load_forecast_results/
+results/renewable_generation_results/
+results/price_forecast_results/
+```
+
+Raw DWD GRIB folders, Energy Arena submission artifacts, logs, `.env`, and
+machine-specific files are deliberately excluded. The exporter refuses files
+larger than 95 MiB by default because normal Git/GitHub cannot handle very large
+single files gracefully.
+
+On the chair VM, `deployment/chair-vm/register_tasks.ps1` registers a
+post-deadline task named `DAForecast-commit-operational-archive`. It runs after
+the forecast submissions, exports the archive, commits changed archive files,
+and pushes them.
 
 ## What The Data Pack Contains
 
-The default pack includes:
+The optional tar.gz data pack contains the same kind of processed inputs. The
+default pack includes:
 
 ```text
 data/processed/
@@ -56,7 +104,7 @@ the paths included in the pack.
 
 ## Publish The Pack
 
-Do not commit the archive to Git. Attach it to one of:
+Do not commit the tar.gz pack to Git. Attach it to one of:
 
 - a GitHub Release, for example `v0.1.0`;
 - Zenodo;

@@ -1,0 +1,2 @@
+*.parquet binary
+data/archive/operational/** -diff

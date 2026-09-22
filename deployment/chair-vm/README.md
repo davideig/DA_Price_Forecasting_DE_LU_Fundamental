@@ -51,26 +51,34 @@ ENERGY_ARENA_WIND_CHALLENGE_ID
 
 `OPEN_METEO_API_KEY` is optional for the current public Open-Meteo configs that set `open_meteo_api_key_env: null`, but keep it if you still have a key.
 
-## 3. Transfer Operational Data
+## 3. Restore Operational Data
 
-Transfer these directories/files from local storage or from a backup of the old VM:
+The preferred workflow is to restore the Git-tracked Parquet archive:
+
+```bash
+pixi run operational-archive restore
+pixi run check-data-thesis
+```
+
+The archive lives under `data/archive/operational/` in Git. It contains compact
+Parquet copies of the processed data and selected forecast-result caches; the
+restore command materializes the CSV/parquet files expected by the model configs.
+
+If the archive is not available yet, bootstrap from a local bundle or an old VM
+backup with these directories/files:
 
 ```text
 data/clustering/
 data/raw/renewable_capacity/
-data/processed/open_meteo/
-data/processed/renewable_proxy/
-data/processed/renewable_generation/
-data/processed/icon_aggregated_mastr_solar_tso_c25_run06/
-data/processed/icon_aggregated_mastr_wind_c100_run06/
-data/processed/icon_aggregated_c2_run06/
+data/cache/entsoe/
+data/processed/
 results/load_forecast_results/
 results/renewable_generation_results/
 results/price_forecast_results/
-results/sqra_results/
 ```
 
-Do not transfer `data/raw/dwd_icon_daily/` as an archive. The scheduled DWD jobs download the current run, aggregate it, and delete raw GRIB folders afterwards.
+Do not transfer `data/raw/dwd_icon_daily/` as an archive. The scheduled DWD jobs
+download the current run, aggregate it, and delete raw GRIB folders afterwards.
 
 If you use Remote Desktop, enable local folder redirection and copy the files into WSL via `/mnt/c/...`. If the chair network drive is available, store large bundles there and unpack them from WSL.
 
@@ -162,7 +170,12 @@ The tasks are:
 11:20 renewable-wind-submit
 11:30 price-submit
 11:35 load-point-submit
+12:25 commit-operational-archive
 ```
+
+`commit-operational-archive` runs after the Energy-Arena deadline. It exports the
+updated live caches to `data/archive/operational/`, commits changed archive files,
+and pushes them to Git so the repository data archive stays current.
 
 To additionally register the RQ3 cutoff submissions, run this separate
 PowerShell script after filling `ENERGY_ARENA_PRICE_CHALLENGE_ID` in `.env`:

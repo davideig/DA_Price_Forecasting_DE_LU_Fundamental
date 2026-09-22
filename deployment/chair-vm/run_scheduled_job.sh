@@ -174,6 +174,25 @@ case "$job" in
       --retry-interval-minutes 5
     ;;
 
+  commit-operational-archive)
+    lock_dir=".operational_archive_commit.lock"
+    if ! mkdir "$lock_dir" 2>/dev/null; then
+      echo "Operational archive commit already running; lock exists: $lock_dir" >&2
+      exit 1
+    fi
+    trap 'rm -rf "$lock_dir"' EXIT
+
+    git pull --ff-only
+    "$PIXI" run operational-archive export
+    git add data/archive/operational
+    if git diff --cached --quiet -- data/archive/operational; then
+      echo "No operational archive changes to commit."
+    else
+      git commit -m "Update operational data archive $(TZ=Europe/Berlin date +%F)"
+      git push
+    fi
+    ;;
+
   load-quantile-submit)
     echo "Load quantile submission is not packaged in this release repo yet." >&2
     echo "Port a load config with include_rolling_residual_quantiles before scheduling this job." >&2

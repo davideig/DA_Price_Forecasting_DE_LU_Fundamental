@@ -29,6 +29,7 @@ da-price-dwd-icon-daily-update = "da_price_forecasting.scripts.dwd_icon_daily_up
 da-price-open-meteo-availability = "da_price_forecasting.scripts.open_meteo_availability:main"
 da-price-create-feature-pack = "da_price_forecasting.scripts.create_feature_pack:main"
 da-price-check-data-pack = "da_price_forecasting.scripts.check_data_pack:main"
+da-price-operational-archive = "da_price_forecasting.scripts.operational_archive:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

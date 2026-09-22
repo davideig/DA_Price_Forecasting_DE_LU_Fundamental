@@ -5,6 +5,7 @@ from pathlib import Path
 
 from da_price_forecasting.scripts.check_data_pack import collect_required_paths
 from da_price_forecasting.scripts.create_feature_pack import build_feature_pack
+from da_price_forecasting.scripts.operational_archive import export_archive, restore_archive
 
 
 def test_check_data_pack_collects_inputs_but_not_outputs(tmp_path: Path) -> None:
@@ -52,3 +53,59 @@ def test_create_feature_pack_includes_processed_files(tmp_path: Path) -> None:
         names = set(archive.getnames())
     assert "DATA_PACK_MANIFEST.json" in names
     assert "data/processed/load_forecast/actual_load.csv" in names
+
+
+def test_operational_archive_round_trips_csv_with_header_comments(tmp_path: Path) -> None:
+    source = tmp_path / "data" / "processed" / "icon_aggregated_c2_run06" / "dwd_icon_daily_20260921_06"
+    source.mkdir(parents=True)
+    csv_path = source / "ASWDIR_S_W_m-2_2026092106_instantaneous.csv"
+    csv_path.write_text(
+        "\n".join(
+            [
+                "# Folder: aswdir_s",
+                "# Variable: ASWDIR_S",
+                "timestamp,cluster_0,cluster_1",
+                "2026-09-22T00:00:00+00:00,1.5,2.5",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    status = export_archive(
+        repo_root=tmp_path,
+        archive_root=tmp_path / "data" / "archive" / "operational",
+        include_paths=[Path("data/processed")],
+        compression="zstd",
+        dry_run=False,
+        max_file_mb=95.0,
+        allow_large_files=False,
+    )
+    assert status == 0
+    assert (tmp_path / "data" / "archive" / "operational" / "manifest.json").exists()
+    assert (
+        tmp_path
+        / "data"
+        / "archive"
+        / "operational"
+        / "data"
+        / "processed"
+        / "icon_aggregated_c2_run06"
+        / "dwd_icon_daily_20260921_06"
+        / "ASWDIR_S_W_m-2_2026092106_instantaneous.parquet"
+    ).exists()
+
+    csv_path.unlink()
+
+    status = restore_archive(
+        repo_root=tmp_path,
+        archive_root=tmp_path / "data" / "archive" / "operational",
+        dry_run=False,
+        overwrite=True,
+    )
+
+    assert status == 0
+    restored = csv_path.read_text(encoding="utf-8")
+    assert "# Variable: ASWDIR_S" in restored
+    assert "timestamp,cluster_0,cluster_1" in restored
+    assert "2026-09-22T00:00:00+00:00,1.5,2.5" in restored

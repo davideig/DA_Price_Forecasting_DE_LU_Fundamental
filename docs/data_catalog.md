@@ -1,7 +1,14 @@
 # Data Catalog
 
-The release repository should not contain heavy raw or processed data. It should
-document what is required and where the files must be placed.
+The release repository should not contain heavy raw weather downloads. It can
+track the compact operational archive under `data/archive/operational/`: CSV
+caches are stored there as compressed Parquet and restored into the runtime
+paths before a model run.
+
+```bash
+pixi run operational-archive restore
+pixi run check-data-thesis
+```
 
 ## Required Processed Data
 
@@ -37,8 +44,20 @@ RQ3:
 
 ## Recommended Distribution
 
-For reproducibility, publish a compressed feature pack outside Git, for example
-on Zenodo, OSF, or a GitHub Release asset:
+The preferred day-to-day workflow is the Git-tracked operational archive:
+
+```text
+data/archive/operational/manifest.json
+data/archive/operational/data/processed/**/*.parquet
+data/archive/operational/results/**/*.{parquet,json,yaml}
+```
+
+The VM updates the live CSV caches during the morning runs, exports this archive
+after the submission window, and pushes the changed Parquet files to Git. Users
+clone the repo, restore the archive, and run the same configs as the VM.
+
+For immutable paper releases, also publish a compressed feature pack outside
+Git, for example on Zenodo, OSF, or a GitHub Release asset:
 
 ```text
 data_processed_feature_pack_thesis_febjul.tar.zst
@@ -47,9 +66,11 @@ data_processed_feature_pack_thesis_febjul.tar.zst
 The feature pack should unpack into `data/processed/` and, if needed,
 `data/cache/entsoe/`.
 
-This repository includes helper commands for that workflow:
+This repository includes helper commands for both workflows:
 
 ```bash
+pixi run operational-archive restore
+pixi run operational-archive export --dry-run
 pixi run create-feature-pack --dry-run
 pixi run create-feature-pack
 pixi run create-feature-pack --include-results

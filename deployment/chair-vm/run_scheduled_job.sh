@@ -120,6 +120,7 @@ case "$job" in
   price-cutoff-0700-submit)
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 0700 \
+      --submit-first-stage \
       --retry-until 06:55 \
       --retry-interval-minutes 5
     ;;
@@ -127,6 +128,7 @@ case "$job" in
   price-cutoff-0800-submit)
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 0800 \
+      --submit-first-stage \
       --retry-until 07:55 \
       --retry-interval-minutes 5
     ;;
@@ -134,6 +136,7 @@ case "$job" in
   price-cutoff-0900-submit)
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 0900 \
+      --submit-first-stage \
       --retry-until 08:55 \
       --retry-interval-minutes 5
     ;;
@@ -141,6 +144,7 @@ case "$job" in
   price-cutoff-1000-submit)
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 1000 \
+      --submit-first-stage \
       --retry-until 09:55 \
       --retry-interval-minutes 5
     ;;
@@ -148,6 +152,7 @@ case "$job" in
   price-cutoff-1100-submit)
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 1100 \
+      --submit-first-stage \
       --retry-until 10:55 \
       --retry-interval-minutes 5
     ;;
@@ -155,6 +160,7 @@ case "$job" in
   price-cutoff-1200-submit)
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 1200 \
+      --submit-first-stage \
       --retry-until 11:55 \
       --retry-interval-minutes 5
     ;;

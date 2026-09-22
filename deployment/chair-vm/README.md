@@ -115,11 +115,11 @@ silently impute missing values; the final price run still fails if the cache doe
 not cover the target day.
 
 RQ3 cutoff submissions are available through a separate runner. Energy-Arena
-uses the same DE-LU point price challenge ID for all cutoff leaderboards; the
+uses the same challenge ID for all cutoff leaderboards of a target; the
 submission timestamp decides whether the forecast counts for the 07:00, 08:00,
-09:00, 10:00, 11:00, or 12:00 cutoff. Each runner refreshes its own load,
-solar, and wind first-stage forecasts before running the matching RQ3 price
-model:
+09:00, 10:00, 11:00, or 12:00 cutoff. Each price cutoff run refreshes its own
+load, solar, and wind first-stage forecasts before running the matching RQ3
+price model:
 
 ```bash
 pixi run energy-arena-price-cutoff-daily --cutoff 0700 --dry-run
@@ -127,7 +127,10 @@ pixi run energy-arena-price-cutoff-daily --cutoff 1200 --dry-run
 ```
 
 The supported cutoffs are `0700`, `0800`, `0900`, `1000`, `1100`, and `1200`.
-They all read `ENERGY_ARENA_PRICE_CHALLENGE_ID` from `.env`.
+They all read `ENERGY_ARENA_PRICE_CHALLENGE_ID` from `.env`. Add
+`--submit-first-stage` to also submit the generated load, solar, and onshore
+wind forecasts to `ENERGY_ARENA_LOAD_CHALLENGE_ID`,
+`ENERGY_ARENA_SOLAR_CHALLENGE_ID`, and `ENERGY_ARENA_WIND_CHALLENGE_ID`.
 
 ## 5. Register Daily Tasks
 
@@ -168,7 +171,8 @@ PowerShell script after filling `ENERGY_ARENA_PRICE_CHALLENGE_ID` in `.env`:
 .\deployment\chair-vm\register_cutoff_tasks.ps1
 ```
 
-The optional cutoff tasks are:
+The optional cutoff tasks submit load, solar, onshore wind, and price for the
+same cutoff information set:
 
 ```text
 06:40 price-cutoff-0700-submit

@@ -46,6 +46,10 @@ All cutoff submissions use the DE-LU point price challenge ID from
 `ENERGY_ARENA_PRICE_CHALLENGE_ID`; Energy-Arena assigns them to cutoff
 leaderboards based on the submission timestamp.
 
+The deployment tasks run the cutoff runner with `--submit-first-stage`, so each
+cutoff also submits the generated load, solar, and onshore wind forecasts that
+feed the price model.
+
 ## Output
 
 The main forecast column is `y_pred`.

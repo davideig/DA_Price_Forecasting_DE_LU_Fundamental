@@ -73,6 +73,9 @@ These runs all submit to the DE-LU point price challenge ID in
 `ENERGY_ARENA_PRICE_CHALLENGE_ID`. The Energy-Arena cutoff leaderboard is chosen
 from the actual submission timestamp.
 
+For production, the registered cutoff tasks use `--submit-first-stage` so load,
+solar, onshore wind, and price are submitted for the same cutoff information set.
+
 ## Data Modes
 
 Users can work in three modes:

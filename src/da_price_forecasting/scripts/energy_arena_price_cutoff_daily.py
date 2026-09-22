@@ -10,11 +10,12 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from ..config import LearOperationalConfig, RunConfig, validate_config_payload
-from ..paths import find_repo_root
+from ..paths import find_repo_root, resolve_path
 from .energy_arena_daily import run_point_base_forecasts, tomorrow_in_tz
 from .energy_arena_price_final_daily import (
     DEFAULT_CHALLENGE_ID_ENV,
     _build_submission_payload,
+    _config_body,
     _load_payload,
     _mutate_first_stage_payload,
     _mutate_price_payload,
@@ -28,6 +29,9 @@ from .run import run_from_config
 
 
 DEFAULT_WORK_ROOT = Path("results/energy_arena_work/price_cutoff_grid")
+DEFAULT_LOAD_CHALLENGE_ID_ENV = "ENERGY_ARENA_LOAD_CHALLENGE_ID"
+DEFAULT_SOLAR_CHALLENGE_ID_ENV = "ENERGY_ARENA_SOLAR_CHALLENGE_ID"
+DEFAULT_WIND_CHALLENGE_ID_ENV = "ENERGY_ARENA_WIND_CHALLENGE_ID"
 
 
 @dataclass(frozen=True)
@@ -109,6 +113,9 @@ class CutoffDailyPaths:
     def submission_config(self) -> Path:
         return self.generated_config_dir / "energy_arena_price_cutoff_submission.generated.yaml"
 
+    def first_stage_submission_config(self, label: str) -> Path:
+        return self.generated_config_dir / f"energy_arena_{label}_cutoff_submission.generated.yaml"
+
 
 def cutoff_work_paths(repo_root: Path, forecast_date: date, cutoff: str, work_root: Path | None = None) -> CutoffDailyPaths:
     root = (work_root or DEFAULT_WORK_ROOT)
@@ -131,14 +138,97 @@ def _price_payload_with_cutoff_export(price_payload: dict, paths: CutoffDailyPat
     return updated
 
 
+def _forecast_file_from_payload(payload: dict, repo_root: Path) -> Path:
+    export_dir = _config_body(payload).get("export_dir")
+    if not export_dir:
+        raise ValueError("First-stage config must define export_dir to submit its forecast.")
+    return resolve_path(Path(export_dir), repo_root) / "forecast.csv"
+
+
+def _build_first_stage_submission_payload(
+    *,
+    forecast_path: Path,
+    forecast_date: date,
+    challenge_id: int,
+    submit: bool,
+    target_tz: str,
+    value_column: str,
+    source_name: str,
+    approach_name: str,
+    approach_description: str,
+) -> dict:
+    return {
+        "kind": "energy_arena_submit",
+        "submit": submit,
+        "config": {
+            "repo_root": ".",
+            "source": {
+                "kind": "forecast_file",
+                "path": str(forecast_path),
+                "name": source_name,
+                "value_column": value_column,
+            },
+            "forecast_date": forecast_date.isoformat(),
+            "challenge_id": challenge_id,
+            "target_tz": target_tz,
+            "objective": "point",
+            "value_column": value_column,
+            "forecast_visibility": "closed",
+            "leaderboard_visibility": "public",
+            "approach_name": approach_name,
+            "approach_description": approach_description,
+            "artifacts_dir": "results/energy_arena_submissions",
+        },
+    }
+
+
+def _first_stage_submission_specs(
+    *,
+    cutoff: str,
+    load_challenge_id: int,
+    solar_challenge_id: int,
+    wind_challenge_id: int,
+) -> dict[str, dict[str, str | int]]:
+    return {
+        "load": {
+            "challenge_id": load_challenge_id,
+            "value_column": "Load_Model_MW",
+            "source_name": f"load_cutoff_{cutoff}",
+            "approach_name": f"load_cutoff_{cutoff}_first_stage",
+            "approach_description": f"RQ3 {cutoff} cutoff own load forecast used by the final price model.",
+        },
+        "solar": {
+            "challenge_id": solar_challenge_id,
+            "value_column": "Solar_Model_MW",
+            "source_name": f"solar_cutoff_{cutoff}",
+            "approach_name": f"solar_cutoff_{cutoff}_first_stage",
+            "approach_description": f"RQ3 {cutoff} cutoff own solar generation forecast used by the final price model.",
+        },
+        "wind": {
+            "challenge_id": wind_challenge_id,
+            "value_column": "Wind_Onshore_Model_MW",
+            "source_name": f"wind_onshore_cutoff_{cutoff}",
+            "approach_name": f"wind_onshore_cutoff_{cutoff}_first_stage",
+            "approach_description": f"RQ3 {cutoff} cutoff own onshore wind forecast used by the final price model.",
+        },
+    }
+
+
 def run_daily_price_cutoff_energy_arena(
     *,
     cutoff: str,
     challenge_id: int | None = None,
+    load_challenge_id: int | None = None,
+    solar_challenge_id: int | None = None,
+    wind_challenge_id: int | None = None,
+    load_challenge_id_env: str = DEFAULT_LOAD_CHALLENGE_ID_ENV,
+    solar_challenge_id_env: str = DEFAULT_SOLAR_CHALLENGE_ID_ENV,
+    wind_challenge_id_env: str = DEFAULT_WIND_CHALLENGE_ID_ENV,
     forecast_date: date | None = None,
     target_tz: str = "Europe/Berlin",
     work_root: Path | None = None,
     submit: bool = True,
+    submit_first_stage: bool = False,
     refresh_first_stage: bool = True,
     fallback_to_cached_first_stage: bool = True,
     first_stage_history_days: int | None = None,
@@ -149,6 +239,14 @@ def run_daily_price_cutoff_energy_arena(
     day = forecast_date or tomorrow_in_tz(target_tz)
     paths = cutoff_work_paths(repo_root=repo_root, forecast_date=day, cutoff=cutoff, work_root=work_root)
     resolved_challenge_id = _resolve_challenge_id(challenge_id, DEFAULT_CHALLENGE_ID_ENV, repo_root)
+    first_stage_submission_specs: dict[str, dict[str, str | int]] = {}
+    if submit_first_stage:
+        first_stage_submission_specs = _first_stage_submission_specs(
+            cutoff=cutoff,
+            load_challenge_id=_resolve_challenge_id(load_challenge_id, load_challenge_id_env, repo_root),
+            solar_challenge_id=_resolve_challenge_id(solar_challenge_id, solar_challenge_id_env, repo_root),
+            wind_challenge_id=_resolve_challenge_id(wind_challenge_id, wind_challenge_id_env, repo_root),
+        )
 
     raw_price_payload = _load_payload(spec.price_config, repo_root)
     price_train_days = _price_train_days(raw_price_payload)
@@ -160,6 +258,7 @@ def run_daily_price_cutoff_energy_arena(
     print(f"Price model: {spec.price_config}")
     print(f"First-stage cache window: {first_stage_start.isoformat()} -> {day.isoformat()}")
 
+    first_stage_payloads: dict[str, dict] = {}
     if refresh_first_stage:
         for label, config_path in (
             ("load", spec.load_config),
@@ -173,6 +272,7 @@ def run_daily_price_cutoff_energy_arena(
                 history_start=first_stage_start,
                 target_tz=target_tz,
             )
+            first_stage_payloads[label] = payload
             try:
                 _run_first_stage_payload(payload, repo_root=repo_root, forecast_date=day)
             except Exception as exc:
@@ -185,6 +285,45 @@ def run_daily_price_cutoff_energy_arena(
                 )
     else:
         print(f"[cache] Reusing existing RQ3 {cutoff} first-stage load/solar/wind forecast CSVs.")
+        for label, config_path in (
+            ("load", spec.load_config),
+            ("solar", spec.solar_config),
+            ("wind", spec.wind_config),
+        ):
+            first_stage_payloads[label] = _mutate_first_stage_payload(
+                _load_payload(config_path, repo_root),
+                forecast_date=day,
+                history_start=first_stage_start,
+                target_tz=target_tz,
+            )
+
+    first_stage_submissions: dict[str, dict[str, int | str | bool]] = {}
+    if submit_first_stage:
+        print("\n--- Building Energy Arena RQ3 cutoff first-stage submissions ---")
+        for label in ("load", "solar", "wind"):
+            forecast_path = _forecast_file_from_payload(first_stage_payloads[label], repo_root)
+            submission_spec = first_stage_submission_specs[label]
+            payload = _build_first_stage_submission_payload(
+                forecast_path=forecast_path,
+                forecast_date=day,
+                challenge_id=int(submission_spec["challenge_id"]),
+                submit=submit,
+                target_tz=target_tz,
+                value_column=str(submission_spec["value_column"]),
+                source_name=str(submission_spec["source_name"]),
+                approach_name=str(submission_spec["approach_name"]),
+                approach_description=str(submission_spec["approach_description"]),
+            )
+            submission_config = paths.first_stage_submission_config(label)
+            _write_yaml(submission_config, payload)
+            run_from_config(validate_config_payload(payload, RunConfig, repo_root=repo_root), submit_override=submit)
+            first_stage_submissions[label] = {
+                "challenge_id": int(submission_spec["challenge_id"]),
+                "value_column": str(submission_spec["value_column"]),
+                "forecast_path": str(forecast_path),
+                "submission_config": str(submission_config),
+                "submit": submit,
+            }
 
     price_payload = _mutate_price_payload(
         raw_price_payload,
@@ -228,6 +367,8 @@ def run_daily_price_cutoff_energy_arena(
                 "submit": submit,
                 "challenge_id": resolved_challenge_id,
                 "challenge_id_env": DEFAULT_CHALLENGE_ID_ENV,
+                "submit_first_stage": submit_first_stage,
+                "first_stage_submissions": first_stage_submissions,
                 "price_config_path": str(spec.price_config),
                 "forecast_path": str(forecast_path),
                 "submission_config": str(paths.submission_config),
@@ -255,10 +396,17 @@ def run_daily_price_cutoff_energy_arena_with_retries(
     *,
     cutoff: str,
     challenge_id: int | None,
+    load_challenge_id: int | None,
+    solar_challenge_id: int | None,
+    wind_challenge_id: int | None,
+    load_challenge_id_env: str,
+    solar_challenge_id_env: str,
+    wind_challenge_id_env: str,
     forecast_date: date | None,
     target_tz: str,
     work_root: Path | None,
     submit: bool,
+    submit_first_stage: bool,
     refresh_first_stage: bool,
     fallback_to_cached_first_stage: bool,
     first_stage_history_days: int | None,
@@ -275,10 +423,17 @@ def run_daily_price_cutoff_energy_arena_with_retries(
             return run_daily_price_cutoff_energy_arena(
                 cutoff=cutoff,
                 challenge_id=challenge_id,
+                load_challenge_id=load_challenge_id,
+                solar_challenge_id=solar_challenge_id,
+                wind_challenge_id=wind_challenge_id,
+                load_challenge_id_env=load_challenge_id_env,
+                solar_challenge_id_env=solar_challenge_id_env,
+                wind_challenge_id_env=wind_challenge_id_env,
                 forecast_date=forecast_date,
                 target_tz=target_tz,
                 work_root=work_root,
                 submit=submit,
+                submit_first_stage=submit_first_stage,
                 refresh_first_stage=refresh_first_stage,
                 fallback_to_cached_first_stage=fallback_to_cached_first_stage,
                 first_stage_history_days=first_stage_history_days,
@@ -304,10 +459,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run one RQ3 cutoff-grid Energy Arena price submission workflow.")
     parser.add_argument("--cutoff", choices=sorted(CUTOFF_SPECS), required=True)
     parser.add_argument("--challenge-id", type=int, default=None)
+    parser.add_argument("--load-challenge-id", type=int, default=None)
+    parser.add_argument("--solar-challenge-id", type=int, default=None)
+    parser.add_argument("--wind-challenge-id", type=int, default=None)
+    parser.add_argument("--load-challenge-id-env", default=DEFAULT_LOAD_CHALLENGE_ID_ENV)
+    parser.add_argument("--solar-challenge-id-env", default=DEFAULT_SOLAR_CHALLENGE_ID_ENV)
+    parser.add_argument("--wind-challenge-id-env", default=DEFAULT_WIND_CHALLENGE_ID_ENV)
     parser.add_argument("--forecast-date", type=date.fromisoformat, default=None, help="Target date; defaults to tomorrow.")
     parser.add_argument("--target-tz", default="Europe/Berlin")
     parser.add_argument("--work-root", type=Path, default=None)
     parser.add_argument("--dry-run", action="store_true", help="Generate payloads but do not submit to Energy Arena.")
+    parser.add_argument(
+        "--submit-first-stage",
+        action="store_true",
+        help="Also submit the regenerated or cached load, solar, and onshore wind forecasts for this cutoff.",
+    )
     parser.add_argument(
         "--skip-first-stage-refresh",
         action="store_true",
@@ -338,10 +504,17 @@ def main(argv: list[str] | None = None) -> None:
     run_daily_price_cutoff_energy_arena_with_retries(
         cutoff=args.cutoff,
         challenge_id=args.challenge_id,
+        load_challenge_id=args.load_challenge_id,
+        solar_challenge_id=args.solar_challenge_id,
+        wind_challenge_id=args.wind_challenge_id,
+        load_challenge_id_env=args.load_challenge_id_env,
+        solar_challenge_id_env=args.solar_challenge_id_env,
+        wind_challenge_id_env=args.wind_challenge_id_env,
         forecast_date=args.forecast_date,
         target_tz=args.target_tz,
         work_root=args.work_root,
         submit=not args.dry_run,
+        submit_first_stage=args.submit_first_stage,
         refresh_first_stage=not args.skip_first_stage_refresh,
         fallback_to_cached_first_stage=not args.no_fallback_to_cached_first_stage,
         first_stage_history_days=args.first_stage_history_days,

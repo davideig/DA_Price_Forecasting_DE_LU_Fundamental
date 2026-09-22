@@ -20,6 +20,7 @@ Expected local layout:
 ```text
 data/
   archive/operational/
+  shapefile/
   processed/
   cache/
   raw/

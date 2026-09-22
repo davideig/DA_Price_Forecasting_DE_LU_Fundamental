@@ -31,6 +31,7 @@ echo "[setup] Installing Pixi environments..."
 pixi install
 
 mkdir -p \
+  data/shapefile \
   data/raw/dwd_icon_daily \
   data/raw/renewable_capacity \
   data/processed/open_meteo \
@@ -50,6 +51,9 @@ if [ ! -f .env ]; then
 fi
 
 chmod +x deployment/chair-vm/run_scheduled_job.sh
+chmod +x deployment/chair-vm/ensure_natural_earth_shapefile.sh
+
+deployment/chair-vm/ensure_natural_earth_shapefile.sh
 
 echo "[setup] Done. Next:"
 echo "  1. Fill .env"

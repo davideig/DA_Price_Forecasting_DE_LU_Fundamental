@@ -38,6 +38,9 @@ def test_create_feature_pack_includes_processed_files(tmp_path: Path) -> None:
     processed = tmp_path / "data" / "processed" / "load_forecast"
     processed.mkdir(parents=True)
     (processed / "actual_load.csv").write_text("timestamp,load\n", encoding="utf-8")
+    shapefile = tmp_path / "data" / "shapefile"
+    shapefile.mkdir(parents=True)
+    (shapefile / "ne_10m_admin_0_countries.shp").write_text("placeholder\n", encoding="utf-8")
     output = tmp_path / "pack.tar.gz"
 
     status = build_feature_pack(
@@ -53,6 +56,7 @@ def test_create_feature_pack_includes_processed_files(tmp_path: Path) -> None:
         names = set(archive.getnames())
     assert "DATA_PACK_MANIFEST.json" in names
     assert "data/processed/load_forecast/actual_load.csv" in names
+    assert "data/shapefile/ne_10m_admin_0_countries.shp" in names
 
 
 def test_operational_archive_round_trips_csv_with_header_comments(tmp_path: Path) -> None:

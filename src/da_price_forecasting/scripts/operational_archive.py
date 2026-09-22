@@ -20,6 +20,7 @@ MANIFEST_NAME = "manifest.json"
 
 DEFAULT_INCLUDE_PATHS = (
     "data/clustering",
+    "data/shapefile",
     "data/raw/renewable_capacity",
     "data/cache/entsoe",
     "data/processed",

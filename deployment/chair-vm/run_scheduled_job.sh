@@ -65,8 +65,13 @@ cleanup_raw_dwd() {
   rm -rf data/raw/dwd_icon_daily/dwd_icon_daily_* || true
 }
 
+ensure_natural_earth_shapefile() {
+  deployment/chair-vm/ensure_natural_earth_shapefile.sh
+}
+
 case "$job" in
   dwd-wind-update)
+    ensure_natural_earth_shapefile
     cleanup_raw_dwd
     "$PIXI" run -e ops da-price-dwd-icon-daily-update \
       --config "$DWD_WIND_CONFIG" \
@@ -75,6 +80,7 @@ case "$job" in
     ;;
 
   dwd-solar-update)
+    ensure_natural_earth_shapefile
     cleanup_raw_dwd
     "$PIXI" run -e ops da-price-dwd-icon-daily-update \
       --config "$DWD_SOLAR_CONFIG" \

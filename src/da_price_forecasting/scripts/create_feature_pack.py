@@ -13,6 +13,7 @@ from da_price_forecasting.paths import find_repo_root
 DEFAULT_INCLUDE_PATHS = (
     "data/processed",
     "data/clustering",
+    "data/shapefile",
     "data/raw/renewable_capacity",
     "data/cache/entsoe",
 )

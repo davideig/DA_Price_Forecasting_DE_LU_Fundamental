@@ -33,6 +33,7 @@ The export includes these live paths by default:
 
 ```text
 data/clustering/
+data/shapefile/
 data/raw/renewable_capacity/
 data/cache/entsoe/
 data/processed/
@@ -59,13 +60,15 @@ default pack includes:
 ```text
 data/processed/
 data/clustering/
+data/shapefile/
 data/raw/renewable_capacity/
 data/cache/entsoe/
 ```
 
 These folders contain the processed model inputs: ENTSO-E target series,
 Open-Meteo archives, DWD/ICON aggregations, MaStR-derived renewable proxy
-features, population weights, reserve-market features, and clustering maps.
+features, population weights, reserve-market features, clustering maps, and the
+small Natural Earth country shapefile needed for DWD Germany masking.
 
 If you also want users to run price experiments immediately without regenerating
 first-stage forecasts, include model outputs too:

@@ -7,6 +7,7 @@ paths=(
   "configs/deployment/energy_arena_point_submission.yaml"
   "configs/deployment/energy_arena_sqra_quantile_submission.yaml"
   "data/clustering"
+  "data/shapefile"
   "data/raw/renewable_capacity"
   "data/processed/load_forecast"
   "data/processed/open_meteo"

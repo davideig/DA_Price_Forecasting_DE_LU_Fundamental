@@ -19,6 +19,7 @@ Load models:
 
 Solar model:
 
+- `data/shapefile/ne_10m_admin_0_countries.*`
 - `data/processed/renewable_generation/`
 - `data/processed/renewable_proxy/`
 - `data/processed/icon_aggregated_mastr_solar_tso_c25_run06/` or the matching
@@ -26,6 +27,7 @@ Solar model:
 
 Wind model:
 
+- `data/shapefile/ne_10m_admin_0_countries.*`
 - `data/processed/renewable_generation/`
 - `data/processed/renewable_proxy/`
 - `data/processed/icon_aggregated_mastr_wind_c100_run06/` or the matching

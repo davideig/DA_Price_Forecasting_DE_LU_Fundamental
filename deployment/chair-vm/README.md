@@ -69,6 +69,7 @@ backup with these directories/files:
 
 ```text
 data/clustering/
+data/shapefile/
 data/raw/renewable_capacity/
 data/cache/entsoe/
 data/processed/
@@ -79,6 +80,8 @@ results/price_forecast_results/
 
 Do not transfer `data/raw/dwd_icon_daily/` as an archive. The scheduled DWD jobs
 download the current run, aggregate it, and delete raw GRIB folders afterwards.
+The setup and DWD jobs also ensure the small Natural Earth country shapefile is
+present under `data/shapefile/`; it is used to build the Germany grid mask.
 
 If you use Remote Desktop, enable local folder redirection and copy the files into WSL via `/mnt/c/...`. If the chair network drive is available, store large bundles there and unpack them from WSL.
 

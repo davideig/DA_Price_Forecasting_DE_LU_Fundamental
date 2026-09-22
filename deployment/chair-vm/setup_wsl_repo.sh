@@ -37,6 +37,10 @@ mkdir -p \
   data/processed/renewable_proxy \
   data/processed/renewable_generation \
   logs/chair_vm_tasks \
+  results/load_forecast_results \
+  results/renewable_generation_results \
+  results/price_forecast_results \
+  results/sqra_results \
   results/energy_arena_submissions \
   results/energy_arena_work
 
@@ -51,4 +55,3 @@ echo "[setup] Done. Next:"
 echo "  1. Fill .env"
 echo "  2. Transfer operational data"
 echo "  3. Run dry runs from deployment/chair-vm/README.md"
-

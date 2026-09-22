@@ -112,7 +112,7 @@ case "$job" in
     ;;
 
   price-submit)
-    "$PIXI" run energy-arena-daily \
+    "$PIXI" run energy-arena-price-final-daily \
       --retry-until 11:55 \
       --retry-interval-minutes 5
     ;;

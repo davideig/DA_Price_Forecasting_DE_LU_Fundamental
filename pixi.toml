@@ -128,6 +128,7 @@ tabpfn-ts = { cmd = "da-price-forecast --config configs/tabpfn_ts.yaml", default
 tabpfn-local = { cmd = "da-price-forecast --config configs/tabpfn_local.yaml", default-environment = "tabpfn" }
 energy-arena-point = { cmd = "da-price-forecast --config configs/deployment/energy_arena_point_submission.yaml", default-environment = "forecast" }
 energy-arena-daily = { cmd = "da-price-energy-arena-daily", default-environment = "forecast" }
+energy-arena-price-final-daily = { cmd = "da-price-energy-arena-price-final-daily", default-environment = "forecast" }
 energy-arena-load-daily = { cmd = "da-price-energy-arena-load-daily", default-environment = "forecast" }
 energy-arena-load-open-meteo-daily = { cmd = "da-price-energy-arena-load-daily --model-config configs/final/load/load_forecast_hybrid_entsoe_residual_open_meteo_p10_morning1015_daily_weather_lightgbm_paper_febjul_tw224_f180_pop_weighted_quantiles.yaml --approach-name load_open_meteo_p10_morning1015_lightgbm_pop_weighted_quantiles", default-environment = "forecast" }
 energy-arena-load-daily-with-weather = { cmd = "da-price-energy-arena-load-daily-with-weather", default-environment = "ops" }
@@ -137,6 +138,8 @@ open-meteo-availability = { cmd = "da-price-open-meteo-availability", default-en
 create-feature-pack = { cmd = "da-price-create-feature-pack", default-environment = "core" }
 check-data-pack = { cmd = "da-price-check-data-pack", default-environment = "core" }
 check-data-final = { cmd = "da-price-check-data-pack --profile final", default-environment = "core" }
+check-data-price-final = { cmd = "da-price-check-data-pack --profile price-final", default-environment = "core" }
+check-data-thesis = { cmd = "da-price-check-data-pack --profile thesis", default-environment = "core" }
 forecast-load-final = { cmd = "da-price-forecast --config configs/final/load/load_forecast_hybrid_entsoe_residual_open_meteo_p10_morning1015_daily_weather_lightgbm_paper_febjul_tw224_f180_pop_weighted_quantiles.yaml", default-environment = "forecast" }
 forecast-load-direct = { cmd = "da-price-forecast --config configs/final/load/load_forecast_direct_actual_open_meteo_p10_morning0915_daily_weather_lightgbm_paper_febjul_tw224_f180_pop_weighted_quantiles.yaml", default-environment = "forecast" }
 forecast-solar-final = { cmd = "da-price-forecast --config configs/final/renewable/renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_cloud_geometry_physics_residual_own_region_daylight_suspicious_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_paper_febjul.yaml", default-environment = "forecast" }

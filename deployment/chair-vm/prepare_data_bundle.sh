@@ -14,6 +14,11 @@ paths=(
   "data/processed/renewable_generation"
   "data/processed/icon_aggregated_mastr_solar_tso_c25_run06"
   "data/processed/icon_aggregated_mastr_wind_c100_run06"
+  "data/processed/icon_aggregated_c2_run06"
+  "results/load_forecast_results"
+  "results/renewable_generation_results"
+  "results/price_forecast_results"
+  "results/sqra_results"
 )
 
 existing=()

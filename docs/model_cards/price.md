@@ -20,6 +20,15 @@ pixi run -e forecast da-price-forecast --config configs/pricebase_sweep/oos_pbas
 pixi run -e forecast da-price-forecast --config configs/pricebase_sweep/oos_pgen_c2_d70.yaml
 ```
 
+Operational final paper stack:
+
+```bash
+pixi run energy-arena-price-final-daily --dry-run
+```
+
+This submission path uses `configs/pricebase_sweep/oos_pgen_c2_d70.yaml` and
+refreshes the generated load, solar, and wind input forecasts before submitting.
+
 RQ3:
 
 ```text

@@ -41,6 +41,20 @@ pixi run -e forecast da-price-forecast --config configs/pricebase_sweep/oos_pbas
 pixi run -e forecast da-price-forecast --config configs/pricebase_sweep/oos_pgen_c2_d70.yaml
 ```
 
+For the operational final paper stack submitted to Energy Arena, use:
+
+```bash
+pixi run energy-arena-price-final-daily --dry-run
+```
+
+This refreshes the generated load, solar, and wind forecast caches first, then
+runs the final `P_gen` LightGBM price model. To reuse already-unpacked cache
+files without refreshing first-stage forecasts:
+
+```bash
+pixi run energy-arena-price-final-daily --dry-run --skip-first-stage-refresh
+```
+
 RQ3 cutoff-grid configs and their order are documented in:
 
 ```text
@@ -64,6 +78,7 @@ For most users, the practical path is feature-pack mode:
 ```bash
 tar -xzf DA_Price_Forecasting_DE_LU_Fundamental_data_v0.1.0.tar.gz
 pixi run check-data-final
+pixi run check-data-price-final
 pixi run forecast-load-final
 pixi run forecast-solar-final
 pixi run forecast-wind-final

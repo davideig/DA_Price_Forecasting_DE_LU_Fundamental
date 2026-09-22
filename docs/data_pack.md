@@ -11,6 +11,7 @@ The default pack includes:
 ```text
 data/processed/
 data/clustering/
+data/raw/renewable_capacity/
 data/cache/entsoe/
 ```
 
@@ -25,6 +26,7 @@ first-stage forecasts, include model outputs too:
 results/load_forecast_results/
 results/renewable_generation_results/
 results/price_forecast_results/
+results/sqra_results/
 results/evaluation/
 ```
 
@@ -84,12 +86,18 @@ pixi run check-data-final
 pixi run forecast-load-final
 pixi run forecast-solar-final
 pixi run forecast-wind-final
+pixi run energy-arena-price-final-daily --dry-run --skip-first-stage-refresh
 ```
 
 For price experiments that rely on generated first-stage forecasts, either:
 
 1. unpack a pack created with `--include-results`, or
 2. run the load, solar, and wind configs first so their `results/` files exist.
+
+Operationally, `energy-arena-price-final-daily` refreshes those first-stage
+caches before submitting. If a refresh fails, it logs a `[fallback]` message and
+tries the already cached CSVs. This is deliberately auditable cache reuse, not
+silent imputation.
 
 ## Verify Data Availability
 
@@ -103,6 +111,12 @@ Check all fixed thesis configs:
 
 ```bash
 pixi run check-data-pack --profile thesis
+```
+
+Check the final paper price stack inputs:
+
+```bash
+pixi run check-data-price-final
 ```
 
 Check a single config:

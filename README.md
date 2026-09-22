@@ -316,12 +316,11 @@ chmod 600 ~/.ssh/config
 ssh -T git@github.com
 ```
 
-Clone and test the repository on the VM:
+Clone and test the release repository on the VM:
 
 ```bash
-git clone git@github.com:philipprisk/DA_Price_Forecasting_Pipeline_DE_LU.git
-cd DA_Price_Forecasting_Pipeline_DE_LU
-git checkout refactor/modularize_pipeline
+git clone git@github.com:davideig/DA_Price_Forecasting_DE_LU_Fundamental.git DA_Price_Forecasting_Pipeline_DE_LU_release
+cd DA_Price_Forecasting_Pipeline_DE_LU_release
 pixi run test
 ```
 
@@ -345,46 +344,51 @@ cp .env.example .env
 nano .env
 ```
 
-### Daily Energy Arena automation
+### Daily Energy Arena price automation
 
-The daily automation runner uses the local, untracked submission configs:
+The deployed price runner is the final paper `P_gen` stack:
 
-- `configs/deployment/energy_arena_point_submission.yaml`
-- `configs/deployment/energy_arena_sqra_quantile_submission.yaml`
+- generated load forecast cache
+- generated solar forecast cache
+- generated wind forecast cache
+- `configs/pricebase_sweep/oos_pgen_c2_d70.yaml`
 
-After changing these configs locally, copy them to the VM:
+For each run it targets tomorrow in `Europe/Berlin`, refreshes the generated
+load/solar/wind forecast caches, runs the final LightGBM price model, writes
+date-specific generated configs under
+`results/energy_arena_work/price_final_pgen/<forecast-date>/`, and submits the
+point forecast. Set `ENERGY_ARENA_PRICE_CHALLENGE_ID` in `.env`.
 
-```bash
-rsync -av configs/deployment/energy_arena_point_submission.yaml configs/deployment/energy_arena_sqra_quantile_submission.yaml \
-  bwcloud-forecasting:~/DA_Price_Forecasting_Pipeline_DE_LU/configs/
-```
-
-For each run it targets tomorrow in `Europe/Berlin`, generates the EXAA-only LEAR point forecasts needed by SQRA, writes date-specific generated configs under `results/energy_arena_work/exaa_only/<forecast-date>/`, submits the point forecast, then submits the SQRA quantile forecast from the `sqra` Pixi environment. Fixed dates in the two local template configs are overwritten by the runner for the target day.
-
-Because the upstream EXAA prices can appear after the scheduled start time, the VM service should use a retry window. The example below starts at 11:30 and retries every 5 minutes until 11:55, stopping as soon as one full point + quantile submission succeeds. The final retry is intentionally before 12:00 so the forecast can still be submitted before the Energy Arena deadline.
+The VM service uses a retry window. The example below starts at 11:30 and
+retries every 5 minutes until 11:55. The final retry is intentionally before
+12:00 so the forecast can still be submitted before the Energy Arena deadline.
+If a first-stage load/solar/wind refresh fails, the runner logs a `[fallback]`
+message and tries the already cached first-stage CSVs. It does not silently
+impute data; the final price run still fails if the cache does not cover the
+target day.
 
 Run a dry run first. This still builds forecasts and payloads, but does not submit to Energy Arena:
 
 ```bash
-pixi run energy-arena-daily --dry-run
+pixi run energy-arena-price-final-daily --dry-run
 ```
 
 To test a specific target day:
 
 ```bash
-pixi run energy-arena-daily --dry-run --forecast-date 2026-04-29
+pixi run energy-arena-price-final-daily --dry-run --forecast-date 2026-04-29
 ```
 
 To submit manually:
 
 ```bash
-pixi run energy-arena-daily
+pixi run energy-arena-price-final-daily
 ```
 
 To submit manually with the same retry behavior as the VM timer:
 
 ```bash
-pixi run energy-arena-daily --retry-until 11:55 --retry-interval-minutes 5
+pixi run energy-arena-price-final-daily --retry-until 11:55 --retry-interval-minutes 5
 ```
 
 On the VM, set the system timezone and create a user-level systemd timer:
@@ -394,38 +398,38 @@ sudo timedatectl set-timezone Europe/Berlin
 loginctl enable-linger ubuntu
 mkdir -p ~/.config/systemd/user
 
-cat > ~/.config/systemd/user/energy-arena-daily.service <<'EOF'
+cat > ~/.config/systemd/user/energy-arena-price-final-daily.service <<'EOF'
 [Unit]
-Description=Daily Energy Arena EXAA-only point and SQRA submission
+Description=Daily Energy Arena final P_gen price submission
 
 [Service]
 Type=oneshot
-WorkingDirectory=%h/DA_Price_Forecasting_Pipeline_DE_LU
-ExecStart=%h/.pixi/bin/pixi run energy-arena-daily --retry-until 11:55 --retry-interval-minutes 5
+WorkingDirectory=%h/DA_Price_Forecasting_Pipeline_DE_LU_release
+ExecStart=%h/.pixi/bin/pixi run energy-arena-price-final-daily --retry-until 11:55 --retry-interval-minutes 5
 EOF
 
-cat > ~/.config/systemd/user/energy-arena-daily.timer <<'EOF'
+cat > ~/.config/systemd/user/energy-arena-price-final-daily.timer <<'EOF'
 [Unit]
 Description=Run Energy Arena submission daily at 11:30 Europe/Berlin
 
 [Timer]
 OnCalendar=*-*-* 11:30:00
 Persistent=true
-Unit=energy-arena-daily.service
+Unit=energy-arena-price-final-daily.service
 
 [Install]
 WantedBy=timers.target
 EOF
 
 systemctl --user daemon-reload
-systemctl --user enable --now energy-arena-daily.timer
-systemctl --user list-timers energy-arena-daily.timer
+systemctl --user enable --now energy-arena-price-final-daily.timer
+systemctl --user list-timers energy-arena-price-final-daily.timer
 ```
 
 Inspect logs with:
 
 ```bash
-journalctl --user -u energy-arena-daily.service -f
+journalctl --user -u energy-arena-price-final-daily.service -f
 ```
 
 ### Daily Energy Arena load automation
@@ -459,7 +463,7 @@ Description=Daily Energy Arena Open-Meteo load forecast submission
 
 [Service]
 Type=oneshot
-WorkingDirectory=%h/DA_Price_Forecasting_Pipeline_DE_LU
+WorkingDirectory=%h/DA_Price_Forecasting_Pipeline_DE_LU_release
 ExecStart=%h/.pixi/bin/pixi run energy-arena-load-open-meteo-daily --retry-until 11:55 --retry-interval-minutes 5
 EOF
 
@@ -496,8 +500,8 @@ pixi run dwd-icon-daily-update --forecast-date 2026-05-23
 For data/results transfer, use `rsync` from your local machine:
 
 ```bash
-rsync -av --progress data/ bwcloud-forecasting:~/DA_Price_Forecasting_Pipeline_DE_LU/data/
-rsync -av --progress bwcloud-forecasting:~/DA_Price_Forecasting_Pipeline_DE_LU/results/ results/
+rsync -av --progress data/ <vm-host>:~/DA_Price_Forecasting_Pipeline_DE_LU_release/data/
+rsync -av --progress <vm-host>:~/DA_Price_Forecasting_Pipeline_DE_LU_release/results/ results/
 ```
 
 ### Renewable generation model runs

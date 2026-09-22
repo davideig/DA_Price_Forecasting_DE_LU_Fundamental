@@ -26,6 +26,11 @@ PROFILE_PATTERNS = {
     "rq2": (
         "configs/pricebase_sweep/*.yaml",
     ),
+    "price-final": (
+        "configs/final/load/price_inputs/*.yaml",
+        "configs/final/renewable/price_inputs/*.yaml",
+        "configs/pricebase_sweep/oos_pgen_c2_d70.yaml",
+    ),
     "rq3": (
         "configs/rq3_cutoff_grid/load_*.yaml",
         "configs/rq3_cutoff_grid/solar_*.yaml",
@@ -34,7 +39,12 @@ PROFILE_PATTERNS = {
         "configs/rq3_cutoff_grid/evaluation_*.yaml",
     ),
 }
-PROFILE_PATTERNS["thesis"] = PROFILE_PATTERNS["final"] + PROFILE_PATTERNS["rq2"] + PROFILE_PATTERNS["rq3"]
+PROFILE_PATTERNS["thesis"] = (
+    PROFILE_PATTERNS["final"]
+    + PROFILE_PATTERNS["price-final"]
+    + PROFILE_PATTERNS["rq2"]
+    + PROFILE_PATTERNS["rq3"]
+)
 
 PATH_KEY_SUFFIXES = ("_file", "_files", "_dir", "_path", "_paths")
 OUTPUT_KEY_PARTS = ("export", "output", "report", "figure")

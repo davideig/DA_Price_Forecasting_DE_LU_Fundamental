@@ -43,6 +43,7 @@ Required keys:
 ```text
 ENTSOE_API_KEY
 ENERGY_ARENA_API_KEY
+ENERGY_ARENA_PRICE_CHALLENGE_ID
 ENERGY_ARENA_LOAD_CHALLENGE_ID
 ENERGY_ARENA_SOLAR_CHALLENGE_ID
 ENERGY_ARENA_WIND_CHALLENGE_ID
@@ -62,8 +63,11 @@ data/processed/renewable_proxy/
 data/processed/renewable_generation/
 data/processed/icon_aggregated_mastr_solar_tso_c25_run06/
 data/processed/icon_aggregated_mastr_wind_c100_run06/
-configs/deployment/energy_arena_point_submission.yaml
-configs/deployment/energy_arena_sqra_quantile_submission.yaml
+data/processed/icon_aggregated_c2_run06/
+results/load_forecast_results/
+results/renewable_generation_results/
+results/price_forecast_results/
+results/sqra_results/
 ```
 
 Do not transfer `data/raw/dwd_icon_daily/` as an archive. The scheduled DWD jobs download the current run, aggregate it, and delete raw GRIB folders afterwards.
@@ -93,8 +97,22 @@ pixi run energy-arena-renewable-daily \
   --wind-value-column Wind_Onshore_Model_MW \
   --dry-run
 
-pixi run energy-arena-daily --dry-run
+pixi run energy-arena-price-final-daily --dry-run
 ```
+
+The price dry run is the final paper `P_gen` stack. It refreshes the generated
+load/solar/wind forecast caches first, then runs the LightGBM price model. If you
+only want to test the final submission formatter against already-present cache
+files, add:
+
+```bash
+pixi run energy-arena-price-final-daily --dry-run --skip-first-stage-refresh
+```
+
+If one first-stage refresh fails operationally, the price runner logs a
+`[fallback]` line and tries the already cached first-stage CSVs. It does not
+silently impute missing values; the final price run still fails if the cache does
+not cover the target day.
 
 ## 5. Register Daily Tasks
 

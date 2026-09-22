@@ -35,6 +35,13 @@ RQ3:
 configs/rq3_cutoff_grid/RUN_ORDER.md
 ```
 
+Operational RQ3 cutoff submission examples:
+
+```bash
+pixi run energy-arena-price-cutoff-daily --cutoff 0700 --dry-run
+pixi run energy-arena-price-cutoff-daily --cutoff 1200 --dry-run
+```
+
 ## Output
 
 The main forecast column is `y_pred`.

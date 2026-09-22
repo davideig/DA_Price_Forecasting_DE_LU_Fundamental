@@ -99,6 +99,13 @@ caches before submitting. If a refresh fails, it logs a `[fallback]` message and
 tries the already cached CSVs. This is deliberately auditable cache reuse, not
 silent imputation.
 
+RQ3 cutoff challenge dry runs use the same data pack and the cutoff-grid configs:
+
+```bash
+pixi run energy-arena-price-cutoff-daily --cutoff 0700 --dry-run --skip-first-stage-refresh
+pixi run energy-arena-price-cutoff-daily --cutoff 1200 --dry-run --skip-first-stage-refresh
+```
+
 ## Verify Data Availability
 
 Check the final first-stage configs:

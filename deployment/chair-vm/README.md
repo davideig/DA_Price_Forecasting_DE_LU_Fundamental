@@ -44,6 +44,12 @@ Required keys:
 ENTSOE_API_KEY
 ENERGY_ARENA_API_KEY
 ENERGY_ARENA_PRICE_CHALLENGE_ID
+ENERGY_ARENA_PRICE_CUTOFF_0700_CHALLENGE_ID
+ENERGY_ARENA_PRICE_CUTOFF_0800_CHALLENGE_ID
+ENERGY_ARENA_PRICE_CUTOFF_0900_CHALLENGE_ID
+ENERGY_ARENA_PRICE_CUTOFF_1000_CHALLENGE_ID
+ENERGY_ARENA_PRICE_CUTOFF_1100_CHALLENGE_ID
+ENERGY_ARENA_PRICE_CUTOFF_1200_CHALLENGE_ID
 ENERGY_ARENA_LOAD_CHALLENGE_ID
 ENERGY_ARENA_SOLAR_CHALLENGE_ID
 ENERGY_ARENA_WIND_CHALLENGE_ID
@@ -114,6 +120,19 @@ If one first-stage refresh fails operationally, the price runner logs a
 silently impute missing values; the final price run still fails if the cache does
 not cover the target day.
 
+RQ3 cutoff challenges are available through a separate runner. Each cutoff
+regenerates its own load, solar, and wind first-stage forecasts before running
+the matching RQ3 price model:
+
+```bash
+pixi run energy-arena-price-cutoff-daily --cutoff 0700 --dry-run
+pixi run energy-arena-price-cutoff-daily --cutoff 1200 --dry-run
+```
+
+The supported cutoffs are `0700`, `0800`, `0900`, `1000`, `1100`, and `1200`.
+Only register these scheduled tasks after the corresponding
+`ENERGY_ARENA_PRICE_CUTOFF_<HHMM>_CHALLENGE_ID` values exist in `.env`.
+
 ## 5. Register Daily Tasks
 
 From Windows PowerShell in the checked-out repo directory mounted through WSL, run:
@@ -144,6 +163,24 @@ The tasks are:
 11:20 renewable-wind-submit
 11:30 price-submit
 11:35 load-point-submit
+```
+
+To additionally register the RQ3 cutoff challenge submissions, run this
+separate PowerShell script after filling the cutoff challenge IDs in `.env`:
+
+```powershell
+.\deployment\chair-vm\register_cutoff_tasks.ps1
+```
+
+The optional cutoff tasks are:
+
+```text
+06:40 price-cutoff-0700-submit
+07:40 price-cutoff-0800-submit
+08:40 price-cutoff-0900-submit
+09:40 price-cutoff-1000-submit
+10:40 price-cutoff-1100-submit
+11:40 price-cutoff-1200-submit
 ```
 
 ## 6. Check Status

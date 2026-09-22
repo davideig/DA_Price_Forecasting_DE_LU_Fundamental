@@ -61,6 +61,14 @@ RQ3 cutoff-grid configs and their order are documented in:
 configs/rq3_cutoff_grid/RUN_ORDER.md
 ```
 
+The operational cutoff runner supports the six paper cutoff times and refreshes
+the matching own load, solar, and wind first-stage forecasts:
+
+```bash
+pixi run energy-arena-price-cutoff-daily --cutoff 0700 --dry-run
+pixi run energy-arena-price-cutoff-daily --cutoff 1200 --dry-run
+```
+
 ## Data Modes
 
 Users can work in three modes:

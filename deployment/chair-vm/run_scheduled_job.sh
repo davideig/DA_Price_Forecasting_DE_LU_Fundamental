@@ -117,6 +117,48 @@ case "$job" in
       --retry-interval-minutes 5
     ;;
 
+  price-cutoff-0700-submit)
+    "$PIXI" run energy-arena-price-cutoff-daily \
+      --cutoff 0700 \
+      --retry-until 06:55 \
+      --retry-interval-minutes 5
+    ;;
+
+  price-cutoff-0800-submit)
+    "$PIXI" run energy-arena-price-cutoff-daily \
+      --cutoff 0800 \
+      --retry-until 07:55 \
+      --retry-interval-minutes 5
+    ;;
+
+  price-cutoff-0900-submit)
+    "$PIXI" run energy-arena-price-cutoff-daily \
+      --cutoff 0900 \
+      --retry-until 08:55 \
+      --retry-interval-minutes 5
+    ;;
+
+  price-cutoff-1000-submit)
+    "$PIXI" run energy-arena-price-cutoff-daily \
+      --cutoff 1000 \
+      --retry-until 09:55 \
+      --retry-interval-minutes 5
+    ;;
+
+  price-cutoff-1100-submit)
+    "$PIXI" run energy-arena-price-cutoff-daily \
+      --cutoff 1100 \
+      --retry-until 10:55 \
+      --retry-interval-minutes 5
+    ;;
+
+  price-cutoff-1200-submit)
+    "$PIXI" run energy-arena-price-cutoff-daily \
+      --cutoff 1200 \
+      --retry-until 11:55 \
+      --retry-interval-minutes 5
+    ;;
+
   load-point-submit)
     "$PIXI" run energy-arena-load-open-meteo-daily \
       --retry-until 11:55 \

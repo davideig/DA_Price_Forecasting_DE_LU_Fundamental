@@ -129,6 +129,7 @@ tabpfn-local = { cmd = "da-price-forecast --config configs/tabpfn_local.yaml", d
 energy-arena-point = { cmd = "da-price-forecast --config configs/deployment/energy_arena_point_submission.yaml", default-environment = "forecast" }
 energy-arena-daily = { cmd = "da-price-energy-arena-daily", default-environment = "forecast" }
 energy-arena-price-final-daily = { cmd = "da-price-energy-arena-price-final-daily", default-environment = "forecast" }
+energy-arena-price-cutoff-daily = { cmd = "da-price-energy-arena-price-cutoff-daily", default-environment = "forecast" }
 energy-arena-load-daily = { cmd = "da-price-energy-arena-load-daily", default-environment = "forecast" }
 energy-arena-load-open-meteo-daily = { cmd = "da-price-energy-arena-load-daily --model-config configs/final/load/load_forecast_hybrid_entsoe_residual_open_meteo_p10_morning1015_daily_weather_lightgbm_paper_febjul_tw224_f180_pop_weighted_quantiles.yaml --approach-name load_open_meteo_p10_morning1015_lightgbm_pop_weighted_quantiles", default-environment = "forecast" }
 energy-arena-load-daily-with-weather = { cmd = "da-price-energy-arena-load-daily-with-weather", default-environment = "ops" }

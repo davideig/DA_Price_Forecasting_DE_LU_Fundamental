@@ -297,6 +297,8 @@ def load_dwd(
         variable_dfs = []
 
         for filename in sorted(os.listdir(folder_path)):
+            if filename.startswith("."):
+                continue
             if not filename.endswith(".csv"):
                 continue
 

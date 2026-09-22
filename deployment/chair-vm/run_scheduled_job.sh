@@ -199,6 +199,10 @@ case "$job" in
     fi
     ;;
 
+  backup-operational-artifacts)
+    deployment/chair-vm/backup_operational_artifacts.sh
+    ;;
+
   load-quantile-submit)
     echo "Load quantile submission is not packaged in this release repo yet." >&2
     echo "Port a load config with include_rolling_residual_quantiles before scheduling this job." >&2

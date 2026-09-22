@@ -51,6 +51,14 @@ ENERGY_ARENA_WIND_CHALLENGE_ID
 
 `OPEN_METEO_API_KEY` is optional for the current public Open-Meteo configs that set `open_meteo_api_key_env: null`, but keep it if you still have a key.
 
+Optionally set `SYNERGIE_BACKUP_DIR` to a WSL-visible Synergie drive folder.
+The scheduled backup job copies the compact operational archive and task logs
+there after the Git archive commit:
+
+```text
+SYNERGIE_BACKUP_DIR=/mnt/u/DA_Price_Forecasting/backups
+```
+
 ## 3. Restore Operational Data
 
 The preferred workflow is to restore the Git-tracked Parquet archive:
@@ -174,11 +182,17 @@ The tasks are:
 11:30 price-submit
 11:35 load-point-submit
 12:25 commit-operational-archive
+12:45 backup-operational-artifacts
 ```
 
 `commit-operational-archive` runs after the Energy-Arena deadline. It exports the
 updated live caches to `data/archive/operational/`, commits changed archive files,
 and pushes them to Git so the repository data archive stays current.
+
+`backup-operational-artifacts` is optional. If `SYNERGIE_BACKUP_DIR` is set in
+`.env`, it writes a `latest/` copy and a daily snapshot of
+`data/archive/operational/` and `logs/chair_vm_tasks/` to the Synergie drive. If
+the variable is unset, it exits successfully after logging a skip.
 
 To additionally register the RQ3 cutoff submissions, run this separate
 PowerShell script after filling `ENERGY_ARENA_PRICE_CHALLENGE_ID` in `.env`:

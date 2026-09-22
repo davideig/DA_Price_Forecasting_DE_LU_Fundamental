@@ -52,6 +52,7 @@ fi
 
 chmod +x deployment/chair-vm/run_scheduled_job.sh
 chmod +x deployment/chair-vm/ensure_natural_earth_shapefile.sh
+chmod +x deployment/chair-vm/backup_operational_artifacts.sh
 
 deployment/chair-vm/ensure_natural_earth_shapefile.sh
 

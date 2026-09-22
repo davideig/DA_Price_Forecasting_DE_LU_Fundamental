@@ -62,8 +62,8 @@ data/processed/renewable_proxy/
 data/processed/renewable_generation/
 data/processed/icon_aggregated_mastr_solar_tso_c25_run06/
 data/processed/icon_aggregated_mastr_wind_c100_run06/
-configs/energy_arena_point_submission.yaml
-configs/energy_arena_sqra_quantile_submission.yaml
+configs/deployment/energy_arena_point_submission.yaml
+configs/deployment/energy_arena_sqra_quantile_submission.yaml
 ```
 
 Do not transfer `data/raw/dwd_icon_daily/` as an archive. The scheduled DWD jobs download the current run, aggregate it, and delete raw GRIB folders afterwards.

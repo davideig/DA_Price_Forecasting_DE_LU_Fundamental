@@ -20,8 +20,8 @@ from ..paths import find_repo_root, resolve_path
 from .run import run_from_config
 
 
-DEFAULT_POINT_CONFIG = Path("configs/energy_arena_point_submission.yaml")
-DEFAULT_QUANTILE_CONFIG = Path("configs/energy_arena_sqra_quantile_submission.yaml")
+DEFAULT_POINT_CONFIG = Path("configs/deployment/energy_arena_point_submission.yaml")
+DEFAULT_QUANTILE_CONFIG = Path("configs/deployment/energy_arena_sqra_quantile_submission.yaml")
 
 
 @dataclass(frozen=True)

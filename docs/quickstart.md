@@ -69,6 +69,10 @@ pixi run energy-arena-price-cutoff-daily --cutoff 0700 --dry-run
 pixi run energy-arena-price-cutoff-daily --cutoff 1200 --dry-run
 ```
 
+These runs all submit to the DE-LU point price challenge ID in
+`ENERGY_ARENA_PRICE_CHALLENGE_ID`. The Energy-Arena cutoff leaderboard is chosen
+from the actual submission timestamp.
+
 ## Data Modes
 
 Users can work in three modes:

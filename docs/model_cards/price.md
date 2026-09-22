@@ -42,6 +42,10 @@ pixi run energy-arena-price-cutoff-daily --cutoff 0700 --dry-run
 pixi run energy-arena-price-cutoff-daily --cutoff 1200 --dry-run
 ```
 
+All cutoff submissions use the DE-LU point price challenge ID from
+`ENERGY_ARENA_PRICE_CHALLENGE_ID`; Energy-Arena assigns them to cutoff
+leaderboards based on the submission timestamp.
+
 ## Output
 
 The main forecast column is `y_pred`.

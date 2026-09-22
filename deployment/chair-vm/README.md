@@ -44,12 +44,6 @@ Required keys:
 ENTSOE_API_KEY
 ENERGY_ARENA_API_KEY
 ENERGY_ARENA_PRICE_CHALLENGE_ID
-ENERGY_ARENA_PRICE_CUTOFF_0700_CHALLENGE_ID
-ENERGY_ARENA_PRICE_CUTOFF_0800_CHALLENGE_ID
-ENERGY_ARENA_PRICE_CUTOFF_0900_CHALLENGE_ID
-ENERGY_ARENA_PRICE_CUTOFF_1000_CHALLENGE_ID
-ENERGY_ARENA_PRICE_CUTOFF_1100_CHALLENGE_ID
-ENERGY_ARENA_PRICE_CUTOFF_1200_CHALLENGE_ID
 ENERGY_ARENA_LOAD_CHALLENGE_ID
 ENERGY_ARENA_SOLAR_CHALLENGE_ID
 ENERGY_ARENA_WIND_CHALLENGE_ID
@@ -120,9 +114,12 @@ If one first-stage refresh fails operationally, the price runner logs a
 silently impute missing values; the final price run still fails if the cache does
 not cover the target day.
 
-RQ3 cutoff challenges are available through a separate runner. Each cutoff
-regenerates its own load, solar, and wind first-stage forecasts before running
-the matching RQ3 price model:
+RQ3 cutoff submissions are available through a separate runner. Energy-Arena
+uses the same DE-LU point price challenge ID for all cutoff leaderboards; the
+submission timestamp decides whether the forecast counts for the 07:00, 08:00,
+09:00, 10:00, 11:00, or 12:00 cutoff. Each runner refreshes its own load,
+solar, and wind first-stage forecasts before running the matching RQ3 price
+model:
 
 ```bash
 pixi run energy-arena-price-cutoff-daily --cutoff 0700 --dry-run
@@ -130,8 +127,7 @@ pixi run energy-arena-price-cutoff-daily --cutoff 1200 --dry-run
 ```
 
 The supported cutoffs are `0700`, `0800`, `0900`, `1000`, `1100`, and `1200`.
-Only register these scheduled tasks after the corresponding
-`ENERGY_ARENA_PRICE_CUTOFF_<HHMM>_CHALLENGE_ID` values exist in `.env`.
+They all read `ENERGY_ARENA_PRICE_CHALLENGE_ID` from `.env`.
 
 ## 5. Register Daily Tasks
 
@@ -165,8 +161,8 @@ The tasks are:
 11:35 load-point-submit
 ```
 
-To additionally register the RQ3 cutoff challenge submissions, run this
-separate PowerShell script after filling the cutoff challenge IDs in `.env`:
+To additionally register the RQ3 cutoff submissions, run this separate
+PowerShell script after filling `ENERGY_ARENA_PRICE_CHALLENGE_ID` in `.env`:
 
 ```powershell
 .\deployment\chair-vm\register_cutoff_tasks.ps1

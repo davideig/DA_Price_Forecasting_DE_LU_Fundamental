@@ -59,7 +59,13 @@ echo "=== $(date -Is) job=$job ==="
 echo "repo=$repo_root"
 echo "pixi=$PIXI"
 
-trap 'code=$?; echo "=== $(date -Is) job=$job failed exit=$code ==="; exit "$code"' ERR
+lock_dir=".chair_vm_job_locks/${job}.lock"
+mkdir -p .chair_vm_job_locks
+if ! mkdir "$lock_dir" 2>/dev/null; then
+  echo "Job already running; lock exists: $lock_dir" >&2
+  exit 0
+fi
+trap 'code=$?; rm -rf "$lock_dir"; if [ "$code" -ne 0 ]; then echo "=== $(date -Is) job=$job failed exit=$code ==="; fi; exit "$code"' EXIT
 
 cleanup_raw_dwd() {
   rm -rf data/raw/dwd_icon_daily/dwd_icon_daily_* || true

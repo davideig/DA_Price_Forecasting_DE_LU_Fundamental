@@ -20,7 +20,8 @@ function New-WslAction {
         [string]$RepoLinuxPath,
         [string]$Job
     )
-    $bashCommand = "cd '$RepoLinuxPath' && ./deployment/chair-vm/run_scheduled_job.sh $Job"
+    $launcherLog = "/tmp/da-forecast-$Job.launch.log"
+    $bashCommand = "cd '$RepoLinuxPath' && nohup ./deployment/chair-vm/run_scheduled_job.sh $Job > '$launcherLog' 2>&1 < /dev/null &"
     $argument = "bash -lc `"$bashCommand`""
     New-ScheduledTaskAction -Execute "wsl.exe" -Argument $argument
 }

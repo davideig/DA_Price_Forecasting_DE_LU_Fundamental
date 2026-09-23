@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import os
 import time
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
+from functools import wraps
 from pathlib import Path
 
+import fcntl
 import numpy as np
 import pandas as pd
 import requests
@@ -544,6 +547,31 @@ def _read_open_meteo_cache(cache_file: Path, target_tz: str) -> pd.DataFrame:
     df = df.loc[:, ~df.columns.duplicated()]
     df.index.name = "timestamp"
     return df
+
+
+@contextmanager
+def _open_meteo_cache_lock(cache_file: Path):
+    """Serialize Open-Meteo cache reads/writes across concurrent operational jobs."""
+    lock_file = cache_file.with_name(f"{cache_file.name}.lock")
+    lock_file.parent.mkdir(parents=True, exist_ok=True)
+    with lock_file.open("w") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def _with_open_meteo_cache_lock(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        cache_file = kwargs.get("cache_file")
+        if cache_file is None:
+            return func(*args, **kwargs)
+        with _open_meteo_cache_lock(Path(cache_file)):
+            return func(*args, **kwargs)
+
+    return wrapper
 
 
 def _missing_single_run_days(
@@ -1179,6 +1207,7 @@ def fetch_open_meteo_point_weather(
     return weather
 
 
+@_with_open_meteo_cache_lock
 def load_open_meteo_points(
     *,
     points: pd.DataFrame,
@@ -1280,6 +1309,7 @@ def load_open_meteo_points(
     )
 
 
+@_with_open_meteo_cache_lock
 def load_open_meteo(
     *,
     cluster_file: Path,

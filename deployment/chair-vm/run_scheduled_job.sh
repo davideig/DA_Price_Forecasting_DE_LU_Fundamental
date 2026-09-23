@@ -26,11 +26,26 @@ find_pixi() {
 PIXI="$(find_pixi)"
 DWD_WIND_CONFIG="configs/preprocessing/weather_aggregation/dwd_icon_mastr_wind_c100_run06_daily_update.yaml"
 DWD_SOLAR_CONFIG="configs/preprocessing/weather_aggregation/dwd_icon_mastr_solar_tso_c25_run06_daily_update.yaml"
+DWD_PRICE_CONFIG="configs/preprocessing/weather_aggregation/dwd_icon_c2_run06_daily_update.yaml"
 WIND_FEATURE_CONFIG="configs/preprocessing/renewable_features/regional_renewable_features_dwd_icon_mastr_wind_c100_run06_paper_febjul.yaml"
 SOLAR_FEATURE_CONFIG="configs/preprocessing/renewable_features/regional_renewable_features_dwd_icon_mastr_solar_tso_c25_run06_solar_spread.yaml"
 SOLAR_EXTRA_FEATURE_CONFIG="configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover.yaml"
 SOLAR_MODEL_CONFIG="configs/final/renewable/renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_cloud_geometry_physics_residual_own_region_daylight_suspicious_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_paper_febjul.yaml"
 WIND_MODEL_CONFIG="configs/final/renewable/renewable_generation_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_summary_meanstd_onoff_split_wind_hub_p80_common_hgb_wind_struct_minleaf60_maxfeat08_bias30_mtu_s08_d180_cutoff1000_paper_febjul.yaml"
+WIND_EXTRA_FEATURE_CONFIGS=(
+  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_icon_d2_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
+  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_ecmwf_ifs025_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
+  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_arpege_europe_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
+  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_ukmo_seamless_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
+  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_gfs_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
+  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_dmi_harmonie_arome_europe_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
+  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_icon_eu_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
+)
+
+wind_extra_feature_args=()
+for config_path in "${WIND_EXTRA_FEATURE_CONFIGS[@]}"; do
+  wind_extra_feature_args+=(--extra-feature-config "$config_path")
+done
 
 status() {
   local target
@@ -59,13 +74,13 @@ echo "=== $(date -Is) job=$job ==="
 echo "repo=$repo_root"
 echo "pixi=$PIXI"
 
-lock_dir=".chair_vm_job_locks/${job}.lock"
+job_lock_dir=".chair_vm_job_locks/${job}.lock"
 mkdir -p .chair_vm_job_locks
-if ! mkdir "$lock_dir" 2>/dev/null; then
-  echo "Job already running; lock exists: $lock_dir" >&2
+if ! mkdir "$job_lock_dir" 2>/dev/null; then
+  echo "Job already running; lock exists: $job_lock_dir" >&2
   exit 0
 fi
-trap 'code=$?; rm -rf "$lock_dir"; if [ "$code" -ne 0 ]; then echo "=== $(date -Is) job=$job failed exit=$code ==="; fi; exit "$code"' EXIT
+trap 'code=$?; rmdir "$job_lock_dir" 2>/dev/null || true; if [ "$code" -ne 0 ]; then echo "=== $(date -Is) job=$job failed exit=$code ==="; fi; exit "$code"' EXIT
 
 cleanup_raw_dwd() {
   rm -rf data/raw/dwd_icon_daily/dwd_icon_daily_* || true
@@ -82,12 +97,13 @@ case "$job" in
     "$PIXI" run -e ops da-price-dwd-icon-daily-update \
       --config "$DWD_WIND_CONFIG" \
       --no-catch-up-missing-days
-    cleanup_raw_dwd
+    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
+      --config "$DWD_PRICE_CONFIG" \
+      --no-catch-up-missing-days
     ;;
 
   dwd-solar-update)
     ensure_natural_earth_shapefile
-    cleanup_raw_dwd
     "$PIXI" run -e ops da-price-dwd-icon-daily-update \
       --config "$DWD_SOLAR_CONFIG" \
       --no-catch-up-missing-days
@@ -97,11 +113,27 @@ case "$job" in
   renewable-wind-warmup)
     "$PIXI" run energy-arena-renewable-daily \
       --feature-config "$WIND_FEATURE_CONFIG" \
+      "${wind_extra_feature_args[@]}" \
       --model-config "$WIND_MODEL_CONFIG" \
       --skip-solar \
       --wind-value-column Wind_Onshore_Model_MW \
       --wind-approach-name renewable_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_onshore \
       --dry-run
+    ;;
+
+  renewable-cutoff-features-update)
+    "$PIXI" run energy-arena-renewable-daily \
+      --feature-config "$WIND_FEATURE_CONFIG" \
+      "${wind_extra_feature_args[@]}" \
+      --model-config "$WIND_MODEL_CONFIG" \
+      --skip-solar \
+      --features-only
+    "$PIXI" run energy-arena-renewable-daily \
+      --feature-config "$SOLAR_FEATURE_CONFIG" \
+      --extra-feature-config "$SOLAR_EXTRA_FEATURE_CONFIG" \
+      --model-config "$SOLAR_MODEL_CONFIG" \
+      --skip-wind \
+      --features-only
     ;;
 
   renewable-solar-submit)
@@ -118,6 +150,7 @@ case "$job" in
   renewable-wind-submit)
     "$PIXI" run energy-arena-renewable-daily \
       --feature-config "$WIND_FEATURE_CONFIG" \
+      "${wind_extra_feature_args[@]}" \
       --model-config "$WIND_MODEL_CONFIG" \
       --skip-solar \
       --wind-value-column Wind_Onshore_Model_MW \
@@ -187,20 +220,16 @@ case "$job" in
     ;;
 
   commit-operational-archive)
-    lock_dir=".operational_archive_commit.lock"
-    if ! mkdir "$lock_dir" 2>/dev/null; then
-      echo "Operational archive commit already running; lock exists: $lock_dir" >&2
-      exit 1
-    fi
-    trap 'rm -rf "$lock_dir"' EXIT
-
     git pull --ff-only
-    "$PIXI" run operational-archive export
+    "$PIXI" run operational-archive export --profile operational
     git add data/archive/operational
     if git diff --cached --quiet -- data/archive/operational; then
       echo "No operational archive changes to commit."
     else
-      git commit -m "Update operational data archive $(TZ=Europe/Berlin date +%F)"
+      git \
+        -c user.name="DA Forecasting VM" \
+        -c user.email="davideig@users.noreply.github.com" \
+        commit -m "Update operational data archive $(TZ=Europe/Berlin date +%F)"
       git push
     fi
     ;;

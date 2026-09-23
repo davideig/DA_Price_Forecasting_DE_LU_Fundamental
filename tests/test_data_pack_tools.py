@@ -5,7 +5,11 @@ from pathlib import Path
 
 from da_price_forecasting.scripts.check_data_pack import collect_required_paths
 from da_price_forecasting.scripts.create_feature_pack import build_feature_pack
-from da_price_forecasting.scripts.operational_archive import export_archive, restore_archive
+from da_price_forecasting.scripts.operational_archive import (
+    _profile_include_paths,
+    export_archive,
+    restore_archive,
+)
 
 
 def test_check_data_pack_collects_inputs_but_not_outputs(tmp_path: Path) -> None:
@@ -113,3 +117,39 @@ def test_operational_archive_round_trips_csv_with_header_comments(tmp_path: Path
     assert "# Variable: ASWDIR_S" in restored
     assert "timestamp,cluster_0,cluster_1" in restored
     assert "2026-09-22T00:00:00+00:00,1.5,2.5" in restored
+
+
+def test_operational_archive_profile_uses_required_inputs_only(tmp_path: Path, monkeypatch) -> None:
+    config = tmp_path / "configs" / "model.yaml"
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        "kind: demo\nconfig:\n  input_file: data/processed/needed.csv\n  output_file: data/processed/generated.csv\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "da_price_forecasting.scripts.operational_archive._expand_profile",
+        lambda repo_root, profile: [config],
+    )
+
+    paths = _profile_include_paths(tmp_path, "operational")
+
+    assert Path("data/processed/needed.csv") in paths
+    assert Path("data/processed/generated.csv") not in paths
+    assert Path("data/processed") not in paths
+
+
+def test_operational_archive_replaces_stale_entries(tmp_path: Path) -> None:
+    processed = tmp_path / "data" / "processed"
+    processed.mkdir(parents=True)
+    first = processed / "first.csv"
+    stale = processed / "stale.csv"
+    first.write_text("timestamp,value\n2026-09-23T00:00:00Z,1\n", encoding="utf-8")
+    stale.write_text("timestamp,value\n2026-09-23T00:00:00Z,2\n", encoding="utf-8")
+    archive_root = tmp_path / "data" / "archive" / "operational"
+
+    assert export_archive(tmp_path, archive_root, [Path("data/processed")], "zstd", False, 95.0, False) == 0
+    stale.unlink()
+    assert export_archive(tmp_path, archive_root, [Path("data/processed")], "zstd", False, 95.0, False) == 0
+
+    assert (archive_root / "data" / "processed" / "first.parquet").exists()
+    assert not (archive_root / "data" / "processed" / "stale.parquet").exists()

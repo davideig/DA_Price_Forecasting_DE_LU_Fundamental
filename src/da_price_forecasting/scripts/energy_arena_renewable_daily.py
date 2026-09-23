@@ -330,6 +330,7 @@ def run_daily_renewable_energy_arena(
     wind_approach_name: str = DEFAULT_WIND_APPROACH_NAME,
     approach_description: str | None = None,
     update_actual_generation: bool = True,
+    features_only: bool = False,
 ) -> DailyRenewablePaths:
     if not submit_solar and not submit_wind:
         raise ValueError("At least one of submit_solar or submit_wind must be enabled.")
@@ -337,19 +338,6 @@ def run_daily_renewable_energy_arena(
     repo_root = find_repo_root()
     day = forecast_date or tomorrow_in_tz(target_tz)
     paths = dated_renewable_work_paths(repo_root=repo_root, forecast_date=day, work_root=work_root)
-
-    resolved_solar_challenge_id = (
-        _resolve_challenge_id(solar_challenge_id, solar_challenge_id_env, repo_root, "solar")
-        if submit_solar
-        else None
-    )
-    resolved_wind_challenge_id = (
-        _resolve_challenge_id(wind_challenge_id, wind_challenge_id_env, repo_root, "wind")
-        if submit_wind
-        else None
-    )
-    if resolved_wind_challenge_id is not None:
-        _validate_wind_submission_column(resolved_wind_challenge_id, wind_value_column)
 
     print(f"Daily Energy Arena renewable run for forecast_date={day.isoformat()}")
     print(f"Working directory: {paths.work_dir}")
@@ -381,6 +369,35 @@ def run_daily_renewable_energy_arena(
                 "output_file": str(extra_feature_config.output_file),
             }
         )
+
+    if features_only:
+        paths.work_dir.mkdir(parents=True, exist_ok=True)
+        with open(paths.work_dir / "daily_run.json", "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "forecast_date": day.isoformat(),
+                    "features_only": True,
+                    "feature_config_path": str(feature_config_path),
+                    "generated_feature_config": str(paths.feature_config),
+                    "extra_feature_runs": extra_feature_runs,
+                },
+                handle,
+                indent=2,
+            )
+        return paths
+
+    resolved_solar_challenge_id = (
+        _resolve_challenge_id(solar_challenge_id, solar_challenge_id_env, repo_root, "solar")
+        if submit_solar
+        else None
+    )
+    resolved_wind_challenge_id = (
+        _resolve_challenge_id(wind_challenge_id, wind_challenge_id_env, repo_root, "wind")
+        if submit_wind
+        else None
+    )
+    if resolved_wind_challenge_id is not None:
+        _validate_wind_submission_column(resolved_wind_challenge_id, wind_value_column)
 
     model_payload = build_renewable_model_payload(
         model_config_path=model_config_path,
@@ -497,6 +514,7 @@ def run_daily_renewable_energy_arena_with_retries(
     wind_approach_name: str,
     approach_description: str | None,
     update_actual_generation: bool,
+    features_only: bool,
     retry_until: datetime_time | None,
     retry_interval_minutes: float,
 ) -> DailyRenewablePaths:
@@ -526,6 +544,7 @@ def run_daily_renewable_energy_arena_with_retries(
                 wind_approach_name=wind_approach_name,
                 approach_description=approach_description,
                 update_actual_generation=update_actual_generation,
+                features_only=features_only,
             )
         except Exception as exc:
             now = datetime.now(ZoneInfo(target_tz))
@@ -571,6 +590,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skip-solar", action="store_true")
     parser.add_argument("--skip-wind", action="store_true")
     parser.add_argument("--skip-actual-generation-update", action="store_true")
+    parser.add_argument("--features-only", action="store_true", help="Refresh feature caches without fitting or submitting a model.")
     parser.add_argument("--dry-run", action="store_true", help="Generate payloads but do not submit to Energy Arena.")
     parser.add_argument("--retry-until", type=_parse_retry_until, default=None, help="Retry failed attempts until HH:MM in target timezone.")
     parser.add_argument("--retry-interval-minutes", type=float, default=10.0)
@@ -599,6 +619,7 @@ def main(argv: list[str] | None = None) -> None:
         wind_approach_name=args.wind_approach_name,
         approach_description=args.approach_description,
         update_actual_generation=not args.skip_actual_generation_update,
+        features_only=args.features_only,
         retry_until=args.retry_until,
         retry_interval_minutes=args.retry_interval_minutes,
     )

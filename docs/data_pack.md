@@ -49,8 +49,10 @@ single files gracefully.
 
 On the chair VM, `deployment/chair-vm/register_tasks.ps1` registers a
 post-deadline task named `DAForecast-commit-operational-archive`. It runs after
-the forecast submissions, exports the archive, commits changed archive files,
-and pushes them.
+the forecast submissions, exports the bounded `operational` profile, commits
+changed archive files, and pushes them. The profile contains the inputs used by
+the deployed final and RQ3 cutoff configs; it does not sweep every research file
+under `data/processed/`.
 
 ## What The Data Pack Contains
 

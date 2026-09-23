@@ -4,6 +4,8 @@ import argparse
 import hashlib
 import json
 import shutil
+import tempfile
+import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,6 +14,7 @@ from typing import Literal
 import pandas as pd
 
 from da_price_forecasting.paths import find_repo_root
+from da_price_forecasting.scripts.check_data_pack import _expand_profile, collect_required_paths
 
 
 ARCHIVE_VERSION = 1
@@ -27,6 +30,13 @@ DEFAULT_INCLUDE_PATHS = (
     "results/load_forecast_results",
     "results/renewable_generation_results",
     "results/price_forecast_results",
+)
+
+PROFILE_BASE_INCLUDE_PATHS = (
+    "data/clustering",
+    "data/shapefile",
+    "data/raw/renewable_capacity",
+    "data/cache/entsoe",
 )
 
 DEFAULT_EXCLUDE_NAMES = {
@@ -149,7 +159,13 @@ def _write_csv_from_table(
         output.to_csv(handle, index=False)
 
 
-def _export_file(repo_root: Path, archive_root: Path, source: Path, compression: str) -> ArchiveEntry:
+def _export_file(
+    repo_root: Path,
+    archive_root: Path,
+    source: Path,
+    compression: str,
+    published_archive_root: Path | None = None,
+) -> ArchiveEntry:
     archive_path = _archive_path_for(repo_root, archive_root, source)
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     suffix = source.suffix.lower()
@@ -172,10 +188,11 @@ def _export_file(repo_root: Path, archive_root: Path, source: Path, compression:
         shutil.copy2(source, archive_path)
         kind = "file_copy"
 
+    published_path = _archive_path_for(repo_root, published_archive_root or archive_root, source)
     try:
-        archive_path_label = archive_path.relative_to(repo_root).as_posix()
+        archive_path_label = published_path.relative_to(repo_root).as_posix()
     except ValueError:
-        archive_path_label = archive_path.as_posix()
+        archive_path_label = published_path.as_posix()
     return ArchiveEntry(
         source_path=source.relative_to(repo_root).as_posix(),
         archive_path=archive_path_label,
@@ -217,39 +234,64 @@ def export_archive(
         print(f"Dry run only. Source size: {total_size / 1024 / 1024:.1f} MiB")
         return 0
 
-    entries = [
-        _export_file(repo_root=repo_root, archive_root=archive_root, source=source, compression=compression)
-        for source in sources
-    ]
-    large_entries = [
-        entry
-        for entry in entries
-        if entry.archive_size_bytes > max_file_mb * 1024 * 1024
-    ]
-    if large_entries and not allow_large_files:
-        print("")
-        print(f"Refusing to finish because archive file(s) exceed {max_file_mb:.1f} MiB:")
-        for entry in large_entries:
-            print(f"  - {entry.archive_path}: {entry.archive_size_bytes / 1024 / 1024:.1f} MiB")
-        print("Use --allow-large-files only if the remote can accept these files.")
-        return 3
-
+    archive_root.parent.mkdir(parents=True, exist_ok=True)
+    staging_root = Path(tempfile.mkdtemp(prefix=f".{archive_root.name}.staging-", dir=archive_root.parent))
     try:
-        archive_root_label = archive_root.relative_to(repo_root).as_posix()
-    except ValueError:
-        archive_root_label = archive_root.as_posix()
-    manifest = ArchiveManifest(
-        version=ARCHIVE_VERSION,
-        created_at_utc=datetime.now(timezone.utc).isoformat(),
-        repo_root=repo_root.as_posix(),
-        archive_root=archive_root_label,
-        include_paths=[path.as_posix() for path in include_paths],
-        missing_optional_paths=missing,
-        entries=entries,
-    )
-    manifest_path = archive_root / MANIFEST_NAME
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(json.dumps(asdict(manifest), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        entries = [
+            _export_file(
+                repo_root=repo_root,
+                archive_root=staging_root,
+                source=source,
+                compression=compression,
+                published_archive_root=archive_root,
+            )
+            for source in sources
+        ]
+        large_entries = [
+            entry
+            for entry in entries
+            if entry.archive_size_bytes > max_file_mb * 1024 * 1024
+        ]
+        if large_entries and not allow_large_files:
+            print("")
+            print(f"Refusing to finish because archive file(s) exceed {max_file_mb:.1f} MiB:")
+            for entry in large_entries:
+                print(f"  - {entry.archive_path}: {entry.archive_size_bytes / 1024 / 1024:.1f} MiB")
+            print("Use --allow-large-files only if the remote can accept these files.")
+            return 3
+
+        try:
+            archive_root_label = archive_root.relative_to(repo_root).as_posix()
+        except ValueError:
+            archive_root_label = archive_root.as_posix()
+        manifest = ArchiveManifest(
+            version=ARCHIVE_VERSION,
+            created_at_utc=datetime.now(timezone.utc).isoformat(),
+            repo_root=repo_root.as_posix(),
+            archive_root=archive_root_label,
+            include_paths=[path.as_posix() for path in include_paths],
+            missing_optional_paths=missing,
+            entries=entries,
+        )
+        manifest_path = staging_root / MANIFEST_NAME
+        manifest_path.write_text(json.dumps(asdict(manifest), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        previous_root: Path | None = None
+        if archive_root.exists():
+            previous_root = archive_root.with_name(f".{archive_root.name}.previous-{uuid.uuid4().hex}")
+            archive_root.rename(previous_root)
+        try:
+            staging_root.rename(archive_root)
+        except Exception:
+            if previous_root is not None:
+                previous_root.rename(archive_root)
+            raise
+        else:
+            if previous_root is not None:
+                shutil.rmtree(previous_root)
+    finally:
+        if staging_root.exists():
+            shutil.rmtree(staging_root)
 
     source_size = sum(entry.source_size_bytes for entry in entries)
     archive_size = sum(entry.archive_size_bytes for entry in entries)
@@ -258,9 +300,9 @@ def export_archive(
     print(f"Source size:    {source_size / 1024 / 1024:.1f} MiB")
     print(f"Archive size:   {archive_size / 1024 / 1024:.1f} MiB")
     try:
-        manifest_label = manifest_path.relative_to(repo_root).as_posix()
+        manifest_label = (archive_root / MANIFEST_NAME).relative_to(repo_root).as_posix()
     except ValueError:
-        manifest_label = manifest_path.as_posix()
+        manifest_label = (archive_root / MANIFEST_NAME).as_posix()
     print(f"Manifest:       {manifest_label}")
     return 0
 
@@ -329,6 +371,14 @@ def _default_include_paths(include_results: bool) -> list[Path]:
     return paths
 
 
+def _profile_include_paths(repo_root: Path, profile: str) -> list[Path]:
+    configs = _expand_profile(repo_root, profile)
+    required = collect_required_paths(repo_root, configs)
+    paths = [Path(path) for path in PROFILE_BASE_INCLUDE_PATHS]
+    paths.extend(Path(item.path) for item in required if not Path(item.path).is_absolute())
+    return list(dict.fromkeys(paths))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Export or restore the Git-tracked operational data archive."
@@ -354,6 +404,11 @@ def main(argv: list[str] | None = None) -> int:
         action="append",
         default=[],
         help="Additional repo-relative file or directory to archive.",
+    )
+    export_parser.add_argument(
+        "--profile",
+        default=None,
+        help="Archive only repo-local inputs required by a check-data-pack profile, plus small shared operational inputs.",
     )
     export_parser.add_argument(
         "--no-default-paths",
@@ -396,7 +451,10 @@ def main(argv: list[str] | None = None) -> int:
     archive_root = args.archive_root if args.archive_root.is_absolute() else repo_root / args.archive_root
 
     if args.command == "export":
-        include_paths = [] if args.no_default_paths else _default_include_paths(include_results=not args.no_results)
+        if args.profile:
+            include_paths = _profile_include_paths(repo_root, args.profile)
+        else:
+            include_paths = [] if args.no_default_paths else _default_include_paths(include_results=not args.no_results)
         include_paths.extend(args.include_path)
         return export_archive(
             repo_root=repo_root,

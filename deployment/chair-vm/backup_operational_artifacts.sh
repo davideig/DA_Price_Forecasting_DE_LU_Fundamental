@@ -23,6 +23,14 @@ if [ -z "$backup_root" ]; then
   exit 0
 fi
 
+if [[ "$backup_root" == /mnt/synergie-diplomanden/* ]]; then
+  filesystem_type="$(findmnt -n -o FSTYPE -T "$backup_root" 2>/dev/null || true)"
+  if [ "$filesystem_type" != "cifs" ]; then
+    echo "[backup] Synergie is not mounted as CIFS at /mnt/synergie-diplomanden; refusing to write locally." >&2
+    exit 1
+  fi
+fi
+
 date_stamp="$(TZ=Europe/Berlin date +%F)"
 target="$backup_root/DA_Price_Forecasting_Pipeline_DE_LU_release"
 latest="$target/latest"

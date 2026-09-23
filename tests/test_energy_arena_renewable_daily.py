@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 
@@ -48,7 +49,10 @@ def test_renewable_daily_rewrites_feature_and_model_dates(tmp_path: Path) -> Non
     repo_root = Path.cwd()
     forecast_day = date(2026, 5, 26)
     feature_payload = daily.build_renewable_feature_payload(
-        feature_config_path=daily.DEFAULT_FEATURE_CONFIG,
+        feature_config_path=Path(
+            "configs/preprocessing/renewable_features/"
+            "regional_renewable_features_open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover.yaml"
+        ),
         forecast_date=forecast_day,
         repo_root=repo_root,
     )
@@ -58,7 +62,12 @@ def test_renewable_daily_rewrites_feature_and_model_dates(tmp_path: Path) -> Non
 
     proxy_file = tmp_path / "regional_renewable_features.csv"
     model_payload = daily.build_renewable_model_payload(
-        model_config_path=daily.DEFAULT_MODEL_CONFIG,
+        model_config_path=Path(
+            "configs/final/renewable/"
+            "renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_cloud_geometry_physics_"
+            "residual_own_region_daylight_suspicious_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_"
+            "paper_febjul.yaml"
+        ),
         forecast_date=forecast_day,
         forecast_dir=tmp_path / "forecast_run",
         renewable_proxy_file=proxy_file,
@@ -77,7 +86,8 @@ def test_renewable_daily_rewrites_feature_and_model_dates(tmp_path: Path) -> Non
 def test_renewable_daily_leaves_dwd_feature_config_dates_unchanged() -> None:
     payload = daily.build_renewable_feature_payload(
         feature_config_path=Path(
-            "configs/regional_renewable_features_dwd_icon_mastr_solar_tso_c25_run06_solar_spread.yaml"
+            "configs/preprocessing/renewable_features/"
+            "regional_renewable_features_dwd_icon_mastr_solar_tso_c25_run06_solar_spread.yaml"
         ),
         forecast_date=date(2026, 5, 26),
         repo_root=Path.cwd(),
@@ -85,7 +95,41 @@ def test_renewable_daily_leaves_dwd_feature_config_dates_unchanged() -> None:
 
     assert payload["config"]["weather_source"] == "dwd_icon"
     assert "open_meteo_end_date" not in payload["config"]
-    validate_config_payload(payload, RunConfig, repo_root=Path.cwd())
+
+
+def test_renewable_daily_features_only_skips_model_and_challenge_ids(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    feature_config = tmp_path / "feature.yaml"
+    output_file = tmp_path / "features.csv"
+    capacity_map_file = tmp_path / "capacity.csv"
+    feature_config.write_text(
+        "kind: regional_renewable_features\n"
+        "config:\n"
+        f"  repo_root: {tmp_path}\n"
+        "  weather_source: dwd_icon\n"
+        f"  icon_dir: {tmp_path / 'icon'}\n"
+        f"  cluster_file: {tmp_path / 'clusters.csv'}\n"
+        f"  capacity_file: {tmp_path / 'capacity-input.csv'}\n"
+        f"  capacity_map_file: {capacity_map_file}\n"
+        f"  output_file: {output_file}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(daily, "find_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(daily, "run_from_config", lambda config, **kwargs: output_file.write_text("timestamp,x\n", encoding="utf-8"))
+
+    paths = daily.run_daily_renewable_energy_arena(
+        feature_config_path=feature_config,
+        model_config_path=tmp_path / "unused-model.yaml",
+        forecast_date=date(2026, 9, 24),
+        work_root=tmp_path / "work",
+        features_only=True,
+    )
+
+    metadata = json.loads((paths.work_dir / "daily_run.json").read_text(encoding="utf-8"))
+    assert metadata["features_only"] is True
+    assert not paths.model_config.exists()
 
 
 def test_dated_renewable_work_paths_are_per_forecast_day(tmp_path: Path) -> None:

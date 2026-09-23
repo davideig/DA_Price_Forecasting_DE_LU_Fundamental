@@ -56,7 +56,7 @@ The scheduled backup job copies the compact operational archive and task logs
 there after the Git archive commit:
 
 ```text
-SYNERGIE_BACKUP_DIR=/mnt/u/DA_Price_Forecasting/backups
+SYNERGIE_BACKUP_DIR=/mnt/synergie-diplomanden/MK_Eiglsperger/DA_Price_Forecasting/backups
 ```
 
 ## 3. Restore Operational Data
@@ -174,7 +174,7 @@ If your WSL username differs, pass it explicitly:
 The tasks are:
 
 ```text
-10:00 dwd-wind-update
+10:00 dwd-wind-update (wind plus c2 price weather; keeps raw files for solar)
 10:35 renewable-wind-warmup
 10:50 dwd-solar-update
 11:10 renewable-solar-submit
@@ -182,7 +182,7 @@ The tasks are:
 11:30 price-submit
 11:35 load-point-submit
 12:25 commit-operational-archive
-12:45 backup-operational-artifacts
+13:15 backup-operational-artifacts
 ```
 
 `commit-operational-archive` runs after the Energy-Arena deadline. It exports the
@@ -206,6 +206,7 @@ same cutoff information set:
 
 ```text
 06:40 price-cutoff-0700-submit
+07:00 renewable-cutoff-features-update
 07:40 price-cutoff-0800-submit
 08:40 price-cutoff-0900-submit
 09:40 price-cutoff-1000-submit

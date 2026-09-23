@@ -11,6 +11,7 @@ from sklearn.cluster import MiniBatchKMeans
 
 from ..config import RegionalRenewableFeatureConfig
 from ..data.weather import load_dwd, load_era5, load_open_meteo, load_open_meteo_points
+from ..pipelines.common import save_timestamp_csv
 
 
 def _normalise_label(value: object) -> str:
@@ -2284,7 +2285,7 @@ def run_regional_renewable_features(config: RegionalRenewableFeatureConfig) -> p
     features, capacity_map, capacity_points = build_regional_renewable_features(config)
     config.output_file.parent.mkdir(parents=True, exist_ok=True)
     config.capacity_map_file.parent.mkdir(parents=True, exist_ok=True)
-    features.to_csv(config.output_file)
+    save_timestamp_csv(features, config.output_file)
     capacity_map.to_csv(config.capacity_map_file, index=False)
     if capacity_points is not None:
         config.capacity_weather_point_file.parent.mkdir(parents=True, exist_ok=True)

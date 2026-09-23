@@ -10,11 +10,13 @@ from datetime import date, datetime, time as datetime_time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import pandas as pd
 from dotenv import load_dotenv
 
 from ..config import LearOperationalConfig, RenewableGenerationModelConfig, RunConfig, load_config_payload
 from ..config import validate_config_payload
 from ..paths import find_repo_root, resolve_path
+from ..pipelines.common import load_timestamp_csv, save_timestamp_csv
 from .energy_arena_daily import day_bounds, run_point_base_forecasts, tomorrow_in_tz
 from .energy_arena_renewable_daily import update_actual_generation_cache
 from .run import run_from_config
@@ -147,17 +149,100 @@ def _resolve_challenge_id(challenge_id: int | None, env_var: str, repo_root: Pat
         raise ValueError(f"{env_var} must be an integer challenge id, got {raw_value!r}.") from exc
 
 
+def _first_stage_forecast_path(payload: dict, repo_root: Path) -> Path:
+    export_dir = _config_body(payload).get("export_dir")
+    if not export_dir:
+        raise ValueError("First-stage config must define export_dir.")
+    return resolve_path(Path(export_dir), repo_root) / "forecast.csv"
+
+
+def _missing_first_stage_days(
+    forecast: pd.DataFrame | None,
+    *,
+    start_day: date,
+    end_day: date,
+    target_tz: str,
+) -> list[date]:
+    if forecast is None or forecast.empty:
+        return [day.date() for day in pd.date_range(start_day, end_day, freq="D")]
+
+    index = forecast.index
+    if index.tz is None:
+        index = index.tz_localize(target_tz)
+    else:
+        index = index.tz_convert(target_tz)
+    available = pd.DatetimeIndex(index).sort_values().unique()
+
+    missing: list[date] = []
+    for day_timestamp in pd.date_range(start_day, end_day, freq="D"):
+        day = day_timestamp.date()
+        start = pd.Timestamp(day, tz=target_tz)
+        end = start + pd.DateOffset(days=1)
+        expected = pd.date_range(start, end, freq="15min", inclusive="left")
+        if not expected.isin(available).all():
+            missing.append(day)
+    return missing
+
+
 def _run_first_stage_payload(payload: dict, repo_root: Path, forecast_date: date) -> None:
-    if payload.get("kind") == "renewable_generation_model":
+    config = _config_body(payload)
+    target_tz = str(config.get("target_tz", "Europe/Berlin"))
+    requested_start = pd.Timestamp(config["test_start"]).date()
+    requested_end = pd.Timestamp(config["test_end"]).date()
+    forecast_path = _first_stage_forecast_path(payload, repo_root)
+
+    existing: pd.DataFrame | None = None
+    if forecast_path.exists():
+        try:
+            existing = load_timestamp_csv(forecast_path, target_tz)
+        except Exception as exc:
+            print(f"[cache] Ignoring unreadable first-stage cache {forecast_path}: {exc}", flush=True)
+
+    missing_days = _missing_first_stage_days(
+        existing,
+        start_day=requested_start,
+        end_day=requested_end,
+        target_tz=target_tz,
+    )
+    if not missing_days:
+        print(
+            f"[cache] First-stage forecast cache already covers {requested_start} -> {requested_end}; skipping model rerun.",
+            flush=True,
+        )
+        return
+
+    incremental_payload = copy.deepcopy(payload)
+    incremental_config = dict(_config_body(incremental_payload))
+    incremental_config["test_start"] = min(missing_days).isoformat()
+    incremental_config["test_end"] = requested_end.isoformat()
+    incremental_payload["config"] = incremental_config
+    print(
+        f"[cache] First-stage cache missing {len(missing_days)} day(s); "
+        f"running {incremental_config['test_start']} -> {incremental_config['test_end']}.",
+        flush=True,
+    )
+
+    if incremental_payload.get("kind") == "renewable_generation_model":
         renewable_config = validate_config_payload(
-            _config_body(payload),
+            incremental_config,
             RenewableGenerationModelConfig,
             repo_root=repo_root,
         )
         update_actual_generation_cache(renewable_config, forecast_date=forecast_date)
 
-    run_config = validate_config_payload(payload, RunConfig, repo_root=repo_root)
-    run_from_config(run_config)
+    run_config = validate_config_payload(incremental_payload, RunConfig, repo_root=repo_root)
+    try:
+        run_from_config(run_config)
+    except Exception:
+        if existing is not None and not existing.empty:
+            save_timestamp_csv(existing, forecast_path)
+        raise
+
+    refreshed = load_timestamp_csv(forecast_path, target_tz)
+    if existing is not None and not existing.empty:
+        refreshed = pd.concat([existing, refreshed]).sort_index()
+        refreshed = refreshed.loc[~refreshed.index.duplicated(keep="last")]
+    save_timestamp_csv(refreshed, forecast_path)
 
 
 def _price_train_days(price_payload: dict) -> int:

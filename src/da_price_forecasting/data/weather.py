@@ -536,6 +536,62 @@ def _open_meteo_point_keep_columns(point_id: int) -> dict[str, str]:
     return {column: f"{column}_point_{point_id}" for column in _OPEN_METEO_NORMALISED_COLUMNS}
 
 
+def _read_open_meteo_cache(cache_file: Path, target_tz: str) -> pd.DataFrame:
+    df = pd.read_csv(cache_file, index_col=0)
+    df.index = pd.to_datetime(df.index, utc=True).tz_convert(target_tz)
+    df = df.sort_index()
+    df = df.loc[~df.index.duplicated(keep="last")]
+    df = df.loc[:, ~df.columns.duplicated()]
+    df.index.name = "timestamp"
+    return df
+
+
+def _missing_single_run_days(
+    cached: pd.DataFrame,
+    *,
+    start_date: date,
+    end_date: date,
+    target_tz: str,
+) -> tuple[pd.DatetimeIndex, int, int]:
+    expected_days = pd.date_range(
+        start=pd.Timestamp(start_date, tz=target_tz),
+        end=pd.Timestamp(end_date, tz=target_tz),
+        freq="D",
+    )
+    cached_days = pd.DatetimeIndex(cached.index.normalize().unique()).sort_values()
+    cached_in_range = expected_days.intersection(cached_days)
+    return expected_days.difference(cached_days), len(cached_in_range), len(expected_days)
+
+
+def _contiguous_day_ranges(days: pd.DatetimeIndex) -> list[tuple[date, date]]:
+    if days.empty:
+        return []
+
+    sorted_days = pd.DatetimeIndex(days).sort_values()
+    ranges: list[tuple[date, date]] = []
+    start = sorted_days[0]
+    previous = sorted_days[0]
+    for day in sorted_days[1:]:
+        if day == previous + pd.Timedelta(days=1):
+            previous = day
+            continue
+        ranges.append((start.date(), previous.date()))
+        start = day
+        previous = day
+    ranges.append((start.date(), previous.date()))
+    return ranges
+
+
+def _format_day_ranges(ranges: list[tuple[date, date]], *, limit: int = 5) -> str:
+    labels = [
+        start.isoformat() if start == end else f"{start.isoformat()}..{end.isoformat()}"
+        for start, end in ranges[:limit]
+    ]
+    if len(ranges) > limit:
+        labels.append(f"+{len(ranges) - limit} more")
+    return ", ".join(labels)
+
+
 def _open_meteo_response_items(payload: object) -> list[dict]:
     if isinstance(payload, list):
         return payload
@@ -1151,29 +1207,52 @@ def load_open_meteo_points(
 ) -> pd.DataFrame:
     """Load cached point-level Open-Meteo weather or fetch missing single-run days."""
     if cache_file.exists() and not force_download:
-        df = pd.read_csv(cache_file, index_col=0)
-        df.index = pd.to_datetime(df.index, utc=True).tz_convert(target_tz)
-        df = df.sort_index()
-        df = df.loc[~df.index.duplicated(keep="last")]
-        df.index.name = "timestamp"
+        df = _read_open_meteo_cache(cache_file, target_tz)
         if api_mode != "single_run":
             return df
 
-        expected_days = pd.date_range(
-            start=pd.Timestamp(start_date, tz=target_tz),
-            end=pd.Timestamp(end_date, tz=target_tz),
-            freq="D",
+        missing_days, cached_count, expected_count = _missing_single_run_days(
+            df,
+            start_date=start_date,
+            end_date=end_date,
+            target_tz=target_tz,
         )
-        cached_days = pd.DatetimeIndex(df.index.normalize().unique()).sort_values()
-        missing_days = expected_days.difference(cached_days)
         if missing_days.empty:
             return df
 
+        missing_ranges = _contiguous_day_ranges(missing_days)
         print(
             "[OPEN-METEO] Point-weather single-run cache is incomplete: "
-            f"{len(cached_days)}/{len(expected_days)} days cached. "
-            f"Resuming from {missing_days.min().date()}..."
+            f"{cached_count}/{expected_count} days cached. "
+            f"Fetching missing range(s): {_format_day_ranges(missing_ranges)}"
         )
+
+        for missing_start, missing_end in missing_ranges:
+            fetch_open_meteo_point_weather(
+                points=points,
+                start_date=missing_start,
+                end_date=missing_end,
+                output_file=cache_file,
+                base_url=base_url,
+                model=model,
+                hourly_variables=hourly_variables,
+                batch_size=batch_size,
+                cell_selection=cell_selection,
+                timeout_seconds=timeout_seconds,
+                target_tz=target_tz,
+                api_mode=api_mode,
+                single_run_hour_utc=single_run_hour_utc,
+                single_run_forecast_days=single_run_forecast_days,
+                request_pause_seconds=request_pause_seconds,
+                retry_attempts=retry_attempts,
+                retry_backoff_seconds=retry_backoff_seconds,
+                api_key_env=api_key_env,
+                skip_unavailable_runs=skip_unavailable_runs,
+                fallback_previous_runs=fallback_previous_runs,
+                fallback_step_hours=fallback_step_hours,
+                fallback_max_lookback_hours=fallback_max_lookback_hours,
+            )
+        return _read_open_meteo_cache(cache_file, target_tz)
 
     return fetch_open_meteo_point_weather(
         points=points,
@@ -1231,29 +1310,54 @@ def load_open_meteo(
 ) -> pd.DataFrame:
     """Load cached Open-Meteo cluster weather or fetch it from the API."""
     if cache_file.exists() and not force_download:
-        df = pd.read_csv(cache_file, index_col=0)
-        df.index = pd.to_datetime(df.index, utc=True).tz_convert(target_tz)
-        df = df.sort_index()
-        df = df.loc[~df.index.duplicated(keep="last")]
-        df.index.name = "timestamp"
+        df = _read_open_meteo_cache(cache_file, target_tz)
         if api_mode != "single_run":
             return df
 
-        expected_days = pd.date_range(
-            start=pd.Timestamp(start_date, tz=target_tz),
-            end=pd.Timestamp(end_date, tz=target_tz),
-            freq="D",
+        missing_days, cached_count, expected_count = _missing_single_run_days(
+            df,
+            start_date=start_date,
+            end_date=end_date,
+            target_tz=target_tz,
         )
-        cached_days = pd.DatetimeIndex(df.index.normalize().unique()).sort_values()
-        missing_days = expected_days.difference(cached_days)
         if missing_days.empty:
             return df
 
+        missing_ranges = _contiguous_day_ranges(missing_days)
         print(
             "[OPEN-METEO] Single-run cache is incomplete: "
-            f"{len(cached_days)}/{len(expected_days)} days cached. "
-            f"Resuming from {missing_days.min().date()}..."
+            f"{cached_count}/{expected_count} days cached. "
+            f"Fetching missing range(s): {_format_day_ranges(missing_ranges)}"
         )
+
+        for missing_start, missing_end in missing_ranges:
+            fetch_open_meteo_cluster_weather(
+                cluster_file=cluster_file,
+                start_date=missing_start,
+                end_date=missing_end,
+                output_file=cache_file,
+                base_url=base_url,
+                model=model,
+                hourly_variables=hourly_variables,
+                batch_size=batch_size,
+                cell_selection=cell_selection,
+                timeout_seconds=timeout_seconds,
+                target_tz=target_tz,
+                point_selection=point_selection,
+                max_points_per_cluster=max_points_per_cluster,
+                api_mode=api_mode,
+                single_run_hour_utc=single_run_hour_utc,
+                single_run_forecast_days=single_run_forecast_days,
+                request_pause_seconds=request_pause_seconds,
+                retry_attempts=retry_attempts,
+                retry_backoff_seconds=retry_backoff_seconds,
+                api_key_env=api_key_env,
+                skip_unavailable_runs=skip_unavailable_runs,
+                fallback_previous_runs=fallback_previous_runs,
+                fallback_step_hours=fallback_step_hours,
+                fallback_max_lookback_hours=fallback_max_lookback_hours,
+            )
+        return _read_open_meteo_cache(cache_file, target_tz)
 
     return fetch_open_meteo_cluster_weather(
         cluster_file=cluster_file,

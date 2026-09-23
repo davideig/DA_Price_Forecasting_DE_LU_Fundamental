@@ -269,6 +269,61 @@ def test_single_run_backfill_preserves_existing_cache_days(
     assert cached_days == {"2026-03-20", "2026-03-21"}
 
 
+def test_load_open_meteo_fetches_only_missing_single_run_days(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cluster_file = tmp_path / "clusters.csv"
+    cluster_file.write_text("cluster_id,lat,lon\n0,52.0,13.0\n")
+    cache_file = tmp_path / "open_meteo.csv"
+    existing = pd.DataFrame(
+        {"t2m_cluster_0": [280.0, 281.0, 282.0]},
+        index=pd.DatetimeIndex(
+            [
+                pd.Timestamp("2026-03-20T00:00:00+01:00"),
+                pd.Timestamp("2026-03-21T00:00:00+01:00"),
+                pd.Timestamp("2026-03-22T00:00:00+01:00"),
+            ],
+            name="timestamp",
+        ),
+    )
+    existing.to_csv(cache_file)
+    calls: list[tuple[date, date]] = []
+
+    def fake_fetch_open_meteo_cluster_weather(**kwargs):  # noqa: ANN003
+        calls.append((kwargs["start_date"], kwargs["end_date"]))
+        cached = pd.read_csv(cache_file, index_col=0)
+        cached.index = pd.to_datetime(cached.index)
+        missing = pd.DataFrame(
+            {"t2m_cluster_0": [283.0]},
+            index=pd.DatetimeIndex([pd.Timestamp("2026-03-23T00:00:00+01:00")], name="timestamp"),
+        )
+        pd.concat([cached, missing]).to_csv(cache_file)
+        return missing
+
+    monkeypatch.setattr(weather, "fetch_open_meteo_cluster_weather", fake_fetch_open_meteo_cluster_weather)
+
+    result = weather.load_open_meteo(
+        cluster_file=cluster_file,
+        start_date=date(2026, 3, 20),
+        end_date=date(2026, 3, 23),
+        cache_file=cache_file,
+        hourly_variables=["temperature_2m"],
+        batch_size=1,
+        target_tz="Europe/Berlin",
+        api_mode="single_run",
+        single_run_hour_utc="06:00",
+    )
+
+    assert calls == [(date(2026, 3, 23), date(2026, 3, 23))]
+    assert {timestamp.date().isoformat() for timestamp in result.index.normalize()} == {
+        "2026-03-20",
+        "2026-03-21",
+        "2026-03-22",
+        "2026-03-23",
+    }
+
+
 def test_single_run_point_weather_keeps_point_level_columns(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -320,3 +375,57 @@ def test_single_run_point_weather_keeps_point_level_columns(
     assert result["t2m_point_0"].iloc[0] == 283.15
     assert result["t2m_point_1"].iloc[0] == 293.15
     assert cache_file.exists()
+
+
+def test_load_open_meteo_points_fetches_only_missing_single_run_days(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    points = pd.DataFrame({"weather_point_id": [0], "lat": [52.0], "lon": [8.0]})
+    cache_file = tmp_path / "open_meteo_points.csv"
+    existing = pd.DataFrame(
+        {"t2m_point_0": [280.0, 281.0, 282.0]},
+        index=pd.DatetimeIndex(
+            [
+                pd.Timestamp("2026-03-20T00:00:00+01:00"),
+                pd.Timestamp("2026-03-21T00:00:00+01:00"),
+                pd.Timestamp("2026-03-22T00:00:00+01:00"),
+            ],
+            name="timestamp",
+        ),
+    )
+    existing.to_csv(cache_file)
+    calls: list[tuple[date, date]] = []
+
+    def fake_fetch_open_meteo_point_weather(**kwargs):  # noqa: ANN003
+        calls.append((kwargs["start_date"], kwargs["end_date"]))
+        cached = pd.read_csv(cache_file, index_col=0)
+        cached.index = pd.to_datetime(cached.index)
+        missing = pd.DataFrame(
+            {"t2m_point_0": [283.0]},
+            index=pd.DatetimeIndex([pd.Timestamp("2026-03-23T00:00:00+01:00")], name="timestamp"),
+        )
+        pd.concat([cached, missing]).to_csv(cache_file)
+        return missing
+
+    monkeypatch.setattr(weather, "fetch_open_meteo_point_weather", fake_fetch_open_meteo_point_weather)
+
+    result = weather.load_open_meteo_points(
+        points=points,
+        start_date=date(2026, 3, 20),
+        end_date=date(2026, 3, 23),
+        cache_file=cache_file,
+        hourly_variables=["temperature_2m"],
+        batch_size=1,
+        target_tz="Europe/Berlin",
+        api_mode="single_run",
+        single_run_hour_utc="06:00",
+    )
+
+    assert calls == [(date(2026, 3, 23), date(2026, 3, 23))]
+    assert {timestamp.date().isoformat() for timestamp in result.index.normalize()} == {
+        "2026-03-20",
+        "2026-03-21",
+        "2026-03-22",
+        "2026-03-23",
+    }

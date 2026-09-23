@@ -324,6 +324,27 @@ def test_load_open_meteo_fetches_only_missing_single_run_days(
     }
 
 
+def test_load_open_meteo_returns_only_requested_cached_days(tmp_path: Path) -> None:
+    cluster_file = tmp_path / "clusters.csv"
+    cluster_file.write_text("cluster_id,lat,lon\n0,52.0,13.0\n")
+    cache_file = tmp_path / "open_meteo.csv"
+    cache_index = pd.date_range("2026-03-01", "2026-03-11", freq="15min", inclusive="left", tz="Europe/Berlin")
+    pd.DataFrame({"t2m_cluster_0": range(len(cache_index))}, index=cache_index).to_csv(cache_file)
+
+    result = weather.load_open_meteo(
+        cluster_file=cluster_file,
+        start_date=date(2026, 3, 9),
+        end_date=date(2026, 3, 10),
+        cache_file=cache_file,
+        target_tz="Europe/Berlin",
+        api_mode="single_run",
+    )
+
+    assert len(result) == 2 * 96
+    assert result.index.min().date() == date(2026, 3, 9)
+    assert result.index.max().date() == date(2026, 3, 10)
+
+
 def test_single_run_point_weather_keeps_point_level_columns(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

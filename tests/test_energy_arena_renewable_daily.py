@@ -117,7 +117,12 @@ def test_renewable_daily_features_only_skips_model_and_challenge_ids(
         encoding="utf-8",
     )
     monkeypatch.setattr(daily, "find_repo_root", lambda: tmp_path)
-    monkeypatch.setattr(daily, "run_from_config", lambda config, **kwargs: output_file.write_text("timestamp,x\n", encoding="utf-8"))
+
+    def fake_run_from_config(config, **kwargs):
+        index = pd.date_range("2026-09-23", "2026-09-25", freq="15min", inclusive="left", tz="Europe/Berlin")
+        save_timestamp_csv(pd.DataFrame({"x": np.arange(len(index), dtype=float)}, index=index), output_file)
+
+    monkeypatch.setattr(daily, "run_from_config", fake_run_from_config)
 
     paths = daily.run_daily_renewable_energy_arena(
         feature_config_path=feature_config,
@@ -130,6 +135,96 @@ def test_renewable_daily_features_only_skips_model_and_challenge_ids(
     metadata = json.loads((paths.work_dir / "daily_run.json").read_text(encoding="utf-8"))
     assert metadata["features_only"] is True
     assert not paths.model_config.exists()
+
+
+def _open_meteo_feature_payload(tmp_path: Path, output_file: Path) -> dict:
+    return {
+        "kind": "regional_renewable_features",
+        "config": {
+            "repo_root": str(tmp_path),
+            "weather_source": "open_meteo",
+            "target_tz": "Europe/Berlin",
+            "cluster_file": str(tmp_path / "clusters.csv"),
+            "capacity_file": str(tmp_path / "capacity.csv"),
+            "capacity_map_file": str(tmp_path / "capacity-map.csv"),
+            "output_file": str(output_file),
+            "open_meteo_weather_file": str(tmp_path / "weather.csv"),
+            "open_meteo_start_date": "2026-07-01",
+            "open_meteo_end_date": "2026-09-24",
+        },
+    }
+
+
+def test_incremental_feature_refresh_only_runs_two_days_and_merges_history(monkeypatch, tmp_path: Path) -> None:
+    output_file = tmp_path / "features.csv"
+    target_day = date(2026, 9, 24)
+    historical_index = pd.date_range("2026-09-22", "2026-09-23", freq="15min", inclusive="left", tz="Europe/Berlin")
+    save_timestamp_csv(pd.DataFrame({"feature": 1.0}, index=historical_index), output_file)
+    payload = _open_meteo_feature_payload(tmp_path, output_file)
+    captured: dict[str, str] = {}
+
+    def fake_run_from_config(config, **kwargs):
+        captured.update(config.config)
+        refreshed_index = pd.date_range(
+            "2026-09-23",
+            "2026-09-25",
+            freq="15min",
+            inclusive="left",
+            tz="Europe/Berlin",
+        )
+        save_timestamp_csv(pd.DataFrame({"feature": 2.0}, index=refreshed_index), output_file)
+
+    monkeypatch.setattr(daily, "run_from_config", fake_run_from_config)
+
+    daily._run_feature_payload_incrementally(payload, tmp_path, target_day)
+
+    assert captured["open_meteo_start_date"] == "2026-09-23"
+    assert captured["open_meteo_end_date"] == "2026-09-24"
+    assert captured["capacity_timeseries_file"] is None
+    assert captured["weather_weights_file"] is None
+    updated = load_timestamp_csv(output_file, "Europe/Berlin")
+    assert daily._feature_cache_has_day(updated, date(2026, 9, 22), "Europe/Berlin")
+    assert daily._feature_cache_has_day(updated, target_day, "Europe/Berlin")
+    assert (updated.loc[daily._local_day_index(target_day, "Europe/Berlin"), "feature"] == 2.0).all()
+
+
+def test_incremental_feature_refresh_skips_complete_unchanged_target(monkeypatch, tmp_path: Path) -> None:
+    output_file = tmp_path / "features.csv"
+    target_day = date(2026, 9, 24)
+    target_index = daily._local_day_index(target_day, "Europe/Berlin")
+    save_timestamp_csv(pd.DataFrame({"feature": 3.0}, index=target_index), output_file)
+    payload = _open_meteo_feature_payload(tmp_path, output_file)
+
+    def unexpected_run(*args, **kwargs):
+        raise AssertionError("complete unchanged feature cache should not be rebuilt")
+
+    monkeypatch.setattr(daily, "run_from_config", unexpected_run)
+
+    daily._run_feature_payload_incrementally(payload, tmp_path, target_day)
+
+    unchanged = load_timestamp_csv(output_file, "Europe/Berlin")
+    assert unchanged.index.astype(str).tolist() == target_index.astype(str).tolist()
+
+
+def test_incremental_feature_refresh_uses_cached_donor_day_on_failure(monkeypatch, tmp_path: Path) -> None:
+    output_file = tmp_path / "features.csv"
+    target_day = date(2026, 9, 24)
+    donor_day = target_day - pd.Timedelta(days=1)
+    donor_index = daily._local_day_index(donor_day, "Europe/Berlin")
+    save_timestamp_csv(pd.DataFrame({"feature": np.arange(len(donor_index), dtype=float)}, index=donor_index), output_file)
+    payload = _open_meteo_feature_payload(tmp_path, output_file)
+
+    monkeypatch.setattr(
+        daily,
+        "run_from_config",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("provider unavailable")),
+    )
+
+    daily._run_feature_payload_incrementally(payload, tmp_path, target_day)
+
+    updated = load_timestamp_csv(output_file, "Europe/Berlin")
+    target_values = updated.loc[daily._local_day_index(target_day, "Europe/Berlin"), "feature"].to_numpy()
+    assert np.array_equal(target_values, np.arange(len(donor_index), dtype=float))
 
 
 def test_dated_renewable_work_paths_are_per_forecast_day(tmp_path: Path) -> None:

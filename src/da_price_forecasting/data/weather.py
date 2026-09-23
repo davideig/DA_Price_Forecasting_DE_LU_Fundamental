@@ -591,6 +591,18 @@ def _missing_single_run_days(
     return expected_days.difference(cached_days), len(cached_in_range), len(expected_days)
 
 
+def _slice_open_meteo_days(
+    cached: pd.DataFrame,
+    *,
+    start_date: date,
+    end_date: date,
+    target_tz: str,
+) -> pd.DataFrame:
+    start = pd.Timestamp(start_date, tz=target_tz)
+    end = pd.Timestamp(end_date, tz=target_tz) + pd.DateOffset(days=1)
+    return cached.loc[(cached.index >= start) & (cached.index < end)]
+
+
 def _contiguous_day_ranges(days: pd.DatetimeIndex) -> list[tuple[date, date]]:
     if days.empty:
         return []
@@ -1247,7 +1259,12 @@ def load_open_meteo_points(
             target_tz=target_tz,
         )
         if missing_days.empty:
-            return df
+            return _slice_open_meteo_days(
+                df,
+                start_date=start_date,
+                end_date=end_date,
+                target_tz=target_tz,
+            )
 
         missing_ranges = _contiguous_day_ranges(missing_days)
         print(
@@ -1281,7 +1298,12 @@ def load_open_meteo_points(
                 fallback_step_hours=fallback_step_hours,
                 fallback_max_lookback_hours=fallback_max_lookback_hours,
             )
-        return _read_open_meteo_cache(cache_file, target_tz)
+        return _slice_open_meteo_days(
+            _read_open_meteo_cache(cache_file, target_tz),
+            start_date=start_date,
+            end_date=end_date,
+            target_tz=target_tz,
+        )
 
     return fetch_open_meteo_point_weather(
         points=points,
@@ -1351,7 +1373,12 @@ def load_open_meteo(
             target_tz=target_tz,
         )
         if missing_days.empty:
-            return df
+            return _slice_open_meteo_days(
+                df,
+                start_date=start_date,
+                end_date=end_date,
+                target_tz=target_tz,
+            )
 
         missing_ranges = _contiguous_day_ranges(missing_days)
         print(
@@ -1387,7 +1414,12 @@ def load_open_meteo(
                 fallback_step_hours=fallback_step_hours,
                 fallback_max_lookback_hours=fallback_max_lookback_hours,
             )
-        return _read_open_meteo_cache(cache_file, target_tz)
+        return _slice_open_meteo_days(
+            _read_open_meteo_cache(cache_file, target_tz),
+            start_date=start_date,
+            end_date=end_date,
+            target_tz=target_tz,
+        )
 
     return fetch_open_meteo_cluster_weather(
         cluster_file=cluster_file,

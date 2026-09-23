@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import time
@@ -9,6 +10,7 @@ from datetime import date, datetime, time as datetime_time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -176,6 +178,164 @@ def build_renewable_feature_payload(
     if config.get("weather_source", "open_meteo") == "open_meteo" or "open_meteo_end_date" in config:
         config["open_meteo_end_date"] = forecast_date.isoformat()
     return payload
+
+
+def _local_day_index(day: date, target_tz: str) -> pd.DatetimeIndex:
+    start = pd.Timestamp(day, tz=target_tz)
+    end = start + pd.DateOffset(days=1)
+    return pd.date_range(start, end, freq="15min", inclusive="left", name="timestamp")
+
+
+def _feature_cache_has_day(features: pd.DataFrame | None, day: date, target_tz: str) -> bool:
+    if features is None or features.empty:
+        return False
+    index = features.index
+    if index.tz is None:
+        index = index.tz_localize(target_tz)
+    else:
+        index = index.tz_convert(target_tz)
+    return _local_day_index(day, target_tz).isin(index).all()
+
+
+def _dwd_issue_day(forecast_day: date, folder_offset_day: date) -> date:
+    return forecast_day - timedelta(days=1) if forecast_day > folder_offset_day else forecast_day
+
+
+def _newest_path_mtime(path: Path) -> float | None:
+    if not path.exists():
+        return None
+    mtimes = [path.stat().st_mtime]
+    if path.is_dir():
+        mtimes.extend(candidate.stat().st_mtime for candidate in path.rglob("*") if candidate.is_file())
+    return max(mtimes)
+
+
+def _feature_source_mtime(config: RegionalRenewableFeatureConfig, forecast_day: date) -> float | None:
+    if config.weather_source == "open_meteo":
+        return _newest_path_mtime(config.open_meteo_weather_file)
+    if config.weather_source != "dwd_icon":
+        return None
+
+    issue_day = _dwd_issue_day(forecast_day, config.dwd_folder_offset_date)
+    expected_name = f"dwd_icon_daily_{issue_day:%Y%m%d}_{config.required_run}"
+    expected_folder = config.icon_dir / expected_name
+    if expected_folder.exists():
+        return _newest_path_mtime(expected_folder)
+
+    matching_folders = [
+        path
+        for path in config.icon_dir.glob(f"*{issue_day:%Y%m%d}*{config.required_run}*")
+        if path.is_dir()
+    ]
+    mtimes = [mtime for path in matching_folders if (mtime := _newest_path_mtime(path)) is not None]
+    return max(mtimes) if mtimes else None
+
+
+def _feature_source_is_newer(config: RegionalRenewableFeatureConfig, forecast_day: date) -> bool:
+    if not config.output_file.exists():
+        return True
+    source_mtime = _feature_source_mtime(config, forecast_day)
+    return source_mtime is not None and source_mtime > config.output_file.stat().st_mtime
+
+
+def _fallback_feature_day(
+    existing: pd.DataFrame,
+    *,
+    forecast_day: date,
+    target_tz: str,
+) -> tuple[pd.DataFrame, date] | None:
+    candidate_offsets = [1, 7, *[offset for offset in range(2, 31) if offset != 7]]
+    for offset in candidate_offsets:
+        donor_day = forecast_day - timedelta(days=offset)
+        if not _feature_cache_has_day(existing, donor_day, target_tz):
+            continue
+
+        donor_index = _local_day_index(donor_day, target_tz)
+        target_index = _local_day_index(forecast_day, target_tz)
+        donor = existing.reindex(donor_index)
+        if len(donor_index) == len(target_index):
+            fallback = donor.copy()
+            fallback.index = target_index
+            return fallback, donor_day
+
+        source_positions = np.linspace(0.0, 1.0, len(donor_index))
+        target_positions = np.linspace(0.0, 1.0, len(target_index))
+        fallback_columns: dict[str, np.ndarray] = {}
+        for column in donor.columns:
+            values = pd.to_numeric(donor[column], errors="coerce").interpolate(limit_direction="both")
+            fallback_columns[column] = np.interp(target_positions, source_positions, values.to_numpy(dtype=float))
+        return pd.DataFrame(fallback_columns, index=target_index), donor_day
+    return None
+
+
+def _incremental_feature_payload(payload: dict, config: RegionalRenewableFeatureConfig, forecast_day: date) -> dict:
+    incremental = copy.deepcopy(payload)
+    body = dict(_nested_config(incremental))
+    history_start = forecast_day - timedelta(days=1)
+    if config.weather_source == "open_meteo":
+        body["open_meteo_start_date"] = history_start.isoformat()
+        body["open_meteo_end_date"] = forecast_day.isoformat()
+    elif config.weather_source == "dwd_icon":
+        body["start_folder_date"] = _dwd_issue_day(history_start, config.dwd_folder_offset_date).isoformat()
+
+    # Preserve the complete static artifacts instead of replacing them with a
+    # two-day operational view.
+    body["capacity_timeseries_file"] = None
+    body["weather_weights_file"] = None
+    incremental["config"] = body
+    return incremental
+
+
+def _run_feature_payload_incrementally(payload: dict, repo_root: Path, forecast_day: date) -> None:
+    config = _feature_config_from_payload(payload, repo_root)
+    existing: pd.DataFrame | None = None
+    if config.output_file.exists():
+        try:
+            existing = load_timestamp_csv(config.output_file, config.target_tz)
+        except Exception as exc:
+            print(f"[cache] Ignoring unreadable renewable feature cache {config.output_file}: {exc}", flush=True)
+
+    has_target = _feature_cache_has_day(existing, forecast_day, config.target_tz)
+    if has_target and not _feature_source_is_newer(config, forecast_day):
+        print(f"[cache] Renewable feature cache already covers {forecast_day}; skipping rebuild.", flush=True)
+        return
+
+    reason = "newer weather source" if has_target else "missing target day"
+    incremental_payload = _incremental_feature_payload(payload, config, forecast_day)
+    print(
+        f"[cache] Refreshing renewable features for {forecast_day} ({reason}); "
+        f"using at most two source days.",
+        flush=True,
+    )
+
+    try:
+        run_from_config(validate_config_payload(incremental_payload, RunConfig, repo_root=repo_root))
+        refreshed = load_timestamp_csv(config.output_file, config.target_tz)
+        if not _feature_cache_has_day(refreshed, forecast_day, config.target_tz):
+            raise ValueError(f"Feature refresh did not produce a complete local day for {forecast_day}.")
+    except Exception as exc:
+        if existing is None or existing.empty:
+            raise
+        fallback = _fallback_feature_day(existing, forecast_day=forecast_day, target_tz=config.target_tz)
+        if fallback is None:
+            save_timestamp_csv(existing, config.output_file)
+            raise
+        fallback_frame, donor_day = fallback
+        combined = pd.concat([existing, fallback_frame]).sort_index()
+        combined = combined.loc[~combined.index.duplicated(keep="last")]
+        save_timestamp_csv(combined, config.output_file)
+        print(
+            f"[fallback] Renewable feature refresh failed ({exc}); "
+            f"using cached feature day {donor_day} for {forecast_day}.",
+            flush=True,
+        )
+        return
+
+    if existing is not None and not existing.empty:
+        refreshed = pd.concat([existing, refreshed]).sort_index()
+        refreshed = refreshed.loc[~refreshed.index.duplicated(keep="last")]
+    save_timestamp_csv(refreshed, config.output_file)
+    print(f"[cache] Renewable feature cache updated through {forecast_day}.", flush=True)
 
 
 def build_renewable_model_payload(
@@ -349,7 +509,7 @@ def run_daily_renewable_energy_arena(
     )
     feature_config = _feature_config_from_payload(feature_payload, repo_root)
     _write_yaml(paths.feature_config, feature_payload)
-    run_from_config(validate_config_payload(feature_payload, RunConfig, repo_root=repo_root))
+    _run_feature_payload_incrementally(feature_payload, repo_root, day)
 
     extra_feature_runs = []
     for index, extra_feature_config_path in enumerate(extra_feature_config_paths or [], start=1):
@@ -361,7 +521,7 @@ def run_daily_renewable_energy_arena(
         extra_feature_config = _feature_config_from_payload(extra_feature_payload, repo_root)
         generated_extra_feature_config = paths.extra_feature_config(index)
         _write_yaml(generated_extra_feature_config, extra_feature_payload)
-        run_from_config(validate_config_payload(extra_feature_payload, RunConfig, repo_root=repo_root))
+        _run_feature_payload_incrementally(extra_feature_payload, repo_root, day)
         extra_feature_runs.append(
             {
                 "feature_config_path": str(extra_feature_config_path),

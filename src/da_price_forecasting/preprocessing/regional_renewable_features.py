@@ -1911,12 +1911,131 @@ def _build_cluster_cloud_cover_features(
     return result.astype(float)
 
 
+def _cache_is_fresh(cache_path: Path, source_paths: list[Path]) -> bool:
+    if not cache_path.exists():
+        return False
+    cache_mtime = cache_path.stat().st_mtime
+    return all(not source.exists() or source.stat().st_mtime <= cache_mtime for source in source_paths)
+
+
+_CAPACITY_MAP_MEMORY_CACHE: dict[tuple[object, ...], pd.DataFrame] = {}
+_CAPACITY_POINT_MEMORY_CACHE: dict[tuple[object, ...], pd.DataFrame] = {}
+
+
+def _path_cache_key(path: Path) -> tuple[str, int | None]:
+    return str(path), path.stat().st_mtime_ns if path.exists() else None
+
+
+def _capacity_map_cache_key(config: RegionalRenewableFeatureConfig) -> tuple[object, ...]:
+    return (
+        _path_cache_key(config.capacity_file),
+        _path_cache_key(config.cluster_file),
+        config.technology_column,
+        config.capacity_column,
+        config.latitude_column,
+        config.longitude_column,
+        config.federal_state_column,
+        config.commissioning_date_column,
+        config.decommissioning_date_column,
+        config.operating_status_column,
+        tuple(config.active_status_codes),
+        tuple(config.wind_onshore_values),
+        tuple(config.wind_offshore_values),
+        tuple(config.solar_values),
+        config.north_latitude,
+        config.south_latitude,
+        config.west_longitude,
+        config.east_longitude,
+        config.solar_region_strategy,
+    )
+
+
+def _capacity_point_cache_key(config: RegionalRenewableFeatureConfig) -> tuple[object, ...]:
+    return (
+        _capacity_map_cache_key(config),
+        config.capacity_weather_point_strategy,
+        tuple(config.capacity_weather_metadata_columns),
+        tuple(config.capacity_weather_technologies),
+        config.capacity_weather_solar_points_per_region,
+        config.capacity_weather_onshore_points_per_region,
+        config.capacity_weather_offshore_points,
+        config.capacity_weather_random_state,
+        config.capacity_weather_cell_size_degrees,
+        config.capacity_weather_min_cell_capacity_mw,
+    )
+
+
+def _load_or_build_capacity_map(config: RegionalRenewableFeatureConfig) -> pd.DataFrame:
+    cache_key = _capacity_map_cache_key(config)
+    if cache_key in _CAPACITY_MAP_MEMORY_CACHE:
+        print("[cache] Reusing regional capacity map from memory.")
+        return _CAPACITY_MAP_MEMORY_CACHE[cache_key]
+
+    required_columns = {
+        "technology_group",
+        "region",
+        "cluster_id",
+        "capacity_mw",
+        "commissioning_date",
+        "decommissioning_date",
+        config.latitude_column,
+        config.longitude_column,
+    }
+    if _cache_is_fresh(config.capacity_map_file, [config.capacity_file, config.cluster_file]):
+        try:
+            capacity_map = pd.read_csv(config.capacity_map_file, low_memory=False)
+            missing = required_columns - set(capacity_map.columns)
+            if not missing:
+                print(f"[cache] Reusing regional capacity map: {config.capacity_map_file}")
+                _CAPACITY_MAP_MEMORY_CACHE[cache_key] = capacity_map
+                return capacity_map
+        except Exception as exc:
+            print(f"[cache] Could not reuse regional capacity map ({exc}); rebuilding.")
+    capacity_map = build_capacity_map(config)
+    _CAPACITY_MAP_MEMORY_CACHE[cache_key] = capacity_map
+    return capacity_map
+
+
+def _load_or_build_capacity_weather_points(
+    capacity_map: pd.DataFrame,
+    config: RegionalRenewableFeatureConfig,
+) -> pd.DataFrame:
+    cache_key = _capacity_point_cache_key(config)
+    if cache_key in _CAPACITY_POINT_MEMORY_CACHE:
+        print("[cache] Reusing capacity-weighted weather points from memory.")
+        return _CAPACITY_POINT_MEMORY_CACHE[cache_key]
+
+    required_columns = {
+        "weather_point_id",
+        "technology_group",
+        "region",
+        "lat",
+        "lon",
+        "capacity_mw",
+        "source_unit_count",
+    }
+    source_paths = [config.capacity_file, config.cluster_file]
+    if _cache_is_fresh(config.capacity_weather_point_file, source_paths):
+        try:
+            points = pd.read_csv(config.capacity_weather_point_file)
+            missing = required_columns - set(points.columns)
+            if not missing:
+                print(f"[cache] Reusing capacity-weighted weather points: {config.capacity_weather_point_file}")
+                _CAPACITY_POINT_MEMORY_CACHE[cache_key] = points
+                return points
+        except Exception as exc:
+            print(f"[cache] Could not reuse capacity-weighted weather points ({exc}); rebuilding.")
+    points = build_capacity_weather_points(capacity_map, config)
+    _CAPACITY_POINT_MEMORY_CACHE[cache_key] = points
+    return points
+
+
 def build_regional_renewable_features(
     config: RegionalRenewableFeatureConfig,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame | None]:
-    capacity_map = build_capacity_map(config)
+    capacity_map = _load_or_build_capacity_map(config)
     if config.weather_source == "open_meteo" and config.open_meteo_point_source == "capacity":
-        capacity_points = build_capacity_weather_points(capacity_map, config)
+        capacity_points = _load_or_build_capacity_weather_points(capacity_map, config)
         weather = _load_open_meteo_capacity_point_weather(config, capacity_points)
         features = _build_capacity_point_renewable_features(capacity_map, capacity_points, weather, config)
         return features, capacity_map, capacity_points

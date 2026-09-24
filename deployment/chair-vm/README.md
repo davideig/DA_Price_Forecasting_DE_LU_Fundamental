@@ -215,6 +215,8 @@ The optional cutoff tasks submit load, solar, onshore wind, and price for the
 same cutoff information set:
 
 ```text
+03:15 dwd-run00-update
+05:15 renewable-run00-features-update
 06:40 price-cutoff-0700-submit
 07:00 renewable-cutoff-features-update
 07:40 price-cutoff-0800-submit
@@ -223,6 +225,12 @@ same cutoff information set:
 10:40 price-cutoff-1100-submit
 11:40 price-cutoff-1200-submit
 ```
+
+The two early tasks prepare the causal `00` UTC weather inputs used by the
+07:00 operational adapter. On its first run, the feature task seeds missing
+historical `run00` tables from the schema-compatible `run06` cache and logs
+every seeded file. Fresh `run00` weather is then appended for the target day.
+Subsequent runs update only the new day and retain the native `run00` history.
 
 Before the first production day, pre-warm all cutoff-specific rolling forecast
 caches outside the submission window:

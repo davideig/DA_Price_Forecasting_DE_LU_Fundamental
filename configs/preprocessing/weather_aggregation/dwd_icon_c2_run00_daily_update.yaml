@@ -1,0 +1,22 @@
+kind: load_forecast_model
+config:
+  repo_root: "."
+  weather_source: dwd_icon
+  icon_dir: data/processed/icon_aggregated_c2_run00
+  required_run: "00"
+  dwd_folder_offset_date: "2025-10-26"
+
+  dwd_icon_auto_update: true
+  dwd_icon_catch_up_missing_days: false
+  dwd_icon_raw_dir: data/raw/dwd_icon_daily
+  dwd_icon_base_url: https://opendata.dwd.de/weather/nwp/icon-d2/grib/
+  dwd_icon_aggregation_n_clusters: 2
+  dwd_icon_aggregation_cluster_source: grid
+  dwd_icon_aggregation_cluster_output_file: data/clustering/icon_d2_clustering_c2_run00.parquet
+  dwd_icon_aggregation_capacity_weighted: false
+  dwd_icon_download_variables:
+    - t_2m
+    - u_10m
+    - v_10m
+    - aswdir_s
+    - aswdifd_s

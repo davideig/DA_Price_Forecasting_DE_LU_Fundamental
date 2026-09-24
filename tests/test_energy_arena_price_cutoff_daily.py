@@ -4,6 +4,7 @@ from datetime import date
 from pathlib import Path
 
 from da_price_forecasting.config import RunConfig, validate_config_payload
+from da_price_forecasting.config.base import load_config_payload
 from da_price_forecasting.scripts import energy_arena_price_cutoff_daily as cutoff_daily
 
 
@@ -81,3 +82,29 @@ def test_cutoff_first_stage_forecast_path_comes_from_export_dir(tmp_path: Path) 
     payload = {"kind": "load_forecast", "config": {"export_dir": str(tmp_path / "export")}}
 
     assert cutoff_daily._forecast_file_from_payload(payload, repo_root=Path.cwd()) == tmp_path / "export" / "forecast.csv"
+
+
+def test_run00_daily_weather_configs_cover_all_0700_inputs() -> None:
+    expected = {
+        "dwd_icon_c2_run00_daily_update.yaml": (
+            "data/processed/icon_aggregated_c2_run00",
+            "data/clustering/icon_d2_clustering_c2_run00.parquet",
+        ),
+        "dwd_icon_mastr_solar_tso_c25_run00_daily_update.yaml": (
+            "data/processed/icon_aggregated_mastr_solar_tso_c25_run00",
+            "data/clustering/icon_d2_mastr_solar_tso_c25_run00.csv",
+        ),
+        "dwd_icon_mastr_wind_c100_run00_daily_update.yaml": (
+            "data/processed/icon_aggregated_mastr_wind_c100_run00",
+            "data/clustering/icon_d2_mastr_wind_c100_run00.csv",
+        ),
+    }
+
+    config_root = Path("configs/preprocessing/weather_aggregation")
+    for name, (icon_dir, cluster_file) in expected.items():
+        payload = load_config_payload(config_root / name)
+        validated = validate_config_payload(payload, RunConfig, repo_root=Path.cwd())
+
+        assert validated.config["required_run"] == "00"
+        assert validated.config["icon_dir"] == icon_dir
+        assert validated.config["dwd_icon_aggregation_cluster_output_file"] == cluster_file

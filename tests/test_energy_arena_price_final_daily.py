@@ -103,3 +103,40 @@ def test_first_stage_runner_restores_cache_after_failure(monkeypatch, tmp_path: 
 
     restored = load_timestamp_csv(forecast_path, "Europe/Berlin")
     pd.testing.assert_frame_equal(restored, existing, check_freq=False)
+
+
+def test_select_cached_price_forecast_prefers_complete_target_day(tmp_path: Path) -> None:
+    target_day = date(2026, 9, 25)
+    previous_path = tmp_path / "work" / "2026-09-24" / "price_forecast" / "forecast.csv"
+    target_path = tmp_path / "work" / "2026-09-25" / "price_forecast" / "forecast.csv"
+    save_timestamp_csv(_day_frame("2026-09-24", 1.0).rename(columns={"Model_MW": "y_pred"}), previous_path)
+    save_timestamp_csv(_day_frame("2026-09-25", 2.0).rename(columns={"Model_MW": "y_pred"}), target_path)
+
+    selected, selected_day = daily._select_cached_price_forecast(
+        repo_root=tmp_path,
+        forecast_date=target_day,
+        target_tz="Europe/Berlin",
+        work_root=Path("work"),
+    )
+
+    assert selected == target_path
+    assert selected_day == target_day
+
+
+def test_select_cached_price_forecast_falls_back_to_previous_complete_day(tmp_path: Path) -> None:
+    target_day = date(2026, 9, 25)
+    target_path = tmp_path / "work" / "2026-09-25" / "price_forecast" / "forecast.csv"
+    previous_path = tmp_path / "work" / "2026-09-24" / "price_forecast" / "forecast.csv"
+    incomplete = _day_frame("2026-09-25", 2.0).rename(columns={"Model_MW": "y_pred"}).iloc[:-1]
+    save_timestamp_csv(incomplete, target_path)
+    save_timestamp_csv(_day_frame("2026-09-24", 1.0).rename(columns={"Model_MW": "y_pred"}), previous_path)
+
+    selected, selected_day = daily._select_cached_price_forecast(
+        repo_root=tmp_path,
+        forecast_date=target_day,
+        target_tz="Europe/Berlin",
+        work_root=Path("work"),
+    )
+
+    assert selected == previous_path
+    assert selected_day == date(2026, 9, 24)

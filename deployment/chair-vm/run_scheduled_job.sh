@@ -165,6 +165,11 @@ case "$job" in
       --retry-interval-minutes 5
     ;;
 
+  price-deadline-safety-submit)
+    "$PIXI" run energy-arena-price-final-daily \
+      --cached-safety-submit
+    ;;
+
   price-cutoff-0700-submit)
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 0700 \

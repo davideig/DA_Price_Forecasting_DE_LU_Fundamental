@@ -54,6 +54,10 @@ class DailyPricePaths:
     def submission_config(self) -> Path:
         return self.generated_config_dir / "energy_arena_price_final_submission.generated.yaml"
 
+    @property
+    def safety_submission_config(self) -> Path:
+        return self.generated_config_dir / "energy_arena_price_final_safety_submission.generated.yaml"
+
 
 def dated_price_work_paths(
     repo_root: Path,
@@ -285,6 +289,100 @@ def _build_submission_payload(
     }
 
 
+def _forecast_has_complete_day(path: Path, day: date, target_tz: str) -> bool:
+    try:
+        forecast = load_timestamp_csv(path, target_tz)
+    except Exception:
+        return False
+    if "y_pred" not in forecast.columns:
+        return False
+
+    start = pd.Timestamp(day, tz=target_tz)
+    end = start + pd.DateOffset(days=1)
+    expected = pd.date_range(start, end, freq="15min", inclusive="left")
+    values = forecast.reindex(expected)["y_pred"]
+    return len(values) == len(expected) and values.notna().all()
+
+
+def _select_cached_price_forecast(
+    *,
+    repo_root: Path,
+    forecast_date: date,
+    target_tz: str,
+    work_root: Path | None,
+    max_lookback_days: int = 30,
+) -> tuple[Path, date]:
+    root = resolve_path(work_root or DEFAULT_WORK_ROOT, repo_root)
+    for lag in range(0, max_lookback_days + 1):
+        candidate_day = forecast_date - timedelta(days=lag)
+        candidate = root / candidate_day.isoformat() / "price_forecast" / "forecast.csv"
+        if candidate.exists() and _forecast_has_complete_day(candidate, candidate_day, target_tz):
+            return candidate, candidate_day
+    raise FileNotFoundError(
+        f"No complete cached price forecast found for {forecast_date} or the prior "
+        f"{max_lookback_days} day(s) under {root}."
+    )
+
+
+def run_cached_price_safety_submission(
+    *,
+    challenge_id: int | None = None,
+    challenge_id_env: str = DEFAULT_CHALLENGE_ID_ENV,
+    forecast_date: date | None = None,
+    target_tz: str = "Europe/Berlin",
+    work_root: Path | None = None,
+    submit: bool = True,
+    approach_name: str = "price_pgen_lightgbm_c2_run06_d70",
+    approach_description: str = "Final paper P_gen LightGBM price model using own load, solar, and wind forecasts.",
+) -> Path:
+    """Submit the best cached price forecast shortly before the hard deadline."""
+    repo_root = find_repo_root()
+    day = forecast_date or tomorrow_in_tz(target_tz)
+    resolved_challenge_id = _resolve_challenge_id(challenge_id, challenge_id_env, repo_root)
+    response_path = (
+        repo_root
+        / "results"
+        / "energy_arena_submissions"
+        / f"challenge_{resolved_challenge_id}"
+        / day.isoformat()
+        / approach_name
+        / "submission_response.json"
+    )
+    if response_path.exists():
+        print(f"[safety] Price submission already complete: {response_path}", flush=True)
+        return response_path
+
+    paths = dated_price_work_paths(repo_root=repo_root, forecast_date=day, work_root=work_root)
+    forecast_path, cached_day = _select_cached_price_forecast(
+        repo_root=repo_root,
+        forecast_date=day,
+        target_tz=target_tz,
+        work_root=work_root,
+    )
+    if cached_day == day:
+        print(f"[safety] Submitting completed current-day price forecast: {forecast_path}", flush=True)
+    else:
+        print(
+            f"[safety] Current-day price forecast is unavailable; submitting cached {cached_day} "
+            f"forecast with operational day imputation: {forecast_path}",
+            flush=True,
+        )
+
+    payload = _build_submission_payload(
+        forecast_path=forecast_path,
+        forecast_date=day,
+        challenge_id=resolved_challenge_id,
+        submit=submit,
+        target_tz=target_tz,
+        approach_name=approach_name,
+        approach_description=approach_description,
+    )
+    _write_yaml(paths.safety_submission_config, payload)
+    run_config = validate_config_payload(payload, RunConfig, repo_root=repo_root)
+    run_from_config(run_config, submit_override=submit)
+    return response_path
+
+
 def run_daily_price_final_energy_arena(
     *,
     price_config_path: Path = DEFAULT_PRICE_CONFIG,
@@ -499,6 +597,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--work-root", type=Path, default=None)
     parser.add_argument("--dry-run", action="store_true", help="Generate payloads but do not submit to Energy Arena.")
     parser.add_argument(
+        "--cached-safety-submit",
+        action="store_true",
+        help=(
+            "Skip model computation and submit the best cached price forecast. If today's forecast is unavailable, "
+            "the operational fallback remaps the latest complete prior day."
+        ),
+    )
+    parser.add_argument(
         "--skip-first-stage-refresh",
         action="store_true",
         help="Reuse existing generated load/solar/wind forecast CSVs instead of refreshing them first.",
@@ -535,6 +641,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    if args.cached_safety_submit:
+        run_cached_price_safety_submission(
+            challenge_id=args.challenge_id,
+            challenge_id_env=args.challenge_id_env,
+            forecast_date=args.forecast_date,
+            target_tz=args.target_tz,
+            work_root=args.work_root,
+            submit=not args.dry_run,
+            approach_name=args.approach_name,
+            approach_description=args.approach_description,
+        )
+        return
     run_daily_price_final_energy_arena_with_retries(
         price_config_path=args.price_config,
         load_input_config_path=args.load_input_config,

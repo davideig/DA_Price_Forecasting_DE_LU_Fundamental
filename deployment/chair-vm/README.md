@@ -181,9 +181,15 @@ The tasks are:
 11:20 renewable-wind-submit
 11:30 price-submit
 11:35 load-point-submit
+11:54 price-deadline-safety-submit
 12:25 commit-operational-archive
 13:15 backup-operational-artifacts
 ```
+
+`price-deadline-safety-submit` is independent of the main price computation. It
+does nothing when a response already exists. Otherwise it submits a completed
+current-day price forecast if available, or remaps the latest complete cached
+price day as an explicitly logged last-mile fallback before the 12:00 deadline.
 
 The registered `wsl.exe` action remains attached until its Linux job finishes.
 Consequently, Task Scheduler's `Running` state and `LastTaskResult` describe the

@@ -21,8 +21,9 @@ function New-WslAction {
         [string]$RepoLinuxPath,
         [string]$Job
     )
-    $launcherLog = "/tmp/da-forecast-$Job.launch.log"
-    $bashCommand = "cd '$RepoLinuxPath' && nohup ./deployment/chair-vm/run_scheduled_job.sh $Job > '$launcherLog' 2>&1 < /dev/null &"
+    # Keep wsl.exe attached so Task Scheduler tracks the actual job instead of
+    # terminating a detached Linux process when the launcher exits.
+    $bashCommand = "cd '$RepoLinuxPath' && exec ./deployment/chair-vm/run_scheduled_job.sh '$Job'"
     $argument = "bash -lc `"$bashCommand`""
     New-ScheduledTaskAction -Execute "wsl.exe" -Argument $argument
 }

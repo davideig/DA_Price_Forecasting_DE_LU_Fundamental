@@ -185,6 +185,10 @@ The tasks are:
 13:15 backup-operational-artifacts
 ```
 
+The registered `wsl.exe` action remains attached until its Linux job finishes.
+Consequently, Task Scheduler's `Running` state and `LastTaskResult` describe the
+forecasting job itself; closing an unrelated terminal or RDP window does not stop it.
+
 `commit-operational-archive` runs after the Energy-Arena deadline. It exports the
 updated live caches to `data/archive/operational/`, commits changed archive files,
 and pushes them to Git so the repository data archive stays current.

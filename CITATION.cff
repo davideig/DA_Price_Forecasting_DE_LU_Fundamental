@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the repository and the associated thesis or paper."
+title: "DA Price Forecasting Pipeline DE-LU"
+type: software
+version: 0.1.0
+authors:
+  - family-names: Eiglsperger
+    given-names: David
+repository-code: "https://github.com/davideig/DA_Price_Forecasting_DE_LU_Fundamental"

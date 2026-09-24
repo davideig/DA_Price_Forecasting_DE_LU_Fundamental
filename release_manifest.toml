@@ -5,6 +5,7 @@ description = "Clean thesis/reuse export for DE-LU load, renewable generation, a
 [include]
 paths = [
   "README.md",
+  "CITATION.cff",
   "pixi.toml",
   "pixi.lock",
   "pyproject.toml",
@@ -25,11 +26,13 @@ paths = [
   "configs/feature_allowlists",
   "deployment",
   "docs",
+  "visualization",
   "data/README.md",
   "scripts/export_release_repo.py",
 ]
 
 optional_paths = [
+  "data/archive/operational",
   "data/sample",
 ]
 

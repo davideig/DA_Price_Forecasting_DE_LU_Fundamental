@@ -5,6 +5,12 @@ import sys
 import types
 
 import pandas as pd
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _isolated_entsoe_cache(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("ENTSOE_CACHE_DIR", str(tmp_path / "entsoe-cache"))
 
 
 def _load_entsoe_module(monkeypatch, pandas_client_cls, raw_client_cls, parse_prices):

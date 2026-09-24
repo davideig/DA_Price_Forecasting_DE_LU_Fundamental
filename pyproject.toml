@@ -5,9 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "da-price-forecasting"
 version = "0.1.0"
-description = "Modular forecasting pipelines for German day-ahead electricity prices."
+description = "Operational load, renewable generation, and day-ahead price forecasting for DE-LU."
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [
+    { name = "David Eiglsperger" },
+]
 dependencies = [
     "pydantic>=2.11,<3",
     "pyyaml>=6.0,<7",
@@ -16,6 +19,10 @@ dependencies = [
     "openpyxl>=3.1,<4",
     "yfinance>=0.2,<0.3",
 ]
+
+[project.urls]
+Repository = "https://github.com/davideig/DA_Price_Forecasting_DE_LU_Fundamental"
+Documentation = "https://github.com/davideig/DA_Price_Forecasting_DE_LU_Fundamental/blob/main/docs/user_guide.md"
 
 [project.scripts]
 da-price-forecast = "da_price_forecasting.scripts.run:main"

@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import shutil
+import sys
 import tempfile
 import uuid
 from dataclasses import asdict, dataclass
@@ -324,7 +325,16 @@ def _load_manifest(repo_root: Path, archive_root: Path) -> ArchiveManifest:
 
 
 def restore_archive(repo_root: Path, archive_root: Path, dry_run: bool, overwrite: bool) -> int:
-    manifest = _load_manifest(repo_root, archive_root)
+    try:
+        manifest = _load_manifest(repo_root, archive_root)
+    except FileNotFoundError:
+        print(
+            f"Operational archive is not available at {archive_root}.\n"
+            "Download and unpack the matching release data pack, or use a Git revision "
+            "that contains data/archive/operational/manifest.json.",
+            file=sys.stderr,
+        )
+        return 2
     restored = 0
     skipped = 0
     print(f"Repo root:    {repo_root}")

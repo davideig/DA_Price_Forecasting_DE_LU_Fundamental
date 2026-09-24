@@ -273,16 +273,12 @@ def build_timestamp_covariates(
             "foreign_day_ahead_price_spreads",
         )
     ) or ("load_forecast" in selected_covariates and not covariate_config.load_forecast_file)
-    if needs_entsoe_fetchers:
-        (
-            fetch_prices_exaa,
-            _fetch_load_forecast,
-            fetch_ntc_data,
-            fetch_generation_unavailability,
-            fetch_foreign_day_ahead_prices,
-        ) = _require_entsoe_fetchers()
+    entsoe_fetchers = _require_entsoe_fetchers() if needs_entsoe_fetchers else None
 
-        if "exaa" in selected_covariates:
+    for covariate_name in selected_covariates:
+        if covariate_name == "exaa":
+            assert entsoe_fetchers is not None
+            fetch_prices_exaa = entsoe_fetchers[0]
             frames.append(
                 fetch_prices_exaa(
                     start_day=start_day,
@@ -292,7 +288,32 @@ def build_timestamp_covariates(
                     target_tz=target_tz,
                 )
             )
-        if "ntc" in selected_covariates:
+        elif covariate_name == "load_forecast":
+            if covariate_config.load_forecast_file:
+                frames.append(
+                    load_load_forecast_covariates(
+                        covariate_config,
+                        start_day=start_day,
+                        end_day=end_day,
+                        country_code_entsoe=country_code_entsoe,
+                        entsoe_api_key_env=entsoe_api_key_env,
+                        target_tz=target_tz,
+                    )
+                )
+            else:
+                assert entsoe_fetchers is not None
+                frames.append(
+                    entsoe_fetchers[1](
+                        start_day=start_day,
+                        end_day=end_day,
+                        country_code=country_code_entsoe,
+                        api_key_env=entsoe_api_key_env,
+                        target_tz=target_tz,
+                    )
+                )
+        elif covariate_name == "ntc":
+            assert entsoe_fetchers is not None
+            fetch_ntc_data = entsoe_fetchers[2]
             frames.append(
                 fetch_ntc_data(
                     start_day=start_day,
@@ -303,7 +324,9 @@ def build_timestamp_covariates(
                     target_tz=target_tz,
                 )
             )
-        if "generation_unavailability" in selected_covariates:
+        elif covariate_name == "generation_unavailability":
+            assert entsoe_fetchers is not None
+            fetch_generation_unavailability = entsoe_fetchers[3]
             frames.append(
                 fetch_generation_unavailability(
                     start_day=start_day,
@@ -313,7 +336,9 @@ def build_timestamp_covariates(
                     target_tz=target_tz,
                 )
             )
-        if "foreign_day_ahead_prices" in selected_covariates:
+        elif covariate_name == "foreign_day_ahead_prices":
+            assert entsoe_fetchers is not None
+            fetch_foreign_day_ahead_prices = entsoe_fetchers[4]
             frames.append(
                 fetch_foreign_day_ahead_prices(
                     start_day=start_day,
@@ -323,7 +348,10 @@ def build_timestamp_covariates(
                     target_tz=target_tz,
                 )
             )
-        if "foreign_day_ahead_price_spreads" in selected_covariates:
+        elif covariate_name == "foreign_day_ahead_price_spreads":
+            assert entsoe_fetchers is not None
+            fetch_prices_exaa = entsoe_fetchers[0]
+            fetch_foreign_day_ahead_prices = entsoe_fetchers[4]
             foreign_prices = fetch_foreign_day_ahead_prices(
                 start_day=start_day,
                 end_day=end_day,
@@ -339,27 +367,12 @@ def build_timestamp_covariates(
                 target_tz=target_tz,
             )
             frames.append(_build_foreign_price_spreads(foreign_prices, exaa_prices))
-
-    if "load_forecast" in selected_covariates:
-        frames.append(
-            load_load_forecast_covariates(
-                covariate_config,
-                start_day=start_day,
-                end_day=end_day,
-                country_code_entsoe=country_code_entsoe,
-                entsoe_api_key_env=entsoe_api_key_env,
-                target_tz=target_tz,
-            )
-        )
-
-    if "commodities" in selected_covariates:
-        frames.append(_fetch_commodity_covariates(covariate_config, start_day, end_day, target_tz))
-
-    if "renewable_generation_proxy" in selected_covariates:
-        frames.append(_load_renewable_proxy_covariates(covariate_config, start_day, end_day, target_tz))
-
-    if "reserve_market" in selected_covariates:
-        frames.append(_load_reserve_market_covariates(covariate_config, start_day, end_day, target_tz))
+        elif covariate_name == "commodities":
+            frames.append(_fetch_commodity_covariates(covariate_config, start_day, end_day, target_tz))
+        elif covariate_name == "renewable_generation_proxy":
+            frames.append(_load_renewable_proxy_covariates(covariate_config, start_day, end_day, target_tz))
+        elif covariate_name == "reserve_market":
+            frames.append(_load_reserve_market_covariates(covariate_config, start_day, end_day, target_tz))
 
     covariates = merge_timestamp_covariates(frames)
     if {"load_forecast", "renewable_generation_proxy"}.issubset(set(selected_covariates)):

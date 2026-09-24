@@ -1,23 +1,37 @@
 # Quickstart
 
-This repository exports reusable load, solar, wind, and price forecasting models
-for the DE-LU day-ahead market.
-
-## Setup
+## Install
 
 ```bash
-pixi install --all
-cp .env.example .env
+git clone https://github.com/davideig/DA_Price_Forecasting_DE_LU_Fundamental.git
+cd DA_Price_Forecasting_DE_LU_Fundamental
+pixi install
 ```
 
-Fill in the required API keys in `.env`, especially:
+## Restore Data
 
-```dotenv
-ENTSOE_API_KEY=...
-OPEN_METEO_API_KEY=...
+If the Git revision contains `data/archive/operational/manifest.json`:
+
+```bash
+pixi run operational-archive restore
 ```
 
-## Run Final First-Stage Models
+Otherwise download the matching versioned data pack and unpack it in the
+repository root:
+
+```bash
+tar -xzf DA_Price_Forecasting_DE_LU_Fundamental_data_v0.1.0.tar.gz
+```
+
+Verify the deployed model inputs:
+
+```bash
+pixi run check-data-pack --profile operational
+```
+
+Continue only when the check reports `Missing: 0`.
+
+## Run Final Models
 
 ```bash
 pixi run forecast-load-final
@@ -25,80 +39,30 @@ pixi run forecast-solar-final
 pixi run forecast-wind-final
 ```
 
-The direct load model, which does not use the ENTSO-E day-ahead load forecast,
-is available with:
-
-```bash
-pixi run forecast-load-direct
-```
-
-## Run Price Experiments
-
-RQ2 price configs are in `configs/pricebase_sweep/`.
-
-```bash
-pixi run -e forecast da-price-forecast --config configs/pricebase_sweep/oos_pbase_c2_d70.yaml
-pixi run -e forecast da-price-forecast --config configs/pricebase_sweep/oos_pgen_c2_d70.yaml
-```
-
-For the operational final paper stack submitted to Energy Arena, use:
+Run the final generated-input price workflow without submitting:
 
 ```bash
 pixi run energy-arena-price-final-daily --dry-run
 ```
 
-This refreshes the generated load, solar, and wind forecast caches first, then
-runs the final `P_gen` LightGBM price model. To reuse already-unpacked cache
-files without refreshing first-stage forecasts:
+Reuse supplied first-stage forecast caches without API refreshes:
 
 ```bash
-pixi run energy-arena-price-final-daily --dry-run --skip-first-stage-refresh
+pixi run energy-arena-price-final-daily \
+  --dry-run \
+  --skip-first-stage-refresh
 ```
 
-RQ3 cutoff-grid configs and their order are documented in:
+## Credentials
 
-```text
-configs/rq3_cutoff_grid/RUN_ORDER.md
-```
-
-The operational cutoff runner supports the six paper cutoff times and refreshes
-the matching own load, solar, and wind first-stage forecasts:
+API updates and live submissions require a local `.env`:
 
 ```bash
-pixi run energy-arena-price-cutoff-daily --cutoff 0700 --dry-run
-pixi run energy-arena-price-cutoff-daily --cutoff 1200 --dry-run
+cp .env.example .env
 ```
 
-These runs all submit to the DE-LU point price challenge ID in
-`ENERGY_ARENA_PRICE_CHALLENGE_ID`. The Energy-Arena cutoff leaderboard is chosen
-from the actual submission timestamp.
+Historical reproduction from a complete archive does not require Energy Arena
+credentials. Never commit `.env`.
 
-For production, the registered cutoff tasks use `--submit-first-stage` so load,
-solar, onshore wind, and price are submitted for the same cutoff information set.
-
-## Data Modes
-
-Users can work in three modes:
-
-1. Sample mode: use a tiny sample feature pack for smoke tests.
-2. Feature-pack mode: download processed data produced by the thesis pipeline.
-3. Full rebuild mode: refetch ENTSO-E/Open-Meteo/DWD/MaStR data and rerun preprocessing.
-
-See `docs/data_catalog.md` for the required files.
-
-## Recommended Reuse Path
-
-For most users, the practical path is feature-pack mode:
-
-```bash
-tar -xzf DA_Price_Forecasting_DE_LU_Fundamental_data_v0.1.0.tar.gz
-pixi run check-data-final
-pixi run check-data-price-final
-pixi run forecast-load-final
-pixi run forecast-solar-final
-pixi run forecast-wind-final
-```
-
-The data pack is not stored in Git. Download it from the matching GitHub
-Release, Zenodo, OSF, or the distribution location named in the release notes.
-See `docs/data_pack.md` for packaging and verification details.
+See [user_guide.md](user_guide.md) for data distribution, output locations,
+RQ3 cutoff runs, and integration guidance.

@@ -33,6 +33,7 @@ configs/tmp/
 
 # Large/generated data
 data/raw/
+data/cache/
 data/processed/*
 !data/processed/.gitkeep
 *.grib

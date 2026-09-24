@@ -6,17 +6,21 @@ model inputs, it supports two layers:
 1. a Git-tracked operational archive under `data/archive/operational/`;
 2. optional immutable data packs for GitHub Releases, Zenodo, or OSF.
 
-The operational archive is the default for the chair VM and for users who want
-to clone the repo and run the final models directly. It stores processed CSV
-caches as compressed Parquet and restores them into the normal runtime layout.
+The operational archive is the intended default for the chair VM and for users
+who want to clone the repo and run the final models directly. A revision is
+self-contained only when `data/archive/operational/manifest.json` is actually
+tracked. Until that first archive is published, users need the separately
+distributed data pack. The archive stores processed CSV caches as compressed
+Parquet and restores them into the normal runtime layout.
 
 ## Git-Tracked Operational Archive
 
 Restore the archive after cloning:
 
 ```bash
+test -f data/archive/operational/manifest.json
 pixi run operational-archive restore
-pixi run check-data-thesis
+pixi run check-data-pack --profile operational
 ```
 
 Export a new archive from a machine that has up-to-date live caches:

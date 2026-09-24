@@ -650,6 +650,8 @@ class LoadForecastEnsembleConfig(RepoConfigModel):
     test_start: date = date(2025, 12, 1)
     test_end: date = date(2026, 2, 28)
     target_availability_lag_days: int = 1
+    target_availability_cutoff_hour: int | None = None
+    target_availability_cutoff_minute: int = 0
 
     include_rolling_residual_quantiles: bool = False
     residual_quantiles: list[float] = Field(default_factory=lambda: [0.025, 0.25, 0.50, 0.75, 0.975])
@@ -678,6 +680,10 @@ class LoadForecastEnsembleConfig(RepoConfigModel):
             raise ValueError("Load forecast ensemble source names must be unique.")
         if self.target_availability_lag_days < 0:
             raise ValueError("target_availability_lag_days must be non-negative.")
+        if self.target_availability_cutoff_hour is not None and not (0 <= self.target_availability_cutoff_hour <= 23):
+            raise ValueError("target_availability_cutoff_hour must be between 0 and 23.")
+        if self.target_availability_cutoff_minute not in {0, 15, 30, 45}:
+            raise ValueError("target_availability_cutoff_minute must be one of 0, 15, 30, or 45.")
         if self.residual_quantile_window_days < 1:
             raise ValueError("residual_quantile_window_days must be positive.")
         if self.residual_quantile_min_observations < 1:

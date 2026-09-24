@@ -1,8 +1,8 @@
 [workspace]
 name = "da-price-forecasting"
 version = "0.1.0"
-description = "Modular forecasting pipelines for German day-ahead electricity prices."
-authors = ["Davide Igelsperger"]
+description = "Operational load, renewable generation, and day-ahead price forecasting for DE-LU."
+authors = ["David Eiglsperger"]
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64"]
 

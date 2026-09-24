@@ -728,7 +728,7 @@ def test_entsoe_error_features_use_safe_lags_and_rolling_history(monkeypatch, tm
 
     history = actual.join(forecast)
     history["error"] = history["load_actual"] - history["load_fc"]
-    safe_history = history.loc["2026-01-02T00:00:00+01:00":"2026-01-08T23:45:00+01:00"]
+    safe_history = history.loc["2026-01-03T00:00:00+01:00":"2026-01-09T23:45:00+01:00"]
     assert np.isclose(features.loc[timestamp, "Entsoe_Load_Error_MW_global_mean_7d"], safe_history["error"].mean())
     assert np.isclose(
         features.loc[timestamp, "Entsoe_Load_Error_MW_mtu_mean_7d"],
@@ -869,7 +869,7 @@ def test_rolling_residual_quantiles_use_only_past_errors(tmp_path: Path) -> None
     first_day = pd.Timestamp("2026-01-01T12:00:00+01:00")
     target = pd.Timestamp("2026-01-04T12:00:00+01:00")
     assert np.isnan(result.loc[first_day, "q0.500"])
-    assert result.loc[target, "q0.500"] == 115.0
+    assert result.loc[target, "q0.500"] == 120.0
     assert result.loc[target, "q0.250"] <= result.loc[target, "q0.500"] <= result.loc[target, "q0.750"]
 
 
@@ -897,9 +897,9 @@ def test_rolling_residual_quantiles_can_scale_spread(tmp_path: Path) -> None:
     result = lf.apply_rolling_residual_quantiles(forecast, config)
     target = pd.Timestamp("2026-01-04T12:00:00+01:00")
 
-    assert result.loc[target, "q0.500"] == 115.0
-    assert result.loc[target, "q0.250"] == 105.0
-    assert result.loc[target, "q0.750"] == 125.0
+    assert result.loc[target, "q0.500"] == 120.0
+    assert result.loc[target, "q0.250"] == 100.0
+    assert result.loc[target, "q0.750"] == 140.0
 
 
 def test_evaluate_load_quantile_forecast_reports_lqs_and_coverage() -> None:

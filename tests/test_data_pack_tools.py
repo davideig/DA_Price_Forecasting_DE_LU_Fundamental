@@ -119,6 +119,18 @@ def test_operational_archive_round_trips_csv_with_header_comments(tmp_path: Path
     assert "2026-09-22T00:00:00+00:00,1.5,2.5" in restored
 
 
+def test_operational_archive_restore_explains_missing_manifest(tmp_path: Path, capsys) -> None:
+    status = restore_archive(
+        repo_root=tmp_path,
+        archive_root=tmp_path / "data" / "archive" / "operational",
+        dry_run=False,
+        overwrite=True,
+    )
+
+    assert status == 2
+    assert "Operational archive is not available" in capsys.readouterr().err
+
+
 def test_operational_archive_profile_uses_required_inputs_only(tmp_path: Path, monkeypatch) -> None:
     config = tmp_path / "configs" / "model.yaml"
     config.parent.mkdir(parents=True)

@@ -224,6 +224,18 @@ same cutoff information set:
 11:40 price-cutoff-1200-submit
 ```
 
+Before the first production day, pre-warm all cutoff-specific rolling forecast
+caches outside the submission window:
+
+```bash
+./deployment/chair-vm/run_scheduled_job.sh cutoff-prewarm-all
+```
+
+This runs the six complete cutoff workflows sequentially in dry-run mode. It
+does not contact the Energy Arena submission endpoint, and it continues with
+the remaining cutoffs if one cutoff fails. The final log summary lists any
+cutoffs that still need attention.
+
 ## 6. Check Status
 
 From PowerShell:

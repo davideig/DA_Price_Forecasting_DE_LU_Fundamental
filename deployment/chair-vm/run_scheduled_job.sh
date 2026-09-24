@@ -136,6 +136,25 @@ case "$job" in
       --features-only
     ;;
 
+  cutoff-prewarm-all)
+    failed_cutoffs=()
+    for cutoff in 0700 0800 0900 1000 1100 1200; do
+      echo "--- Pre-warming cutoff $cutoff ---"
+      if ! "$PIXI" run energy-arena-price-cutoff-daily \
+        --cutoff "$cutoff" \
+        --submit-first-stage \
+        --dry-run; then
+        failed_cutoffs+=("$cutoff")
+        echo "[prewarm] Cutoff $cutoff failed; continuing with the remaining cutoffs." >&2
+      fi
+    done
+    if [ "${#failed_cutoffs[@]}" -gt 0 ]; then
+      echo "[prewarm] Failed cutoffs: ${failed_cutoffs[*]}" >&2
+      exit 1
+    fi
+    echo "[prewarm] All cutoff caches and dry-run submission payloads completed."
+    ;;
+
   renewable-solar-submit)
     "$PIXI" run energy-arena-renewable-daily \
       --feature-config "$SOLAR_FEATURE_CONFIG" \

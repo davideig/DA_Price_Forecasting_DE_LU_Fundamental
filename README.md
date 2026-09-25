@@ -126,6 +126,7 @@ The checks only report availability. They do not download data.
 
 The production deployment runs in WSL through Windows Task Scheduler. It
 collects current data, runs the cutoff and final models, submits forecasts,
+retries missing inputs after the deadline, records a dated data-quality report,
 exports the updated operational archive, and backs up operational artifacts.
 
 Deployment instructions are isolated in

@@ -196,21 +196,77 @@ bootstrap_run00_feature_caches() {
   done
 }
 
-refresh_run00_features() {
-  bootstrap_run00_price_weather
-  bootstrap_run00_feature_caches
+refresh_run00_wind_features() {
+  local extra_args=("$@")
   "$PIXI" run energy-arena-renewable-daily \
     --feature-config "$RUN00_WIND_FEATURE_CONFIG" \
     "${run00_wind_extra_feature_args[@]}" \
     --model-config "$RUN00_WIND_MODEL_CONFIG" \
     --skip-solar \
-    --features-only
+    --features-only \
+    "${extra_args[@]}"
+}
+
+refresh_run00_solar_features() {
+  local extra_args=("$@")
   "$PIXI" run energy-arena-renewable-daily \
     --feature-config "$RUN00_SOLAR_FEATURE_CONFIG" \
     --extra-feature-config "$RUN00_SOLAR_EXTRA_FEATURE_CONFIG" \
     --model-config "$RUN00_SOLAR_MODEL_CONFIG" \
     --skip-wind \
-    --features-only
+    --features-only \
+    "${extra_args[@]}"
+}
+
+refresh_run00_features() {
+  bootstrap_run00_price_weather
+  bootstrap_run00_feature_caches
+  refresh_run00_wind_features "$@"
+  refresh_run00_solar_features "$@"
+}
+
+refresh_run06_wind_features() {
+  local extra_args=("$@")
+  "$PIXI" run energy-arena-renewable-daily \
+    --feature-config "$WIND_FEATURE_CONFIG" \
+    "${wind_extra_feature_args[@]}" \
+    --model-config "$WIND_MODEL_CONFIG" \
+    --skip-solar \
+    --features-only \
+    "${extra_args[@]}"
+}
+
+refresh_run06_solar_features() {
+  local extra_args=("$@")
+  "$PIXI" run energy-arena-renewable-daily \
+    --feature-config "$SOLAR_FEATURE_CONFIG" \
+    --extra-feature-config "$SOLAR_EXTRA_FEATURE_CONFIG" \
+    --model-config "$SOLAR_MODEL_CONFIG" \
+    --skip-wind \
+    --features-only \
+    "${extra_args[@]}"
+}
+
+refresh_run06_features() {
+  refresh_run06_wind_features "$@"
+  refresh_run06_solar_features "$@"
+}
+
+wait_for_job_lock() {
+  local other_job="$1"
+  local timeout_seconds="${2:-10800}"
+  local waited=0
+  while [ -d ".chair_vm_job_locks/${other_job}.lock" ]; do
+    if [ "$waited" -ge "$timeout_seconds" ]; then
+      echo "Timed out waiting for job lock: $other_job" >&2
+      return 1
+    fi
+    if [ $((waited % 300)) -eq 0 ]; then
+      echo "Waiting for $other_job to finish before continuing."
+    fi
+    sleep 30
+    waited=$((waited + 30))
+  done
 }
 
 case "$job" in
@@ -264,18 +320,7 @@ case "$job" in
     ;;
 
   renewable-cutoff-features-update)
-    "$PIXI" run energy-arena-renewable-daily \
-      --feature-config "$WIND_FEATURE_CONFIG" \
-      "${wind_extra_feature_args[@]}" \
-      --model-config "$WIND_MODEL_CONFIG" \
-      --skip-solar \
-      --features-only
-    "$PIXI" run energy-arena-renewable-daily \
-      --feature-config "$SOLAR_FEATURE_CONFIG" \
-      --extra-feature-config "$SOLAR_EXTRA_FEATURE_CONFIG" \
-      --model-config "$SOLAR_MODEL_CONFIG" \
-      --skip-wind \
-      --features-only
+    refresh_run06_features
     ;;
 
   cutoff-prewarm-all)
@@ -387,7 +432,53 @@ case "$job" in
       --retry-interval-minutes 5
     ;;
 
+  repair-operational-data)
+    ensure_natural_earth_shapefile
+    cleanup_raw_dwd
+    repair_failures=()
+    repair_step() {
+      local label="$1"
+      shift
+      echo "--- Repairing $label ---"
+      if "$@"; then
+        echo "[repair] $label complete."
+      else
+        local code=$?
+        repair_failures+=("$label (exit $code)")
+        echo "[repair] $label failed with exit $code; continuing." >&2
+      fi
+    }
+
+    repair_step "DWD run00 wind" "$PIXI" run -e ops da-price-dwd-icon-daily-update \
+      --config "$DWD_RUN00_WIND_CONFIG" --no-catch-up-missing-days
+    repair_step "DWD run00 price" "$PIXI" run -e ops da-price-dwd-icon-daily-update \
+      --config "$DWD_RUN00_PRICE_CONFIG" --no-catch-up-missing-days
+    repair_step "DWD run00 solar" "$PIXI" run -e ops da-price-dwd-icon-daily-update \
+      --config "$DWD_RUN00_SOLAR_CONFIG" --no-catch-up-missing-days
+    repair_step "DWD run06 wind" "$PIXI" run -e ops da-price-dwd-icon-daily-update \
+      --config "$DWD_WIND_CONFIG" --no-catch-up-missing-days
+    repair_step "DWD run06 price" "$PIXI" run -e ops da-price-dwd-icon-daily-update \
+      --config "$DWD_PRICE_CONFIG" --no-catch-up-missing-days
+    repair_step "DWD run06 solar" "$PIXI" run -e ops da-price-dwd-icon-daily-update \
+      --config "$DWD_SOLAR_CONFIG" --no-catch-up-missing-days
+    cleanup_raw_dwd
+
+    repair_step "run00 cache bootstrap" bootstrap_run00_feature_caches
+    repair_step "run00 wind renewable features" refresh_run00_wind_features --force-feature-refresh
+    repair_step "run00 solar renewable features" refresh_run00_solar_features --force-feature-refresh
+    repair_step "run06 wind renewable features" refresh_run06_wind_features --force-feature-refresh
+    repair_step "run06 solar renewable features" refresh_run06_solar_features --force-feature-refresh
+    repair_step "operational quality report" "$PIXI" run operational-data-quality
+
+    if [ "${#repair_failures[@]}" -gt 0 ]; then
+      printf '[repair] Failed steps: %s\n' "${repair_failures[*]}" >&2
+      exit 1
+    fi
+    echo "[repair] All current operational inputs were refreshed successfully."
+    ;;
+
   commit-operational-archive)
+    wait_for_job_lock repair-operational-data
     git pull --ff-only
     "$PIXI" run operational-archive export --profile operational
     git add data/archive/operational
@@ -403,6 +494,7 @@ case "$job" in
     ;;
 
   backup-operational-artifacts)
+    wait_for_job_lock commit-operational-archive
     deployment/chair-vm/backup_operational_artifacts.sh
     ;;
 

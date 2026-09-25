@@ -51,12 +51,15 @@ machine-specific files are deliberately excluded. The exporter refuses files
 larger than 95 MiB by default because normal Git/GitHub cannot handle very large
 single files gracefully.
 
-On the chair VM, `deployment/chair-vm/register_tasks.ps1` registers a
-post-deadline task named `DAForecast-commit-operational-archive`. It runs after
-the forecast submissions, exports the bounded `operational` profile, commits
-changed archive files, and pushes them. The profile contains the inputs used by
-the deployed final and RQ3 cutoff configs; it does not sweep every research file
-under `data/processed/`.
+On the chair VM, `deployment/chair-vm/register_tasks.ps1` first runs the
+post-deadline `DAForecast-repair-operational-data` task. It retries missing
+current weather inputs, refreshes the affected renewable features, and writes a
+dated report below `data/processed/operational_quality/`. The later
+`DAForecast-commit-operational-archive` task waits for repair to finish, exports
+the bounded `operational` profile, commits changed archive files, and pushes
+them. The profile contains the inputs used by the deployed final and RQ3 cutoff
+configs plus the quality reports; it does not sweep every research file under
+`data/processed/`.
 
 ## What The Data Pack Contains
 

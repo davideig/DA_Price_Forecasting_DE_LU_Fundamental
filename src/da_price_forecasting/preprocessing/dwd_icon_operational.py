@@ -41,8 +41,8 @@ def processed_weather_folder(icon_dir: Path, issue_day: date, run_hour: str) -> 
     return icon_dir / f"dwd_icon_daily_{issue_day:%Y%m%d}_{run_hour}"
 
 
-def processed_weather_folder_is_ready(path: Path) -> bool:
-    return path.is_dir() and any(path.glob("*.csv"))
+def processed_weather_folder_is_ready(path: Path, *, min_csv_files: int = 1) -> bool:
+    return path.is_dir() and sum(1 for _ in path.glob("*.csv")) >= min_csv_files
 
 
 def raw_weather_folder(raw_base_dir: Path, issue_day: date, run_hour: str) -> Path:
@@ -55,14 +55,14 @@ def _date_range(start: date, end: date) -> list[date]:
     return [start + timedelta(days=offset) for offset in range((end - start).days + 1)]
 
 
-def _processed_issue_days(icon_dir: Path, run_hour: str) -> list[date]:
+def _processed_issue_days(icon_dir: Path, run_hour: str, *, min_csv_files: int = 1) -> list[date]:
     if not icon_dir.exists():
         return []
 
     pattern = re.compile(rf"^dwd_icon_daily_(\d{{8}})_{re.escape(run_hour)}$")
     issue_days: list[date] = []
     for folder in icon_dir.iterdir():
-        if not folder.is_dir() or not processed_weather_folder_is_ready(folder):
+        if not folder.is_dir() or not processed_weather_folder_is_ready(folder, min_csv_files=min_csv_files):
             continue
         match = pattern.match(folder.name)
         if match is None:
@@ -81,6 +81,7 @@ def missing_dwd_issue_days_to_process(
     issue_days: list[date],
     catch_up_missing_days: bool = True,
     force: bool = False,
+    min_csv_files: int = 1,
 ) -> list[date]:
     """Return issue days that need raw download and aggregation."""
     issue_days = sorted(set(issue_days))
@@ -91,11 +92,19 @@ def missing_dwd_issue_days_to_process(
         return [
             day
             for day in issue_days
-            if force or not processed_weather_folder_is_ready(processed_weather_folder(icon_dir, day, run_hour))
+            if force
+            or not processed_weather_folder_is_ready(
+                processed_weather_folder(icon_dir, day, run_hour),
+                min_csv_files=min_csv_files,
+            )
         ]
 
     target_issue_day = max(issue_days)
-    processed_days = [day for day in _processed_issue_days(icon_dir, run_hour) if day <= target_issue_day]
+    processed_days = [
+        day
+        for day in _processed_issue_days(icon_dir, run_hour, min_csv_files=min_csv_files)
+        if day <= target_issue_day
+    ]
     if processed_days:
         start_issue_day = min(max(processed_days) + timedelta(days=1), target_issue_day)
     else:
@@ -104,7 +113,11 @@ def missing_dwd_issue_days_to_process(
     return [
         day
         for day in _date_range(start_issue_day, target_issue_day)
-        if force or not processed_weather_folder_is_ready(processed_weather_folder(icon_dir, day, run_hour))
+        if force
+        or not processed_weather_folder_is_ready(
+            processed_weather_folder(icon_dir, day, run_hour),
+            min_csv_files=min_csv_files,
+        )
     ]
 
 
@@ -255,6 +268,7 @@ def ensure_dwd_icon_weather(
     force: bool = False,
 ) -> list[date]:
     """Download and aggregate missing DWD ICON-D2 issue days for a forecast window."""
+    weather_variables = variables or DEFAULT_DWD_ICON_VARIABLES
     issue_days = required_dwd_issue_days(
         forecast_start=forecast_start,
         forecast_end=forecast_end,
@@ -266,6 +280,7 @@ def ensure_dwd_icon_weather(
         issue_days=issue_days,
         catch_up_missing_days=catch_up_missing_days,
         force=force,
+        min_csv_files=len(weather_variables),
     )
     if not days_to_process:
         print(f"[DWD] Aggregated ICON weather already available through {max(issue_days).isoformat()}.")
@@ -277,7 +292,7 @@ def ensure_dwd_icon_weather(
             issue_day=issue_day,
             run_hour=run_hour,
             raw_base_dir=raw_base_dir,
-            variables=variables,
+            variables=weather_variables,
             model_levels=model_levels,
             base_url=base_url,
             timeout_seconds=timeout_seconds,
@@ -300,11 +315,11 @@ def ensure_dwd_icon_weather(
             capacity_file=capacity_file or IconAggregationConfig.model_fields["capacity_file"].default,
             capacity_weighted_aggregation=capacity_weighted_aggregation,
             plot_clusters=False,
-            skip_existing_output=not force,
+            skip_existing_output=False,
             only_day=issue_day.strftime("%Y%m%d"),
             only_run_hour=run_hour,
             start_date=issue_day,
-            variables=variables or DEFAULT_DWD_ICON_VARIABLES,
+            variables=weather_variables,
             model_levels=model_levels or [],
         )
         run_aggregation(aggregation_config)
@@ -312,7 +327,10 @@ def ensure_dwd_icon_weather(
     missing_after = [
         day
         for day in days_to_process
-        if not processed_weather_folder_is_ready(processed_weather_folder(icon_dir, day, run_hour))
+        if not processed_weather_folder_is_ready(
+            processed_weather_folder(icon_dir, day, run_hour),
+            min_csv_files=len(weather_variables),
+        )
     ]
     if missing_after:
         raise FileNotFoundError(

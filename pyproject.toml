@@ -37,6 +37,7 @@ da-price-open-meteo-availability = "da_price_forecasting.scripts.open_meteo_avai
 da-price-create-feature-pack = "da_price_forecasting.scripts.create_feature_pack:main"
 da-price-check-data-pack = "da_price_forecasting.scripts.check_data_pack:main"
 da-price-operational-archive = "da_price_forecasting.scripts.operational_archive:main"
+da-price-operational-data-quality = "da_price_forecasting.scripts.operational_data_quality:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

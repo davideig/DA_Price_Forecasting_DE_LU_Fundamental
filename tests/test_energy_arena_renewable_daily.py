@@ -206,6 +206,28 @@ def test_incremental_feature_refresh_skips_complete_unchanged_target(monkeypatch
     assert unchanged.index.astype(str).tolist() == target_index.astype(str).tolist()
 
 
+def test_incremental_feature_refresh_can_force_complete_target_rebuild(monkeypatch, tmp_path: Path) -> None:
+    output_file = tmp_path / "features.csv"
+    target_day = date(2026, 9, 24)
+    target_index = daily._local_day_index(target_day, "Europe/Berlin")
+    save_timestamp_csv(pd.DataFrame({"feature": 3.0}, index=target_index), output_file)
+    payload = _open_meteo_feature_payload(tmp_path, output_file)
+    calls = 0
+
+    def fake_run_from_config(config, **kwargs):
+        nonlocal calls
+        calls += 1
+        save_timestamp_csv(pd.DataFrame({"feature": 4.0}, index=target_index), output_file)
+
+    monkeypatch.setattr(daily, "run_from_config", fake_run_from_config)
+
+    daily._run_feature_payload_incrementally(payload, tmp_path, target_day, force_refresh=True)
+
+    updated = load_timestamp_csv(output_file, "Europe/Berlin")
+    assert calls == 1
+    assert (updated.loc[target_index, "feature"] == 4.0).all()
+
+
 def test_incremental_feature_refresh_uses_cached_donor_day_on_failure(monkeypatch, tmp_path: Path) -> None:
     output_file = tmp_path / "features.csv"
     target_day = date(2026, 9, 24)

@@ -15,8 +15,9 @@ $jobs = @(
     @{ Name = "price-submit"; Time = "11:30"; Job = "price-submit"; DurationHours = 2 },
     @{ Name = "load-point-submit"; Time = "11:35"; Job = "load-point-submit"; DurationHours = 2 },
     @{ Name = "price-deadline-safety-submit"; Time = "11:54"; Job = "price-deadline-safety-submit"; DurationHours = 1 },
-    @{ Name = "commit-operational-archive"; Time = "12:25"; Job = "commit-operational-archive"; DurationHours = 2 },
-    @{ Name = "backup-operational-artifacts"; Time = "13:15"; Job = "backup-operational-artifacts"; DurationHours = 2 }
+    @{ Name = "repair-operational-data"; Time = "12:25"; Job = "repair-operational-data"; DurationHours = 3 },
+    @{ Name = "commit-operational-archive"; Time = "14:00"; Job = "commit-operational-archive"; DurationHours = 2 },
+    @{ Name = "backup-operational-artifacts"; Time = "14:30"; Job = "backup-operational-artifacts"; DurationHours = 2 }
 )
 
 function New-WslAction {

@@ -4,6 +4,11 @@ from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from da_price_forecasting.preprocessing.dwd_icon_operational import (
+    missing_dwd_issue_days_to_process,
+    processed_weather_folder,
+    processed_weather_folder_is_ready,
+)
 from da_price_forecasting.scripts import dwd_icon_daily_update as daily_update
 
 
@@ -11,6 +16,23 @@ def test_tomorrow_in_tz_uses_local_day() -> None:
     now = datetime(2026, 5, 22, 10, 30, tzinfo=ZoneInfo("Europe/Berlin"))
 
     assert daily_update.tomorrow_in_tz("Europe/Berlin", now=now) == date(2026, 5, 23)
+
+
+def test_partial_dwd_folder_is_retried(tmp_path: Path) -> None:
+    issue_day = date(2026, 9, 25)
+    folder = processed_weather_folder(tmp_path, issue_day, "06")
+    folder.mkdir()
+    (folder / "t2m.csv").write_text("timestamp,value\n", encoding="utf-8")
+
+    assert processed_weather_folder_is_ready(folder)
+    assert not processed_weather_folder_is_ready(folder, min_csv_files=2)
+    assert missing_dwd_issue_days_to_process(
+        icon_dir=tmp_path,
+        run_hour="06",
+        issue_days=[issue_day],
+        catch_up_missing_days=False,
+        min_csv_files=2,
+    ) == [issue_day]
 
 
 def test_daily_update_uses_one_target_forecast_day(monkeypatch, tmp_path: Path) -> None:

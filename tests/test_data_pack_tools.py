@@ -170,6 +170,7 @@ def test_operational_archive_profile_uses_required_inputs_only(tmp_path: Path, m
     assert Path("data/processed/needed.csv") in paths
     assert Path("data/processed/generated.csv") not in paths
     assert Path("data/processed") not in paths
+    assert Path("data/processed/operational_quality") in paths
 
 
 def test_operational_archive_replaces_stale_entries(tmp_path: Path) -> None:

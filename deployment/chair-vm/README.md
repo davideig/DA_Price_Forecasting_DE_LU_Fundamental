@@ -182,8 +182,9 @@ The tasks are:
 11:30 price-submit
 11:35 load-point-submit
 11:54 price-deadline-safety-submit
-12:25 commit-operational-archive
-13:15 backup-operational-artifacts
+12:25 repair-operational-data
+14:00 commit-operational-archive
+14:30 backup-operational-artifacts
 ```
 
 `price-deadline-safety-submit` is independent of the main price computation. It
@@ -195,11 +196,19 @@ The registered `wsl.exe` action remains attached until its Linux job finishes.
 Consequently, Task Scheduler's `Running` state and `LastTaskResult` describe the
 forecasting job itself; closing an unrelated terminal or RDP window does not stop it.
 
-`commit-operational-archive` runs after the Energy-Arena deadline. It exports the
-updated live caches to `data/archive/operational/`, commits changed archive files,
-and pushes them to Git so the repository data archive stays current.
+`repair-operational-data` runs after the Energy-Arena deadline. It retries any
+missing current run00/run06 DWD inputs, forcibly revisits the target renewable
+feature day so a morning fallback can be replaced, and writes a dated report to
+`data/processed/operational_quality/`. A failed source remains visible in that
+report and in the task result; it does not block the next day's retry.
 
-`backup-operational-artifacts` is optional. If `SYNERGIE_BACKUP_DIR` is set in
+`commit-operational-archive` waits for the repair job if necessary. It then
+exports the updated live caches and quality report to
+`data/archive/operational/`, commits changed archive files, and pushes them to
+Git so the repository data archive stays current.
+
+`backup-operational-artifacts` waits for the archive job if necessary and is
+optional. If `SYNERGIE_BACKUP_DIR` is set in
 `.env`, it writes a `latest/` copy and a daily snapshot of
 `data/archive/operational/` and `logs/chair_vm_tasks/` to the Synergie drive. If
 the variable is unset, it exits successfully after logging a skip.
@@ -251,6 +260,16 @@ This runs the six complete cutoff workflows sequentially in dry-run mode. It
 does not contact the Energy Arena submission endpoint, and it continues with
 the remaining cutoffs if one cutoff fails. The final log summary lists any
 cutoffs that still need attention.
+
+After a production day, inspect the machine-readable data-quality report with:
+
+```bash
+cat data/processed/operational_quality/$(TZ=Europe/Berlin date +%F).json
+```
+
+It records the six expected DWD processed inputs, missing operational-profile
+inputs, logged fallback events, and the Energy-Arena response artifacts found
+for the target day. The report is part of the Git-tracked operational archive.
 
 ## 6. Check Status
 

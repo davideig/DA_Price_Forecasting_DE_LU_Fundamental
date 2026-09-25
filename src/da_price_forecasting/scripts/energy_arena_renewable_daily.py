@@ -286,7 +286,13 @@ def _incremental_feature_payload(payload: dict, config: RegionalRenewableFeature
     return incremental
 
 
-def _run_feature_payload_incrementally(payload: dict, repo_root: Path, forecast_day: date) -> None:
+def _run_feature_payload_incrementally(
+    payload: dict,
+    repo_root: Path,
+    forecast_day: date,
+    *,
+    force_refresh: bool = False,
+) -> None:
     config = _feature_config_from_payload(payload, repo_root)
     existing: pd.DataFrame | None = None
     if config.output_file.exists():
@@ -296,11 +302,14 @@ def _run_feature_payload_incrementally(payload: dict, repo_root: Path, forecast_
             print(f"[cache] Ignoring unreadable renewable feature cache {config.output_file}: {exc}", flush=True)
 
     has_target = _feature_cache_has_day(existing, forecast_day, config.target_tz)
-    if has_target and not _feature_source_is_newer(config, forecast_day):
+    if has_target and not force_refresh and not _feature_source_is_newer(config, forecast_day):
         print(f"[cache] Renewable feature cache already covers {forecast_day}; skipping rebuild.", flush=True)
         return
 
-    reason = "newer weather source" if has_target else "missing target day"
+    if force_refresh:
+        reason = "forced repair"
+    else:
+        reason = "newer weather source" if has_target else "missing target day"
     incremental_payload = _incremental_feature_payload(payload, config, forecast_day)
     print(
         f"[cache] Refreshing renewable features for {forecast_day} ({reason}); "
@@ -321,8 +330,8 @@ def _run_feature_payload_incrementally(payload: dict, repo_root: Path, forecast_
             save_timestamp_csv(existing, config.output_file)
             raise
         fallback_frame, donor_day = fallback
-        combined = pd.concat([existing, fallback_frame]).sort_index()
-        combined = combined.loc[~combined.index.duplicated(keep="last")]
+        combined = pd.concat([existing, fallback_frame])
+        combined = combined.loc[~combined.index.duplicated(keep="last")].sort_index()
         save_timestamp_csv(combined, config.output_file)
         print(
             f"[fallback] Renewable feature refresh failed ({exc}); "
@@ -332,8 +341,8 @@ def _run_feature_payload_incrementally(payload: dict, repo_root: Path, forecast_
         return
 
     if existing is not None and not existing.empty:
-        refreshed = pd.concat([existing, refreshed]).sort_index()
-        refreshed = refreshed.loc[~refreshed.index.duplicated(keep="last")]
+        refreshed = pd.concat([existing, refreshed])
+        refreshed = refreshed.loc[~refreshed.index.duplicated(keep="last")].sort_index()
     save_timestamp_csv(refreshed, config.output_file)
     print(f"[cache] Renewable feature cache updated through {forecast_day}.", flush=True)
 
@@ -491,6 +500,7 @@ def run_daily_renewable_energy_arena(
     approach_description: str | None = None,
     update_actual_generation: bool = True,
     features_only: bool = False,
+    force_feature_refresh: bool = False,
 ) -> DailyRenewablePaths:
     if not submit_solar and not submit_wind:
         raise ValueError("At least one of submit_solar or submit_wind must be enabled.")
@@ -509,7 +519,12 @@ def run_daily_renewable_energy_arena(
     )
     feature_config = _feature_config_from_payload(feature_payload, repo_root)
     _write_yaml(paths.feature_config, feature_payload)
-    _run_feature_payload_incrementally(feature_payload, repo_root, day)
+    _run_feature_payload_incrementally(
+        feature_payload,
+        repo_root,
+        day,
+        force_refresh=force_feature_refresh,
+    )
 
     extra_feature_runs = []
     for index, extra_feature_config_path in enumerate(extra_feature_config_paths or [], start=1):
@@ -521,7 +536,12 @@ def run_daily_renewable_energy_arena(
         extra_feature_config = _feature_config_from_payload(extra_feature_payload, repo_root)
         generated_extra_feature_config = paths.extra_feature_config(index)
         _write_yaml(generated_extra_feature_config, extra_feature_payload)
-        _run_feature_payload_incrementally(extra_feature_payload, repo_root, day)
+        _run_feature_payload_incrementally(
+            extra_feature_payload,
+            repo_root,
+            day,
+            force_refresh=force_feature_refresh,
+        )
         extra_feature_runs.append(
             {
                 "feature_config_path": str(extra_feature_config_path),
@@ -675,6 +695,7 @@ def run_daily_renewable_energy_arena_with_retries(
     approach_description: str | None,
     update_actual_generation: bool,
     features_only: bool,
+    force_feature_refresh: bool,
     retry_until: datetime_time | None,
     retry_interval_minutes: float,
 ) -> DailyRenewablePaths:
@@ -705,6 +726,7 @@ def run_daily_renewable_energy_arena_with_retries(
                 approach_description=approach_description,
                 update_actual_generation=update_actual_generation,
                 features_only=features_only,
+                force_feature_refresh=force_feature_refresh,
             )
         except Exception as exc:
             now = datetime.now(ZoneInfo(target_tz))
@@ -751,6 +773,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skip-wind", action="store_true")
     parser.add_argument("--skip-actual-generation-update", action="store_true")
     parser.add_argument("--features-only", action="store_true", help="Refresh feature caches without fitting or submitting a model.")
+    parser.add_argument(
+        "--force-feature-refresh",
+        action="store_true",
+        help="Rebuild the target feature day even when the cache already contains it.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Generate payloads but do not submit to Energy Arena.")
     parser.add_argument("--retry-until", type=_parse_retry_until, default=None, help="Retry failed attempts until HH:MM in target timezone.")
     parser.add_argument("--retry-interval-minutes", type=float, default=10.0)
@@ -780,6 +807,7 @@ def main(argv: list[str] | None = None) -> None:
         approach_description=args.approach_description,
         update_actual_generation=not args.skip_actual_generation_update,
         features_only=args.features_only,
+        force_feature_refresh=args.force_feature_refresh,
         retry_until=args.retry_until,
         retry_interval_minutes=args.retry_interval_minutes,
     )

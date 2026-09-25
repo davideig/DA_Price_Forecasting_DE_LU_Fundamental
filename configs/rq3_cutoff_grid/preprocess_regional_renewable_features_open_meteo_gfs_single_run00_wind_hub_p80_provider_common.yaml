@@ -21,7 +21,7 @@ config:
   open_meteo_base_url: https://customer-single-runs-api.open-meteo.com/v1/forecast
   open_meteo_api_key_env: OPEN_METEO_API_KEY
   open_meteo_api_mode: single_run
-  open_meteo_model: gfs
+  open_meteo_model: gfs_seamless
   open_meteo_single_run_hour_utc: "00:00"
   open_meteo_single_run_forecast_days: 2
   open_meteo_start_date: "2025-10-25"

@@ -108,3 +108,15 @@ def test_run00_daily_weather_configs_cover_all_0700_inputs() -> None:
         assert validated.config["required_run"] == "00"
         assert validated.config["icon_dir"] == icon_dir
         assert validated.config["dwd_icon_aggregation_cluster_output_file"] == cluster_file
+
+
+def test_run00_gfs_config_uses_supported_single_run_model() -> None:
+    path = Path(
+        "configs/rq3_cutoff_grid/"
+        "preprocess_regional_renewable_features_open_meteo_gfs_single_run00_"
+        "wind_hub_p80_provider_common.yaml"
+    )
+
+    payload = load_config_payload(path)
+
+    assert payload["config"]["open_meteo_model"] == "gfs_seamless"

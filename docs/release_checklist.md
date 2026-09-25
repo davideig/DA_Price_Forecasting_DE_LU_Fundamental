@@ -20,6 +20,8 @@ tag.
 - Run `pixi run check-data-pack --profile operational` and require
   `Missing: 0`.
 - Record the archive coverage dates and SHA256 checksum in the release notes.
+- Re-check `docs/data_sources_and_licenses.md` against the current upstream
+  terms and preserve all required attribution notices.
 - Do not include raw GRIB files, API keys, `.env`, logs, or machine-specific
   mount paths.
 

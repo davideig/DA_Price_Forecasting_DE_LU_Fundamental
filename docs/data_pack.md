@@ -57,6 +57,9 @@ complete. Unchanged artifacts are copied forward instead of recomputed. The
 exporter refuses any artifact larger than 95 MiB and verifies checksums before
 the VM commits it.
 
+Keep [data_sources_and_licenses.md](data_sources_and_licenses.md) with every
+published snapshot and re-check the linked upstream terms before redistribution.
+
 On the chair VM, `deployment/chair-vm/register_tasks.ps1` first runs the
 post-deadline `DAForecast-repair-operational-data` task. It retries missing
 current weather inputs, refreshes the affected renewable features, and writes a

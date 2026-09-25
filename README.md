@@ -114,6 +114,9 @@ The portable Git representation uses compressed, time-partitioned Parquet under
 only bulky intermediate DWD aggregations use a rolling 14-issue-day window.
 Model outputs are written below `results/`.
 
+Upstream attribution and redistribution notices are documented in
+[docs/data_sources_and_licenses.md](docs/data_sources_and_licenses.md).
+
 Useful checks:
 
 ```bash

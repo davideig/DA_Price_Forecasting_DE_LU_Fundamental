@@ -46,9 +46,11 @@ All cutoff submissions use the DE-LU point price challenge ID from
 `ENERGY_ARENA_PRICE_CHALLENGE_ID`; Energy-Arena assigns them to cutoff
 leaderboards based on the submission timestamp.
 
-The deployment tasks run the cutoff runner with `--submit-first-stage`, so each
-cutoff also submits the generated load, solar, and onshore wind forecasts that
-feed the price model.
+The deployment tasks run the cutoff runner with `--submit-first-stage` from
+07:00 through 11:00, so those cutoffs also submit the generated load, solar,
+and onshore wind forecasts that feed the price model. The 12:00 RQ3 workflow is
+compute-only; the dedicated final-paper jobs provide the effective 12:00
+submissions for all four targets.
 
 ## Output
 

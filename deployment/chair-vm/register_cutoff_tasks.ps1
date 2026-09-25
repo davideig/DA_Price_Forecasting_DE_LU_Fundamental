@@ -6,6 +6,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$obsoleteTasks = @(
+    "$TaskPrefix-price-cutoff-1200-submit"
+)
+
+foreach ($taskName in $obsoleteTasks) {
+    $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    if ($null -ne $task) {
+        Write-Host "Removing obsolete task $taskName"
+        if (-not $WhatIfOnly) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+        }
+    }
+}
+
 $jobs = @(
     @{ Name = "dwd-run00-update"; Time = "04:05"; Job = "dwd-run00-update"; DurationHours = 3 },
     @{ Name = "renewable-run00-features-update"; Time = "05:15"; Job = "renewable-run00-features-update"; DurationHours = 2 },
@@ -15,7 +29,7 @@ $jobs = @(
     @{ Name = "price-cutoff-0900-submit"; Time = "08:40"; Job = "price-cutoff-0900-submit"; DurationHours = 2 },
     @{ Name = "price-cutoff-1000-submit"; Time = "09:40"; Job = "price-cutoff-1000-submit"; DurationHours = 2 },
     @{ Name = "price-cutoff-1100-submit"; Time = "10:40"; Job = "price-cutoff-1100-submit"; DurationHours = 2 },
-    @{ Name = "price-cutoff-1200-submit"; Time = "11:40"; Job = "price-cutoff-1200-submit"; DurationHours = 2 }
+    @{ Name = "price-cutoff-1200-compute"; Time = "11:40"; Job = "price-cutoff-1200-compute"; DurationHours = 2 }
 )
 
 function New-WslAction {
@@ -57,4 +71,4 @@ Write-Host "Done. Inspect tasks with:"
 Write-Host "  Get-ScheduledTask -TaskName '$TaskPrefix-*'"
 Write-Host ""
 Write-Host "Run one manually, for example:"
-Write-Host "  Start-ScheduledTask -TaskName '$TaskPrefix-price-cutoff-1200-submit'"
+Write-Host "  Start-ScheduledTask -TaskName '$TaskPrefix-price-cutoff-1200-compute'"

@@ -212,7 +212,9 @@ PowerShell script after filling `ENERGY_ARENA_PRICE_CHALLENGE_ID` in `.env`:
 ```
 
 The optional cutoff tasks submit load, solar, onshore wind, and price for the
-same cutoff information set:
+same cutoff information set from 07:00 through 11:00. The 12:00 RQ3 task is
+compute-only because the dedicated final-paper jobs own the single effective
+12:00 leaderboard slot for this participant:
 
 ```text
 04:05 dwd-run00-update
@@ -223,8 +225,14 @@ same cutoff information set:
 08:40 price-cutoff-0900-submit
 09:40 price-cutoff-1000-submit
 10:40 price-cutoff-1100-submit
-11:40 price-cutoff-1200-submit
+11:40 price-cutoff-1200-compute
 ```
+
+The compute-only task still writes the 12:00 RQ3 forecasts and dry-run payloads
+for auditing and reproducibility. It does not call the Energy-Arena submission
+API. The registration script removes the former
+`DAForecastCutoff-price-cutoff-1200-submit` task so an obsolete scheduled task
+cannot supersede the final-paper submissions.
 
 The two early tasks prepare the causal `00` UTC weather inputs used by the
 07:00 operational adapter. On its first run, the feature task seeds missing

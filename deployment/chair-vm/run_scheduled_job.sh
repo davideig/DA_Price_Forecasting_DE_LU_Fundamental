@@ -373,12 +373,12 @@ case "$job" in
       --retry-interval-minutes 5
     ;;
 
-  price-cutoff-1200-submit)
+  price-cutoff-1200-compute|price-cutoff-1200-submit)
+    echo "[cutoff] Computing the RQ3 12:00 forecasts without submitting; final paper jobs own the 12:00 leaderboard slot."
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 1200 \
       --submit-first-stage \
-      --retry-until 11:55 \
-      --retry-interval-minutes 5
+      --dry-run
     ;;
 
   load-point-submit)

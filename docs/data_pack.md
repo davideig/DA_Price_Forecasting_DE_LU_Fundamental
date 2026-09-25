@@ -167,6 +167,12 @@ pixi run energy-arena-price-cutoff-daily --cutoff 0700 --dry-run --skip-first-st
 pixi run energy-arena-price-cutoff-daily --cutoff 1200 --dry-run --skip-first-stage-refresh
 ```
 
+The chair-VM deployment submits the RQ3 grid at 07:00 through 11:00. It computes
+the RQ3 12:00 forecasts in dry-run mode, while the dedicated final-paper load,
+solar, wind, and price jobs provide the participant's effective 12:00
+submissions. This avoids a later RQ3 submission superseding a final-paper model
+within the same Energy-Arena cutoff interval.
+
 ## Verify Data Availability
 
 Check the final first-stage configs:

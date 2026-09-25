@@ -23,6 +23,30 @@ def test_cutoff_first_stage_submission_specs_use_expected_value_columns() -> Non
     assert specs["wind"]["challenge_id"] == 6
     assert specs["wind"]["value_column"] == "Wind_Onshore_Model_MW"
     assert specs["wind"]["source_name"] == "wind_onshore_cutoff_0900"
+    assert "admissible 00 UTC weather run" in specs["wind"]["approach_description"]
+
+
+def test_live_cutoff_weather_mapping_is_causal() -> None:
+    for cutoff in ("0700", "0800", "0900"):
+        spec = cutoff_daily.CUTOFF_SPECS[cutoff]
+        config_paths = (spec.price_config, spec.load_config, spec.solar_config, spec.wind_config)
+        for config_path in config_paths:
+            assert "run00" in config_path.name
+        assert "operational" in spec.approach_description.lower()
+
+    for cutoff in ("1000", "1100", "1200"):
+        spec = cutoff_daily.CUTOFF_SPECS[cutoff]
+        config_paths = (spec.price_config, spec.load_config, spec.solar_config, spec.wind_config)
+        for config_path in config_paths:
+            assert "run06" in config_path.name
+
+
+def test_live_cutoff_configs_validate() -> None:
+    for spec in cutoff_daily.CUTOFF_SPECS.values():
+        config_paths = (spec.price_config, spec.load_config, spec.solar_config, spec.wind_config)
+        for config_path in config_paths:
+            payload = load_config_payload(config_path)
+            validate_config_payload(payload, RunConfig, repo_root=Path.cwd())
 
 
 def test_cutoff_first_stage_submission_payload_uses_forecast_file_source(tmp_path: Path) -> None:

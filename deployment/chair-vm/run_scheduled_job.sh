@@ -289,7 +289,23 @@ case "$job" in
     refresh_run00_features
     ;;
 
+  dwd-run06-cutoff-update)
+    ensure_natural_earth_shapefile
+    cleanup_raw_dwd
+    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
+      --config "$DWD_WIND_CONFIG" \
+      --no-catch-up-missing-days
+    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
+      --config "$DWD_PRICE_CONFIG" \
+      --no-catch-up-missing-days
+    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
+      --config "$DWD_SOLAR_CONFIG" \
+      --no-catch-up-missing-days
+    cleanup_raw_dwd
+    ;;
+
   dwd-wind-update)
+    wait_for_job_lock dwd-run06-cutoff-update 3600
     ensure_natural_earth_shapefile
     cleanup_raw_dwd
     "$PIXI" run -e ops da-price-dwd-icon-daily-update \
@@ -320,6 +336,7 @@ case "$job" in
     ;;
 
   renewable-cutoff-features-update)
+    wait_for_job_lock dwd-run06-cutoff-update 2400
     refresh_run06_features
     ;;
 
@@ -403,6 +420,8 @@ case "$job" in
     ;;
 
   price-cutoff-1000-submit)
+    wait_for_job_lock dwd-run06-cutoff-update 2400
+    wait_for_job_lock renewable-cutoff-features-update 1200
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 1000 \
       --submit-first-stage \

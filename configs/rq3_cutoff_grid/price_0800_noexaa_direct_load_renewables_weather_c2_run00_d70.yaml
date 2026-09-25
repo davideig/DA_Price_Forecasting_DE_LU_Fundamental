@@ -1,0 +1,52 @@
+kind: lear_operational
+plot: false
+config:
+  repo_root: .
+  target_tz: Europe/Berlin
+  post_regime_start: '2025-10-01T00:00:00+02:00'
+  country_code_entsoe: DE_LU
+  entsoe_api_key_env: ENTSOE_API_KEY
+  entsoe_price_file: data/processed/lear/entsoe_day_ahead_prices.csv
+  entsoe_exaa_price_file: data/processed/lear/entsoe_exaa_prices.csv
+  dwd_folder_offset_date: '2025-10-26'
+  start_folder_date: '2025-10-25'
+  required_run: '00'
+  skip_dates:
+    - '2026-06-19'
+  use_vst: true
+  weather_source: DWD
+  variant: fundamental
+  lars_start_date: '2027-01-01T00:00:00+01:00'
+  price_model_type: lightgbm
+  lgbm_subsample: 1.0
+  lgbm_colsample_bytree: 0.8
+  lgbm_min_child_samples: 8
+  random_state: 42
+  include_raw_weather_features: true
+  include_load_forecast_features: true
+  add_calendar_features: true
+  entsoe_start_date: '2025-10-01T00:00:00+02:00'
+  entsoe_end_date: '2026-07-31T23:45:00+02:00'
+  test_start: '2025-12-01T00:00:00+01:00'
+  test_end: '2026-07-31T23:45:00+02:00'
+  lgbm_num_leaves: 7
+  lgbm_n_estimators: 300
+  lgbm_learning_rate: 0.03
+  lgbm_reg_lambda: 5.0
+  icon_dir: data/processed/icon_aggregated_c2_run00
+  n_clusters: 2
+  train_days_rolling: 70
+  features:
+    covariates:
+      - load_forecast
+      - renewable_generation_proxy
+    load_forecast_file: results/load_forecast_results/rq3_cutoff_grid/load_0800_direct_open_meteo_icon_d2_run00_morning0715_tw224_f180/forecast.csv
+    load_forecast_column: Load_Model_MW
+    renewable_proxy_files:
+      - results/renewable_generation_results/rq3_cutoff_grid/solar_0800_dwd_mastr_tso_c25_run00_cloud_geometry_physics_morning0715_d90/forecast.csv
+      - results/renewable_generation_results/rq3_cutoff_grid/wind_0800_dwd_mastr_c100_multi_provider7_run00_p80_morning0715_d180/forecast.csv
+    renewable_proxy_columns:
+      - Renewable_Solar_Proxy_MW
+      - Renewable_Wind_Proxy_MW
+      - Renewable_Total_Proxy_MW
+  export_dir: results/price_forecast_results/rq3_cutoff_grid/price_0800_noexaa_direct_load_renewables_weather_c2_run00_d70

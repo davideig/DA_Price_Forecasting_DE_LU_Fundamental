@@ -53,25 +53,37 @@ CUTOFF_SPECS: dict[str, CutoffSpec] = {
         solar_config=Path("configs/rq3_cutoff_grid/solar_0700_dwd_mastr_tso_c25_run00_cloud_geometry_physics_morning0615_d90.yaml"),
         wind_config=Path("configs/rq3_cutoff_grid/wind_0700_dwd_mastr_c100_multi_provider7_run00_p80_morning0615_d180.yaml"),
         approach_name="price_cutoff_0700_noexaa_direct_pgen_lightgbm_c2_d70",
-        approach_description="RQ3 07:00 cutoff price model with own direct load, solar, and wind forecasts.",
+        approach_description=(
+            "Operational 07:00 cutoff adaptation with own direct load, solar, and wind forecasts "
+            "using weather available from the 00 UTC run. This is distinct from the paper's "
+            "retrospective 06 UTC early-cutoff backtest."
+        ),
     ),
     "0800": CutoffSpec(
         label="0800",
-        price_config=Path("configs/rq3_cutoff_grid/price_0800_noexaa_direct_load_renewables_weather_c2_run06_d70.yaml"),
-        load_config=Path("configs/rq3_cutoff_grid/load_0800_direct_open_meteo_icon_d2_run06_morning0715_tw224_f180.yaml"),
-        solar_config=Path("configs/rq3_cutoff_grid/solar_0800_dwd_mastr_tso_c25_run06_cloud_geometry_physics_morning0715_d90.yaml"),
-        wind_config=Path("configs/rq3_cutoff_grid/wind_0800_dwd_mastr_c100_multi_provider7_run06_p80_morning0715_d180.yaml"),
+        price_config=Path("configs/rq3_cutoff_grid/price_0800_noexaa_direct_load_renewables_weather_c2_run00_d70.yaml"),
+        load_config=Path("configs/rq3_cutoff_grid/load_0800_direct_open_meteo_icon_d2_run00_morning0715_tw224_f180.yaml"),
+        solar_config=Path("configs/rq3_cutoff_grid/solar_0800_dwd_mastr_tso_c25_run00_cloud_geometry_physics_morning0715_d90.yaml"),
+        wind_config=Path("configs/rq3_cutoff_grid/wind_0800_dwd_mastr_c100_multi_provider7_run00_p80_morning0715_d180.yaml"),
         approach_name="price_cutoff_0800_noexaa_direct_pgen_lightgbm_c2_d70",
-        approach_description="RQ3 08:00 cutoff price model with own direct load, solar, and wind forecasts.",
+        approach_description=(
+            "Operational 08:00 cutoff adaptation with own direct load, solar, and wind forecasts "
+            "using weather available from the 00 UTC run. This is distinct from the paper's "
+            "retrospective 06 UTC early-cutoff backtest."
+        ),
     ),
     "0900": CutoffSpec(
         label="0900",
-        price_config=Path("configs/rq3_cutoff_grid/price_0900_noexaa_direct_load_renewables_weather_c2_run06_d70.yaml"),
-        load_config=Path("configs/rq3_cutoff_grid/load_0900_direct_open_meteo_icon_d2_run06_morning0815_tw224_f180.yaml"),
-        solar_config=Path("configs/rq3_cutoff_grid/solar_0900_dwd_mastr_tso_c25_run06_cloud_geometry_physics_morning0815_d90.yaml"),
-        wind_config=Path("configs/rq3_cutoff_grid/wind_0900_dwd_mastr_c100_multi_provider7_run06_p80_morning0815_d180.yaml"),
+        price_config=Path("configs/rq3_cutoff_grid/price_0900_noexaa_direct_load_renewables_weather_c2_run00_d70.yaml"),
+        load_config=Path("configs/rq3_cutoff_grid/load_0900_direct_open_meteo_icon_d2_run00_morning0815_tw224_f180.yaml"),
+        solar_config=Path("configs/rq3_cutoff_grid/solar_0900_dwd_mastr_tso_c25_run00_cloud_geometry_physics_morning0815_d90.yaml"),
+        wind_config=Path("configs/rq3_cutoff_grid/wind_0900_dwd_mastr_c100_multi_provider7_run00_p80_morning0815_d180.yaml"),
         approach_name="price_cutoff_0900_noexaa_direct_pgen_lightgbm_c2_d70",
-        approach_description="RQ3 09:00 cutoff price model with own direct load, solar, and wind forecasts.",
+        approach_description=(
+            "Operational 09:00 cutoff adaptation with own direct load, solar, and wind forecasts "
+            "using weather available from the 00 UTC run. This is distinct from the paper's "
+            "retrospective 06 UTC early-cutoff backtest."
+        ),
     ),
     "1000": CutoffSpec(
         label="1000",
@@ -190,27 +202,36 @@ def _first_stage_submission_specs(
     solar_challenge_id: int,
     wind_challenge_id: int,
 ) -> dict[str, dict[str, str | int]]:
+    early_operational = cutoff in {"0700", "0800", "0900"}
+    scope = "Operational" if early_operational else "RQ3"
+    weather_note = " using the admissible 00 UTC weather run" if early_operational else ""
     return {
         "load": {
             "challenge_id": load_challenge_id,
             "value_column": "Load_Model_MW",
             "source_name": f"load_cutoff_{cutoff}",
             "approach_name": f"load_cutoff_{cutoff}_first_stage",
-            "approach_description": f"RQ3 {cutoff} cutoff own load forecast used by the final price model.",
+            "approach_description": (
+                f"{scope} {cutoff} cutoff own load forecast{weather_note}, used by the final price model."
+            ),
         },
         "solar": {
             "challenge_id": solar_challenge_id,
             "value_column": "Solar_Model_MW",
             "source_name": f"solar_cutoff_{cutoff}",
             "approach_name": f"solar_cutoff_{cutoff}_first_stage",
-            "approach_description": f"RQ3 {cutoff} cutoff own solar generation forecast used by the final price model.",
+            "approach_description": (
+                f"{scope} {cutoff} cutoff own solar generation forecast{weather_note}, used by the final price model."
+            ),
         },
         "wind": {
             "challenge_id": wind_challenge_id,
             "value_column": "Wind_Onshore_Model_MW",
             "source_name": f"wind_onshore_cutoff_{cutoff}",
             "approach_name": f"wind_onshore_cutoff_{cutoff}_first_stage",
-            "approach_description": f"RQ3 {cutoff} cutoff own onshore wind forecast used by the final price model.",
+            "approach_description": (
+                f"{scope} {cutoff} cutoff own onshore wind forecast{weather_note}, used by the final price model."
+            ),
         },
     }
 

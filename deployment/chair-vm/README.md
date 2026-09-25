@@ -229,10 +229,11 @@ compute-only because the dedicated final-paper jobs own the single effective
 04:05 dwd-run00-update
 05:15 renewable-run00-features-update
 06:40 price-cutoff-0700-submit
-07:00 renewable-cutoff-features-update
 07:40 price-cutoff-0800-submit
 08:40 price-cutoff-0900-submit
-09:40 price-cutoff-1000-submit
+09:23 dwd-run06-cutoff-update
+09:40 renewable-cutoff-features-update
+09:45 price-cutoff-1000-submit
 10:40 price-cutoff-1100-submit
 11:40 price-cutoff-1200-compute
 ```
@@ -244,10 +245,20 @@ API. The registration script removes the former
 cannot supersede the final-paper submissions.
 
 The two early tasks prepare the causal `00` UTC weather inputs used by the
-07:00 operational adapter. On its first run, the feature task seeds missing
-historical `run00` tables from the schema-compatible `run06` cache and logs
-every seeded file. Fresh `run00` weather is then appended for the target day.
-Subsequent runs update only the new day and retain the native `run00` history.
+07:00, 08:00, and 09:00 operational adapters. On its first run, the feature
+task seeds missing historical `run00` tables from the schema-compatible
+`run06` cache and logs every seeded file. Fresh `run00` weather is then
+appended for the target day. Subsequent runs update only the new day and retain
+the native `run00` history.
+
+These three early adapters are deliberately distinct from the retrospective
+paper configs, whose `06` UTC weather is not observable at those live cutoffs.
+Historical `03` UTC single-run data is not consistently available across the
+training period, so deployment uses the reproducible `00` UTC archive instead.
+
+At 09:23 the deployment downloads and aggregates the newly available `06` UTC
+weather for the 10:00-12:00 models. The feature job waits for that download,
+and the 10:00 submission waits for both preparation jobs before forecasting.
 
 Before the first production day, pre-warm all cutoff-specific rolling forecast
 caches outside the submission window:

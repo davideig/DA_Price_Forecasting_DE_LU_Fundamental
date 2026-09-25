@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $jobs = @(
-    @{ Name = "dwd-run00-update"; Time = "03:15"; Job = "dwd-run00-update"; DurationHours = 3 },
+    @{ Name = "dwd-run00-update"; Time = "04:05"; Job = "dwd-run00-update"; DurationHours = 3 },
     @{ Name = "renewable-run00-features-update"; Time = "05:15"; Job = "renewable-run00-features-update"; DurationHours = 2 },
     @{ Name = "price-cutoff-0700-submit"; Time = "06:40"; Job = "price-cutoff-0700-submit"; DurationHours = 2 },
     @{ Name = "renewable-cutoff-features-update"; Time = "07:00"; Job = "renewable-cutoff-features-update"; DurationHours = 2 },

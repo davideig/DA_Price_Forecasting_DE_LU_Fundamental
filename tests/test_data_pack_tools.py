@@ -119,6 +119,28 @@ def test_operational_archive_round_trips_csv_with_header_comments(tmp_path: Path
     assert "2026-09-22T00:00:00+00:00,1.5,2.5" in restored
 
 
+def test_operational_archive_ignores_appledouble_metadata(tmp_path: Path) -> None:
+    processed = tmp_path / "data" / "processed"
+    processed.mkdir(parents=True)
+    (processed / "values.csv").write_text("timestamp,value\n2026-09-25T00:00:00Z,1\n", encoding="utf-8")
+    (processed / "._values.csv").write_bytes(b"\x00\x05\x16\x07\xa3appledouble")
+
+    archive_root = tmp_path / "data" / "archive" / "operational"
+    status = export_archive(
+        repo_root=tmp_path,
+        archive_root=archive_root,
+        include_paths=[Path("data/processed")],
+        compression="zstd",
+        dry_run=False,
+        max_file_mb=95.0,
+        allow_large_files=False,
+    )
+
+    assert status == 0
+    assert (archive_root / "data" / "processed" / "values.parquet").exists()
+    assert not (archive_root / "data" / "processed" / "._values.parquet").exists()
+
+
 def test_operational_archive_restore_explains_missing_manifest(tmp_path: Path, capsys) -> None:
     status = restore_archive(
         repo_root=tmp_path,

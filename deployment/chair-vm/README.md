@@ -215,7 +215,7 @@ The optional cutoff tasks submit load, solar, onshore wind, and price for the
 same cutoff information set:
 
 ```text
-03:15 dwd-run00-update
+04:05 dwd-run00-update
 05:15 renewable-run00-features-update
 06:40 price-cutoff-0700-submit
 07:00 renewable-cutoff-features-update

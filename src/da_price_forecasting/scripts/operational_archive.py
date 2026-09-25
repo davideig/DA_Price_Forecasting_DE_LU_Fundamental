@@ -77,7 +77,7 @@ class ArchiveManifest:
 
 
 def _is_excluded(path: Path) -> bool:
-    return any(part in DEFAULT_EXCLUDE_NAMES for part in path.parts)
+    return any(part in DEFAULT_EXCLUDE_NAMES or part.startswith("._") for part in path.parts)
 
 
 def _sha256(path: Path) -> str:

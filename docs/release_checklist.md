@@ -15,6 +15,7 @@ tag.
 
 - Confirm `data/archive/operational/manifest.json` is tracked, or publish a
   versioned data pack.
+- Run `pixi run operational-archive verify` and require checksum success.
 - Run `pixi run operational-archive restore` in a clean clone.
 - Run `pixi run check-data-pack --profile operational` and require
   `Missing: 0`.

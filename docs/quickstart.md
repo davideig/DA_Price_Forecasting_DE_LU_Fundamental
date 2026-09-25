@@ -13,6 +13,7 @@ pixi install
 If the Git revision contains `data/archive/operational/manifest.json`:
 
 ```bash
+pixi run operational-archive verify
 pixi run operational-archive restore
 ```
 

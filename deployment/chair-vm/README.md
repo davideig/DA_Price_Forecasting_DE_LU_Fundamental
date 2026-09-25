@@ -64,13 +64,16 @@ SYNERGIE_BACKUP_DIR=/mnt/synergie-diplomanden/MK_Eiglsperger/DA_Price_Forecastin
 The preferred workflow is to restore the Git-tracked Parquet archive:
 
 ```bash
+pixi run operational-archive verify
 pixi run operational-archive restore
 pixi run check-data-thesis
 ```
 
-The archive lives under `data/archive/operational/` in Git. It contains compact
-Parquet copies of the processed data and selected forecast-result caches; the
-restore command materializes the CSV/parquet files expected by the model configs.
+The archive lives under `data/archive/operational/` in Git. It contains compact,
+time-partitioned Parquet copies of the processed data and selected forecast
+caches; the restore command materializes the CSV/parquet files expected by the
+model configs. Complete derived feature histories are retained. Bulky
+intermediate DWD aggregations use a rolling 14-issue-day continuation window.
 
 If the archive is not available yet, bootstrap from a local bundle or an old VM
 backup with these directories/files:
@@ -204,8 +207,9 @@ report and in the task result; it does not block the next day's retry.
 
 `commit-operational-archive` waits for the repair job if necessary. It then
 exports the updated live caches and quality report to
-`data/archive/operational/`, commits changed archive files, and pushes them to
-Git so the repository data archive stays current.
+`data/archive/operational/`, verifies every artifact against the manifest,
+commits changed archive files, and pushes them to Git so the repository data
+archive stays current. Unchanged artifacts are reused on later exports.
 
 `backup-operational-artifacts` waits for the archive job if necessary and is
 optional. If `SYNERGIE_BACKUP_DIR` is set in

@@ -55,6 +55,7 @@ Restore the processed archive when it is included in the clone:
 
 ```bash
 test -f data/archive/operational/manifest.json
+pixi run operational-archive verify
 pixi run operational-archive restore
 pixi run check-data-pack --profile operational
 ```
@@ -108,8 +109,10 @@ not require Energy Arena credentials.
 ## Data And Outputs
 
 Live runtime data is materialized under `data/processed/` and `data/cache/`.
-The portable Git representation uses compressed Parquet under
-`data/archive/operational/`. Model outputs are written below `results/`.
+The portable Git representation uses compressed, time-partitioned Parquet under
+`data/archive/operational/`. Consolidated feature histories remain complete;
+only bulky intermediate DWD aggregations use a rolling 14-issue-day window.
+Model outputs are written below `results/`.
 
 Useful checks:
 

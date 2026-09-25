@@ -83,6 +83,7 @@ PATH_KEY_SUFFIXES = ("_file", "_files", "_dir", "_path", "_paths")
 OUTPUT_KEY_PARTS = ("export", "output", "report", "figure")
 SKIP_KEYS = {
     "repo_root",
+    "dwd_icon_raw_dir",
     "open_meteo_base_url",
     "open_meteo_api_key_env",
     "entsoe_api_key_env",

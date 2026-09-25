@@ -43,6 +43,7 @@ test -f data/archive/operational/manifest.json \
 When present, restore its Parquet files to the runtime CSV/directory layout:
 
 ```bash
+pixi run operational-archive verify
 pixi run operational-archive restore
 ```
 
@@ -195,6 +196,7 @@ runtime caches as compressed Parquet:
 
 ```bash
 pixi run operational-archive export --profile operational
+pixi run operational-archive verify
 git add data/archive/operational
 git commit -m "Update operational data archive YYYY-MM-DD"
 git push

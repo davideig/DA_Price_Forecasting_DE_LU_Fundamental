@@ -7,12 +7,13 @@ the reusable operational archive is tracked under:
 data/archive/operational/
 ```
 
-That archive stores compact Parquet copies of the processed CSV/cache files plus
-a manifest. Confirm the manifest exists, then restore it into the normal runtime
-layout before running models:
+That archive stores compact, time-partitioned Parquet copies of the processed
+CSV/cache files plus a checksum manifest. Confirm and verify the manifest, then
+restore it into the normal runtime layout before running models:
 
 ```bash
 test -f data/archive/operational/manifest.json
+pixi run operational-archive verify
 pixi run operational-archive restore
 pixi run check-data-pack --profile operational
 ```

@@ -2,10 +2,13 @@
 
 The release repository should not contain heavy raw weather downloads. It can
 track the compact operational archive under `data/archive/operational/`: CSV
-caches are stored there as compressed Parquet and restored into the runtime
-paths before a model run.
+caches are stored there as compressed, monthly Parquet partitions and restored
+into the runtime paths before a model run. Intermediate DWD aggregations retain
+the latest 14 issue days, while their derived model-feature histories remain
+complete.
 
 ```bash
+pixi run operational-archive verify
 pixi run operational-archive restore
 pixi run check-data-thesis
 ```
@@ -50,8 +53,8 @@ The preferred day-to-day workflow is the Git-tracked operational archive:
 
 ```text
 data/archive/operational/manifest.json
-data/archive/operational/data/processed/**/*.parquet
-data/archive/operational/results/**/*.{parquet,json,yaml}
+data/archive/operational/files/**/*.parquet
+data/archive/operational/bundles/**/*.parquet
 ```
 
 The VM updates the live CSV caches during the morning runs, exports this archive
@@ -73,6 +76,7 @@ This repository includes helper commands for both workflows:
 ```bash
 pixi run operational-archive restore
 pixi run operational-archive export --dry-run
+pixi run operational-archive verify
 pixi run create-feature-pack --dry-run
 pixi run create-feature-pack
 pixi run create-feature-pack --include-results

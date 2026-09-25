@@ -19,6 +19,7 @@ Restore the archive after cloning:
 
 ```bash
 test -f data/archive/operational/manifest.json
+pixi run operational-archive verify
 pixi run operational-archive restore
 pixi run check-data-pack --profile operational
 ```
@@ -28,6 +29,7 @@ Export a new archive from a machine that has up-to-date live caches:
 ```bash
 pixi run operational-archive export --dry-run
 pixi run operational-archive export
+pixi run operational-archive verify
 git add data/archive/operational
 git commit -m "Update operational data archive YYYY-MM-DD"
 git push
@@ -47,19 +49,23 @@ results/price_forecast_results/
 ```
 
 Raw DWD GRIB folders, Energy Arena submission artifacts, logs, `.env`, and
-machine-specific files are deliberately excluded. The exporter refuses files
-larger than 95 MiB by default because normal Git/GitHub cannot handle very large
-single files gracefully.
+machine-specific files are deliberately excluded. CSV histories are split into
+monthly Parquet partitions. The large per-variable DWD aggregation files are
+combined into one Parquet bundle per issue and only the latest 14 issue days per
+aggregation are retained; their derived renewable feature histories remain
+complete. Unchanged artifacts are copied forward instead of recomputed. The
+exporter refuses any artifact larger than 95 MiB and verifies checksums before
+the VM commits it.
 
 On the chair VM, `deployment/chair-vm/register_tasks.ps1` first runs the
 post-deadline `DAForecast-repair-operational-data` task. It retries missing
 current weather inputs, refreshes the affected renewable features, and writes a
 dated report below `data/processed/operational_quality/`. The later
 `DAForecast-commit-operational-archive` task waits for repair to finish, exports
-the bounded `operational` profile, commits changed archive files, and pushes
-them. The profile contains the inputs used by the deployed final and RQ3 cutoff
-configs plus the quality reports; it does not sweep every research file under
-`data/processed/`.
+and verifies the bounded `operational` profile, commits changed archive files,
+and pushes them. The profile contains the inputs used by the deployed final and
+RQ3 cutoff configs plus the quality reports; it does not sweep every research
+file under `data/processed/`.
 
 ## What The Data Pack Contains
 

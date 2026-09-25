@@ -500,6 +500,7 @@ case "$job" in
     wait_for_job_lock repair-operational-data
     git pull --ff-only
     "$PIXI" run operational-archive export --profile operational
+    "$PIXI" run operational-archive verify
     git add data/archive/operational
     if git diff --cached --quiet -- data/archive/operational; then
       echo "No operational archive changes to commit."

@@ -18,7 +18,6 @@ config:
   dwd_icon_download_variables:
     - t_2m
     - td_2m
-    - p
     - u_10m
     - v_10m
     - vmax_10m

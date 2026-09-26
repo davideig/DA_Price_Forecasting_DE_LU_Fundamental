@@ -84,3 +84,17 @@ config:
     assert calls["cluster_output_file"] == tmp_path / "clusters.csv"
     assert calls["capacity_file"] == tmp_path / "capacity.csv"
     assert calls["capacity_weighted_aggregation"] is True
+
+
+def test_live_renewable_configs_only_require_available_single_level_variables() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    config_paths = (
+        Path("configs/preprocessing/weather_aggregation/dwd_icon_mastr_wind_c100_run00_daily_update.yaml"),
+        Path("configs/preprocessing/weather_aggregation/dwd_icon_mastr_solar_tso_c25_run00_daily_update.yaml"),
+        Path("configs/preprocessing/weather_aggregation/dwd_icon_mastr_wind_c100_run06_daily_update.yaml"),
+        Path("configs/preprocessing/weather_aggregation/dwd_icon_mastr_solar_tso_c25_run06_daily_update.yaml"),
+    )
+
+    for config_path in config_paths:
+        config = daily_update.load_model_config(config_path, repo_root)
+        assert "p" not in config.dwd_icon_download_variables

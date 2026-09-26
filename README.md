@@ -43,11 +43,14 @@ RQ3 cutoff experiments are documented in
 
 ## Quick Start
 
-Install [Pixi](https://pixi.sh), then clone and install the environments:
+Install [Git LFS](https://git-lfs.com/) and [Pixi](https://pixi.sh), then clone
+and install the environments:
 
 ```bash
+git lfs install
 git clone https://github.com/davideig/DA_Price_Forecasting_DE_LU_Fundamental.git
 cd DA_Price_Forecasting_DE_LU_Fundamental
+git lfs pull
 pixi install
 ```
 

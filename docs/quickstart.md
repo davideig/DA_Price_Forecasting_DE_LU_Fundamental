@@ -3,10 +3,15 @@
 ## Install
 
 ```bash
+git lfs install
 git clone https://github.com/davideig/DA_Price_Forecasting_DE_LU_Fundamental.git
 cd DA_Price_Forecasting_DE_LU_Fundamental
+git lfs pull
 pixi install
 ```
+
+Git LFS is required because the compact operational Parquet archive is stored
+through LFS rather than in ordinary Git history.
 
 ## Restore Data
 

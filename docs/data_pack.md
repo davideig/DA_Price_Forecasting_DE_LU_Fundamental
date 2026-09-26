@@ -11,13 +11,15 @@ who want to clone the repo and run the final models directly. A revision is
 self-contained only when `data/archive/operational/manifest.json` is actually
 tracked. Until that first archive is published, users need the separately
 distributed data pack. The archive stores processed CSV caches as compressed
-Parquet and restores them into the normal runtime layout.
+Parquet through Git LFS and restores them into the normal runtime layout.
 
 ## Git-Tracked Operational Archive
 
 Restore the archive after cloning:
 
 ```bash
+git lfs install --local
+git lfs pull
 test -f data/archive/operational/manifest.json
 pixi run operational-archive verify
 pixi run operational-archive restore
@@ -56,6 +58,10 @@ aggregation are retained; their derived renewable feature histories remain
 complete. Unchanged artifacts are copied forward instead of recomputed. The
 exporter refuses any artifact larger than 95 MiB and verifies checksums before
 the VM commits it.
+
+Git LFS stores every changed Parquet version as a separate object. Monitor the
+repository owner's LFS storage and bandwidth usage as the daily archive grows;
+the manifest remains in ordinary Git.
 
 Keep [data_sources_and_licenses.md](data_sources_and_licenses.md) with every
 published snapshot and re-check the linked upstream terms before redistribution.

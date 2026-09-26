@@ -22,12 +22,17 @@ If Ubuntu is listed, continue below. If WSL is missing, ask for a Linux VM or pe
 
 ## 2. Clone And Install
 
-Inside WSL:
+Install Git LFS before cloning so the operational Parquet archive is checked out
+as data rather than pointer files. Inside WSL:
 
 ```bash
+sudo apt-get update
+sudo apt-get install -y git-lfs
+git lfs install
 cd ~
 git clone https://github.com/davideig/DA_Price_Forecasting_DE_LU_Fundamental.git DA_Price_Forecasting_Pipeline_DE_LU_release
 cd DA_Price_Forecasting_Pipeline_DE_LU_release
+git lfs pull
 bash deployment/chair-vm/setup_wsl_repo.sh
 ```
 
@@ -64,6 +69,7 @@ SYNERGIE_BACKUP_DIR=/mnt/synergie-diplomanden/MK_Eiglsperger/DA_Price_Forecastin
 The preferred workflow is to restore the Git-tracked Parquet archive:
 
 ```bash
+git lfs pull
 pixi run operational-archive verify
 pixi run operational-archive restore
 pixi run check-data-thesis

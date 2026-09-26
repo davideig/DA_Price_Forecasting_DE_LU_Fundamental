@@ -12,8 +12,10 @@ fi
 
 if command -v apt-get >/dev/null 2>&1; then
   sudo apt-get update
-  sudo apt-get install -y git curl ca-certificates unzip tar rsync
+  sudo apt-get install -y git git-lfs curl ca-certificates unzip tar rsync
 fi
+
+git lfs install --local
 
 if ! command -v pixi >/dev/null 2>&1 && [ ! -x "$HOME/.pixi/bin/pixi" ]; then
   echo "[setup] Installing Pixi..."
@@ -58,5 +60,5 @@ deployment/chair-vm/ensure_natural_earth_shapefile.sh
 
 echo "[setup] Done. Next:"
 echo "  1. Fill .env"
-echo "  2. Transfer operational data"
+echo "  2. Run 'git lfs pull' and restore the operational archive"
 echo "  3. Run dry runs from deployment/chair-vm/README.md"

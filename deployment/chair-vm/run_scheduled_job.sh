@@ -498,6 +498,11 @@ case "$job" in
 
   commit-operational-archive)
     wait_for_job_lock repair-operational-data
+    if ! git lfs version >/dev/null 2>&1; then
+      echo "Git LFS is required to publish the operational Parquet archive." >&2
+      echo "Install git-lfs and run 'git lfs install --local' in the repository." >&2
+      exit 1
+    fi
     git pull --ff-only
     "$PIXI" run operational-archive export --profile operational
     "$PIXI" run operational-archive verify

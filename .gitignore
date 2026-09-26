@@ -34,6 +34,8 @@ configs/tmp/
 # Large/generated data
 data/raw/
 data/cache/
+data/clustering/
+data/shapefile/
 data/processed/*
 !data/processed/.gitkeep
 *.grib
@@ -45,6 +47,7 @@ data/mastr
 *.ckpt
 
 # Generated experiment/report artifacts
+logs/
 results/*
 !results/.gitkeep
 output/*

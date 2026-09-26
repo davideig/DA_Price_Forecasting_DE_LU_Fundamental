@@ -1,0 +1,20 @@
+{
+  "mastr_dir": "/Users/davideiglsperger/Code/DA_Price_Forecasting_Pipeline_DE_LU/data/mastr/Gesamtdatenexport_20260506_26.1",
+  "output_file": "/Users/davideiglsperger/Code/DA_Price_Forecasting_Pipeline_DE_LU/data/raw/renewable_capacity/installed_capacity.csv",
+  "active_only": true,
+  "max_commissioning_date": null,
+  "capacity_source": "net",
+  "capacity_unit": "kW",
+  "rows": 284462,
+  "capacity_mw_by_technology": {
+    "pv": 66119.530485,
+    "wind_offshore": 10438.943,
+    "wind_onshore": 69190.78143
+  },
+  "stats": {
+    "pv_parsed": 6090879,
+    "pv_kept": 253456,
+    "wind_parsed": 42456,
+    "wind_kept": 31006
+  }
+}

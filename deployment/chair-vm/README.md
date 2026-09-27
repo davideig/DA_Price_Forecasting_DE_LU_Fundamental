@@ -64,6 +64,19 @@ there after the Git archive commit:
 SYNERGIE_BACKUP_DIR=/mnt/synergie-diplomanden/MK_Eiglsperger/DA_Price_Forecasting/backups
 ```
 
+For a persistent Synergie mount, store the SMB credentials in
+`/home/ujmyz/.smbcredentials-synergie` with mode `600`, create the mount point,
+and add this single line to `/etc/fstab` (adjust the user, IDs, and paths for a
+different VM account):
+
+```text
+//iipsrv-file1.iip.kit.edu/synergie-diplomanden /mnt/synergie-diplomanden cifs credentials=/home/ujmyz/.smbcredentials-synergie,iocharset=utf8,vers=3.0,uid=1000,gid=1000,file_mode=0755,dir_mode=0755,_netdev,nofail,user,x-systemd.automount 0 0
+```
+
+Validate it with `sudo mount -a` and `findmnt -T "$SYNERGIE_BACKUP_DIR"`.
+The backup job attempts this fstab mount once if CIFS is missing and refuses to
+write into the local mount-point directory if the share remains unavailable.
+
 ## 3. Restore Operational Data
 
 The preferred workflow is to restore the Git-tracked Parquet archive:

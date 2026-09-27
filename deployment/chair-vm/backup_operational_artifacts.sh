@@ -24,9 +24,15 @@ if [ -z "$backup_root" ]; then
 fi
 
 if [[ "$backup_root" == /mnt/synergie-diplomanden/* ]]; then
+  synergie_mount="/mnt/synergie-diplomanden"
   filesystem_type="$(findmnt -n -o FSTYPE -T "$backup_root" 2>/dev/null || true)"
+  if [ "$filesystem_type" != "cifs" ] && grep -qsE "^[^#]+[[:space:]]+$synergie_mount[[:space:]]+cifs([[:space:]]|$)" /etc/fstab; then
+    echo "[backup] Synergie is not mounted; attempting mount from /etc/fstab."
+    mount "$synergie_mount" >/dev/null 2>&1 || true
+    filesystem_type="$(findmnt -n -o FSTYPE -T "$backup_root" 2>/dev/null || true)"
+  fi
   if [ "$filesystem_type" != "cifs" ]; then
-    echo "[backup] Synergie is not mounted as CIFS at /mnt/synergie-diplomanden; refusing to write locally." >&2
+    echo "[backup] Synergie is not mounted as CIFS at $synergie_mount; refusing to write locally." >&2
     exit 1
   fi
 fi

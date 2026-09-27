@@ -519,6 +519,7 @@ class RenewableGenerationModelConfig(RepoConfigModel):
     renewable_proxy_file: Path = Path("data/processed/renewable_proxy/dwd_icon_c5_renewable_proxy.csv")
     renewable_proxy_fallback_file: Path | None = None
     renewable_proxy_fallback_end_date: date | None = None
+    renewable_proxy_fallback_history_only: bool = False
     extra_renewable_proxy_files: list[Path] = Field(default_factory=list)
     extra_renewable_proxy_prefixes: list[str] = Field(default_factory=list)
     extra_renewable_proxy_ensemble_mode: Literal["raw", "summary"] = "raw"
@@ -655,6 +656,7 @@ class RenewableGenerationModelConfig(RepoConfigModel):
     target_availability_lag_days: int = 0
     target_availability_cutoff_hour: int | None = None
     target_availability_cutoff_minute: int = 0
+    actual_generation_refresh_lookback_days: int = 0
     test_start: date = date(2025, 12, 1)
     test_end: date = date(2026, 2, 28)
 
@@ -715,6 +717,8 @@ class RenewableGenerationModelConfig(RepoConfigModel):
             raise ValueError("target_availability_cutoff_hour must be between 0 and 23.")
         if self.target_availability_cutoff_minute not in {0, 15, 30, 45}:
             raise ValueError("target_availability_cutoff_minute must be one of 0, 15, 30, or 45.")
+        if self.actual_generation_refresh_lookback_days < 0:
+            raise ValueError("actual_generation_refresh_lookback_days must be non-negative.")
         if self.partial_generation_reference_day < 1:
             raise ValueError("partial_generation_reference_day must be positive.")
         if self.partial_generation_comparison_lag_days < 1:

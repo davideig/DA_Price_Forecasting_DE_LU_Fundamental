@@ -159,14 +159,17 @@ Use `--forecast-date YYYY-MM-DD` to override tomorrow, or
 
 | Cutoff | Weather run | Load model |
 | --- | --- | --- |
-| `0700`, `0800`, `0900` | 00 UTC | Direct |
+| `0700` | 00 UTC | Direct |
+| `0800`, `0900` | 03 UTC | Direct |
 | `1000` | 06 UTC | Direct |
 | `1100`, `1200` | 06 UTC | Residual |
 | `final` | 06 UTC | Final paper model family |
 
-The early profiles are the operationally causal deployment variants. The
-retrospective thesis configs remain available for exact paper reproduction in
-`configs/rq3_cutoff_grid/RUN_ORDER.md`.
+The cutoff profiles use the deployment configs in
+`configs/deployment/cutoffs/` and follow
+`docs/operational_cutoff_data_spec.md`. The separate `final` profile preserves
+the final-paper model family for research reproduction; it is not scheduled by
+the cutoff deployment.
 
 ### Direct config execution
 
@@ -224,6 +227,11 @@ pixi run energy-arena-price-cutoff-daily \
 endpoint. The exact retrospective paper workflow is different from the live
 weather-availability adapter and is documented in
 `configs/rq3_cutoff_grid/RUN_ORDER.md`.
+
+For cutoff runs, wind uses ICON-D2 only, Open-Meteo requests the configured
+00/03/06 UTC run explicitly, and every price run first stores immutable
+cutoff-specific component histories under
+`data/processed/component_forecast_history/`.
 
 ## 8. Use Forecasts Elsewhere
 

@@ -45,6 +45,7 @@ PROFILE_BASE_INCLUDE_PATHS = (
     "data/raw/renewable_capacity",
     "data/cache/entsoe",
     "data/processed/operational_quality",
+    "data/processed/component_forecast_history",
 )
 
 DEFAULT_EXCLUDE_NAMES = {

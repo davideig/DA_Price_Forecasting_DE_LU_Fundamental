@@ -24,50 +24,8 @@ find_pixi() {
 }
 
 PIXI="$(find_pixi)"
-DWD_WIND_CONFIG="configs/preprocessing/weather_aggregation/dwd_icon_mastr_wind_c100_run06_daily_update.yaml"
-DWD_SOLAR_CONFIG="configs/preprocessing/weather_aggregation/dwd_icon_mastr_solar_tso_c25_run06_daily_update.yaml"
-DWD_PRICE_CONFIG="configs/preprocessing/weather_aggregation/dwd_icon_c2_run06_daily_update.yaml"
-DWD_RUN00_WIND_CONFIG="configs/preprocessing/weather_aggregation/dwd_icon_mastr_wind_c100_run00_daily_update.yaml"
-DWD_RUN00_SOLAR_CONFIG="configs/preprocessing/weather_aggregation/dwd_icon_mastr_solar_tso_c25_run00_daily_update.yaml"
-DWD_RUN00_PRICE_CONFIG="configs/preprocessing/weather_aggregation/dwd_icon_c2_run00_daily_update.yaml"
-WIND_FEATURE_CONFIG="configs/preprocessing/renewable_features/regional_renewable_features_dwd_icon_mastr_wind_c100_run06_paper_febjul.yaml"
-SOLAR_FEATURE_CONFIG="configs/preprocessing/renewable_features/regional_renewable_features_dwd_icon_mastr_solar_tso_c25_run06_solar_spread.yaml"
-SOLAR_EXTRA_FEATURE_CONFIG="configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover.yaml"
-SOLAR_MODEL_CONFIG="configs/final/renewable/renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_cloud_geometry_physics_residual_own_region_daylight_suspicious_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_paper_febjul.yaml"
-WIND_MODEL_CONFIG="configs/final/renewable/renewable_generation_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_summary_meanstd_onoff_split_wind_hub_p80_common_hgb_wind_struct_minleaf60_maxfeat08_bias30_mtu_s08_d180_cutoff1000_paper_febjul.yaml"
-RUN00_WIND_FEATURE_CONFIG="configs/rq3_cutoff_grid/preprocess_regional_renewable_features_dwd_icon_mastr_wind_c100_run00_paper_febjul.yaml"
-RUN00_SOLAR_FEATURE_CONFIG="configs/rq3_cutoff_grid/preprocess_regional_renewable_features_dwd_icon_mastr_solar_tso_c25_run00_solar_spread.yaml"
-RUN00_SOLAR_EXTRA_FEATURE_CONFIG="configs/rq3_cutoff_grid/preprocess_regional_renewable_features_open_meteo_icon_d2_single_run00_mastr_solar_tso_c25_cloud_cover.yaml"
-RUN00_SOLAR_MODEL_CONFIG="configs/rq3_cutoff_grid/solar_0700_dwd_mastr_tso_c25_run00_cloud_geometry_physics_morning0615_d90.yaml"
-RUN00_WIND_MODEL_CONFIG="configs/rq3_cutoff_grid/wind_0700_dwd_mastr_c100_multi_provider7_run00_p80_morning0615_d180.yaml"
-WIND_EXTRA_FEATURE_CONFIGS=(
-  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_icon_d2_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_ecmwf_ifs025_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_arpege_europe_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_ukmo_seamless_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_gfs_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_dmi_harmonie_arome_europe_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-  "configs/preprocessing/renewable_features/regional_renewable_features_open_meteo_icon_eu_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-)
-RUN00_WIND_EXTRA_FEATURE_CONFIGS=(
-  "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_open_meteo_icon_d2_single_run00_wind_hub_p80_provider_common.yaml"
-  "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_open_meteo_ecmwf_ifs025_single_run00_wind_hub_p80_provider_common.yaml"
-  "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_open_meteo_arpege_europe_single_run00_wind_hub_p80_provider_common.yaml"
-  "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_open_meteo_ukmo_seamless_single_run00_wind_hub_p80_provider_common.yaml"
-  "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_open_meteo_gfs_single_run00_wind_hub_p80_provider_common.yaml"
-  "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_open_meteo_dmi_harmonie_arome_europe_single_run00_wind_hub_p80_provider_common.yaml"
-  "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_open_meteo_icon_eu_single_run00_wind_hub_p80_provider_common.yaml"
-)
-
-wind_extra_feature_args=()
-for config_path in "${WIND_EXTRA_FEATURE_CONFIGS[@]}"; do
-  wind_extra_feature_args+=(--extra-feature-config "$config_path")
-done
-
-run00_wind_extra_feature_args=()
-for config_path in "${RUN00_WIND_EXTRA_FEATURE_CONFIGS[@]}"; do
-  run00_wind_extra_feature_args+=(--extra-feature-config "$config_path")
-done
+DEPLOYMENT_PREPROCESSING="configs/deployment/cutoff_preprocessing"
+DEPLOYMENT_CUTOFFS="configs/deployment/cutoffs"
 
 status() {
   local target
@@ -112,144 +70,48 @@ ensure_natural_earth_shapefile() {
   deployment/chair-vm/ensure_natural_earth_shapefile.sh
 }
 
-bootstrap_if_missing() {
-  local source="$1"
-  local target="$2"
-  if [ -e "$target" ]; then
-    return
-  fi
-  if [ ! -e "$source" ]; then
-    echo "[bootstrap] Required donor cache is missing: $source" >&2
-    return 1
-  fi
-  mkdir -p "$(dirname "$target")"
-  cp -a "$source" "$target"
-  touch "$target"
-  echo "[bootstrap] Seeded $target from $source"
-}
-
-bootstrap_run00_price_weather() {
-  local source_root="data/processed/icon_aggregated_c2_run06"
-  local target_root="data/processed/icon_aggregated_c2_run00"
-  local source_dir target_dir
-  local source_dirs=()
-
-  mkdir -p "$target_root"
-  mapfile -t source_dirs < <(
-    find "$source_root" -mindepth 1 -maxdepth 1 -type d -name 'dwd_icon_daily_*_06' -print 2>/dev/null \
-      | sort \
-      | tail -n 90
-  )
-  if [ "${#source_dirs[@]}" -eq 0 ]; then
-    echo "[bootstrap] No run06 C2 folders are available to seed run00 price weather." >&2
-    return 1
-  fi
-
-  for source_dir in "${source_dirs[@]}"; do
-    target_dir="$target_root/$(basename "${source_dir%_06}")_00"
-    if [ ! -e "$target_dir" ]; then
-      cp -a "$source_dir" "$target_dir"
-      echo "[bootstrap] Seeded $target_dir from $source_dir"
-    fi
+run_dwd_update() {
+  local run="$1"
+  ensure_natural_earth_shapefile
+  cleanup_raw_dwd
+  local config
+  for config in \
+    "$DEPLOYMENT_PREPROCESSING/dwd_wind_run${run}.yaml" \
+    "$DEPLOYMENT_PREPROCESSING/dwd_icon_c2_run${run}.yaml" \
+    "$DEPLOYMENT_PREPROCESSING/dwd_solar_run${run}.yaml"; do
+    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
+      --config "$config" \
+      --no-catch-up-missing-days
   done
+  cleanup_raw_dwd
 }
 
-bootstrap_run00_feature_caches() {
-  local proxy_root="data/processed/renewable_proxy"
-  local provider stem suffix
+refresh_weather_features() {
+  local run="$1"
+  local model_cutoff
+  shift
+  case "$run" in
+    00) model_cutoff="0700" ;;
+    03) model_cutoff="0800" ;;
+    06) model_cutoff="1000" ;;
+    *) echo "Unsupported weather run: $run" >&2; return 2 ;;
+  esac
 
-  bootstrap_if_missing \
-    "$proxy_root/dwd_icon_mastr_solar_tso_c25_run06_solar_spread_regional_renewable_features.csv" \
-    "$proxy_root/dwd_icon_mastr_solar_tso_c25_run00_solar_spread_regional_renewable_features.csv"
-  bootstrap_if_missing \
-    "$proxy_root/dwd_icon_mastr_solar_tso_c25_run06_solar_spread_regional_capacity_map.csv" \
-    "$proxy_root/dwd_icon_mastr_solar_tso_c25_run00_solar_spread_regional_capacity_map.csv"
-  bootstrap_if_missing \
-    "$proxy_root/dwd_icon_mastr_solar_tso_c25_run06_solar_capacity_per_tso_monthly.csv" \
-    "$proxy_root/dwd_icon_mastr_solar_tso_c25_run00_solar_capacity_per_tso_monthly.csv"
-  bootstrap_if_missing \
-    "$proxy_root/dwd_icon_mastr_solar_tso_c25_run06_solar_weather_weights_per_tso.csv" \
-    "$proxy_root/dwd_icon_mastr_solar_tso_c25_run00_solar_weather_weights_per_tso.csv"
-  bootstrap_if_missing \
-    "$proxy_root/dwd_icon_mastr_wind_c100_run06_regional_renewable_features.csv" \
-    "$proxy_root/dwd_icon_mastr_wind_c100_run00_regional_renewable_features.csv"
-  bootstrap_if_missing \
-    "$proxy_root/dwd_icon_mastr_wind_c100_run06_regional_capacity_map.csv" \
-    "$proxy_root/dwd_icon_mastr_wind_c100_run00_regional_capacity_map.csv"
-  bootstrap_if_missing \
-    "$proxy_root/open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover_features.csv" \
-    "$proxy_root/open_meteo_icon_d2_single_run00_mastr_solar_tso_c25_cloud_cover_features.csv"
-  bootstrap_if_missing \
-    "$proxy_root/open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover_capacity_map.csv" \
-    "$proxy_root/open_meteo_icon_d2_single_run00_mastr_solar_tso_c25_cloud_cover_capacity_map.csv"
-
-  for provider in icon_d2 ecmwf_ifs025 arpege_europe ukmo_seamless gfs dmi_harmonie_arome_europe icon_eu; do
-    stem="open_meteo_${provider}_single_run"
-    for suffix in \
-      wind_hub_p80_provider_common_regional_renewable_features.csv \
-      wind_hub_p80_provider_common_regional_capacity_map.csv \
-      wind_hub_p80_provider_common_weather_points.csv; do
-      bootstrap_if_missing \
-        "$proxy_root/${stem}06_${suffix}" \
-        "$proxy_root/${stem}00_${suffix}"
-    done
-  done
-}
-
-refresh_run00_wind_features() {
-  local extra_args=("$@")
   "$PIXI" run energy-arena-renewable-daily \
-    --feature-config "$RUN00_WIND_FEATURE_CONFIG" \
-    "${run00_wind_extra_feature_args[@]}" \
-    --model-config "$RUN00_WIND_MODEL_CONFIG" \
+    --feature-config "$DEPLOYMENT_PREPROCESSING/wind_dwd_features_run${run}.yaml" \
+    --extra-feature-config "$DEPLOYMENT_PREPROCESSING/wind_open_meteo_features_run${run}.yaml" \
+    --model-config "$DEPLOYMENT_CUTOFFS/wind_${model_cutoff}_run${run}.yaml" \
     --skip-solar \
     --features-only \
-    "${extra_args[@]}"
-}
+    "$@"
 
-refresh_run00_solar_features() {
-  local extra_args=("$@")
   "$PIXI" run energy-arena-renewable-daily \
-    --feature-config "$RUN00_SOLAR_FEATURE_CONFIG" \
-    --extra-feature-config "$RUN00_SOLAR_EXTRA_FEATURE_CONFIG" \
-    --model-config "$RUN00_SOLAR_MODEL_CONFIG" \
+    --feature-config "$DEPLOYMENT_PREPROCESSING/solar_dwd_features_run${run}.yaml" \
+    --extra-feature-config "$DEPLOYMENT_PREPROCESSING/solar_open_meteo_features_run${run}.yaml" \
+    --model-config "$DEPLOYMENT_CUTOFFS/solar_${model_cutoff}_run${run}.yaml" \
     --skip-wind \
     --features-only \
-    "${extra_args[@]}"
-}
-
-refresh_run00_features() {
-  bootstrap_run00_price_weather
-  bootstrap_run00_feature_caches
-  refresh_run00_wind_features "$@"
-  refresh_run00_solar_features "$@"
-}
-
-refresh_run06_wind_features() {
-  local extra_args=("$@")
-  "$PIXI" run energy-arena-renewable-daily \
-    --feature-config "$WIND_FEATURE_CONFIG" \
-    "${wind_extra_feature_args[@]}" \
-    --model-config "$WIND_MODEL_CONFIG" \
-    --skip-solar \
-    --features-only \
-    "${extra_args[@]}"
-}
-
-refresh_run06_solar_features() {
-  local extra_args=("$@")
-  "$PIXI" run energy-arena-renewable-daily \
-    --feature-config "$SOLAR_FEATURE_CONFIG" \
-    --extra-feature-config "$SOLAR_EXTRA_FEATURE_CONFIG" \
-    --model-config "$SOLAR_MODEL_CONFIG" \
-    --skip-wind \
-    --features-only \
-    "${extra_args[@]}"
-}
-
-refresh_run06_features() {
-  refresh_run06_wind_features "$@"
-  refresh_run06_solar_features "$@"
+    "$@"
 }
 
 wait_for_job_lock() {
@@ -271,73 +133,30 @@ wait_for_job_lock() {
 
 case "$job" in
   dwd-run00-update)
-    ensure_natural_earth_shapefile
-    cleanup_raw_dwd
-    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_RUN00_WIND_CONFIG" \
-      --no-catch-up-missing-days
-    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_RUN00_PRICE_CONFIG" \
-      --no-catch-up-missing-days
-    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_RUN00_SOLAR_CONFIG" \
-      --no-catch-up-missing-days
-    cleanup_raw_dwd
+    run_dwd_update 00
     ;;
 
   renewable-run00-features-update)
-    refresh_run00_features
+    wait_for_job_lock dwd-run00-update 3600
+    refresh_weather_features 00
+    ;;
+
+  dwd-run03-update)
+    run_dwd_update 03
+    ;;
+
+  renewable-run03-features-update)
+    wait_for_job_lock dwd-run03-update 1800
+    refresh_weather_features 03
     ;;
 
   dwd-run06-cutoff-update)
-    ensure_natural_earth_shapefile
-    cleanup_raw_dwd
-    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_WIND_CONFIG" \
-      --no-catch-up-missing-days
-    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_PRICE_CONFIG" \
-      --no-catch-up-missing-days
-    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_SOLAR_CONFIG" \
-      --no-catch-up-missing-days
-    cleanup_raw_dwd
-    ;;
-
-  dwd-wind-update)
-    wait_for_job_lock dwd-run06-cutoff-update 3600
-    ensure_natural_earth_shapefile
-    cleanup_raw_dwd
-    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_WIND_CONFIG" \
-      --no-catch-up-missing-days
-    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_PRICE_CONFIG" \
-      --no-catch-up-missing-days
-    ;;
-
-  dwd-solar-update)
-    ensure_natural_earth_shapefile
-    "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_SOLAR_CONFIG" \
-      --no-catch-up-missing-days
-    cleanup_raw_dwd
-    ;;
-
-  renewable-wind-warmup)
-    "$PIXI" run energy-arena-renewable-daily \
-      --feature-config "$WIND_FEATURE_CONFIG" \
-      "${wind_extra_feature_args[@]}" \
-      --model-config "$WIND_MODEL_CONFIG" \
-      --skip-solar \
-      --wind-value-column Wind_Onshore_Model_MW \
-      --wind-approach-name renewable_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_onshore \
-      --dry-run
+    run_dwd_update 06
     ;;
 
   renewable-cutoff-features-update)
     wait_for_job_lock dwd-run06-cutoff-update 2400
-    refresh_run06_features
+    refresh_weather_features 06
     ;;
 
   reserve-publication-poll)
@@ -345,8 +164,10 @@ case "$job" in
     ;;
 
   cutoff-prewarm-all)
-    echo "--- Preparing run00 inputs for cutoff 0700 ---"
-    refresh_run00_features
+    echo "--- Preparing fixed-run feature histories ---"
+    refresh_weather_features 00
+    refresh_weather_features 03
+    refresh_weather_features 06
     failed_cutoffs=()
     for cutoff in 0700 0800 0900 1000 1100 1200; do
       echo "--- Pre-warming cutoff $cutoff ---"
@@ -365,41 +186,8 @@ case "$job" in
     echo "[prewarm] All cutoff caches and dry-run submission payloads completed."
     ;;
 
-  renewable-solar-submit)
-    "$PIXI" run energy-arena-renewable-daily \
-      --feature-config "$SOLAR_FEATURE_CONFIG" \
-      --extra-feature-config "$SOLAR_EXTRA_FEATURE_CONFIG" \
-      --model-config "$SOLAR_MODEL_CONFIG" \
-      --skip-wind \
-      --solar-approach-name renewable_dwd_icon_mastr_solar_tso_c25_run06_cloud_geometry_physics_hgb_solar \
-      --retry-until 11:55 \
-      --retry-interval-minutes 5
-    ;;
-
-  renewable-wind-submit)
-    "$PIXI" run energy-arena-renewable-daily \
-      --feature-config "$WIND_FEATURE_CONFIG" \
-      "${wind_extra_feature_args[@]}" \
-      --model-config "$WIND_MODEL_CONFIG" \
-      --skip-solar \
-      --wind-value-column Wind_Onshore_Model_MW \
-      --wind-approach-name renewable_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_onshore \
-      --retry-until 11:55 \
-      --retry-interval-minutes 5
-    ;;
-
-  price-submit)
-    "$PIXI" run energy-arena-price-final-daily \
-      --retry-until 11:55 \
-      --retry-interval-minutes 5
-    ;;
-
-  price-deadline-safety-submit)
-    "$PIXI" run energy-arena-price-final-daily \
-      --cached-safety-submit
-    ;;
-
   price-cutoff-0700-submit)
+    wait_for_job_lock renewable-run00-features-update 3600
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 0700 \
       --submit-first-stage \
@@ -408,6 +196,7 @@ case "$job" in
     ;;
 
   price-cutoff-0800-submit)
+    wait_for_job_lock renewable-run03-features-update 3600
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 0800 \
       --submit-first-stage \
@@ -416,6 +205,7 @@ case "$job" in
     ;;
 
   price-cutoff-0900-submit)
+    wait_for_job_lock renewable-run03-features-update 3600
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 0900 \
       --submit-first-stage \
@@ -424,8 +214,8 @@ case "$job" in
     ;;
 
   price-cutoff-1000-submit)
-    wait_for_job_lock dwd-run06-cutoff-update 2400
-    wait_for_job_lock renewable-cutoff-features-update 1200
+    wait_for_job_lock dwd-run06-cutoff-update 1800
+    wait_for_job_lock renewable-cutoff-features-update 1800
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 1000 \
       --submit-first-stage \
@@ -434,6 +224,7 @@ case "$job" in
     ;;
 
   price-cutoff-1100-submit)
+    wait_for_job_lock renewable-cutoff-features-update 3600
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 1100 \
       --submit-first-stage \
@@ -441,18 +232,25 @@ case "$job" in
       --retry-interval-minutes 5
     ;;
 
-  price-cutoff-1200-compute|price-cutoff-1200-submit)
-    echo "[cutoff] Computing the RQ3 12:00 forecasts without submitting; final paper jobs own the 12:00 leaderboard slot."
+  price-cutoff-1200-submit)
+    wait_for_job_lock renewable-cutoff-features-update 3600
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 1200 \
       --submit-first-stage \
-      --dry-run
-    ;;
-
-  load-point-submit)
-    "$PIXI" run energy-arena-load-open-meteo-daily \
       --retry-until 11:55 \
       --retry-interval-minutes 5
+    ;;
+
+  backfill-fixed-run-open-meteo)
+    for run in 00 03; do
+      echo "--- Back-filling Open-Meteo fixed run $run UTC ---"
+      "$PIXI" run -e forecast da-price-forecast \
+        --config "$DEPLOYMENT_PREPROCESSING/load_open_meteo_history_run${run}.yaml"
+      "$PIXI" run -e forecast da-price-forecast \
+        --config "$DEPLOYMENT_PREPROCESSING/wind_open_meteo_features_run${run}.yaml"
+      "$PIXI" run -e forecast da-price-forecast \
+        --config "$DEPLOYMENT_PREPROCESSING/solar_open_meteo_features_run${run}.yaml"
+    done
     ;;
 
   repair-operational-data)
@@ -472,25 +270,14 @@ case "$job" in
       fi
     }
 
-    repair_step "DWD run00 wind" "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_RUN00_WIND_CONFIG" --no-catch-up-missing-days
-    repair_step "DWD run00 price" "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_RUN00_PRICE_CONFIG" --no-catch-up-missing-days
-    repair_step "DWD run00 solar" "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_RUN00_SOLAR_CONFIG" --no-catch-up-missing-days
-    repair_step "DWD run06 wind" "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_WIND_CONFIG" --no-catch-up-missing-days
-    repair_step "DWD run06 price" "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_PRICE_CONFIG" --no-catch-up-missing-days
-    repair_step "DWD run06 solar" "$PIXI" run -e ops da-price-dwd-icon-daily-update \
-      --config "$DWD_SOLAR_CONFIG" --no-catch-up-missing-days
+    repair_step "DWD run00" run_dwd_update 00
+    repair_step "DWD run03" run_dwd_update 03
+    repair_step "DWD run06" run_dwd_update 06
     cleanup_raw_dwd
 
-    repair_step "run00 cache bootstrap" bootstrap_run00_feature_caches
-    repair_step "run00 wind renewable features" refresh_run00_wind_features --force-feature-refresh
-    repair_step "run00 solar renewable features" refresh_run00_solar_features --force-feature-refresh
-    repair_step "run06 wind renewable features" refresh_run06_wind_features --force-feature-refresh
-    repair_step "run06 solar renewable features" refresh_run06_solar_features --force-feature-refresh
+    repair_step "run00 renewable features" refresh_weather_features 00 --force-feature-refresh
+    repair_step "run03 renewable features" refresh_weather_features 03 --force-feature-refresh
+    repair_step "run06 renewable features" refresh_weather_features 06 --force-feature-refresh
     repair_step "operational quality report" "$PIXI" run operational-data-quality
 
     if [ "${#repair_failures[@]}" -gt 0 ]; then

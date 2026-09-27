@@ -6,15 +6,28 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$obsoleteTasks = @(
+    "$TaskPrefix-dwd-wind-update",
+    "$TaskPrefix-renewable-wind-warmup",
+    "$TaskPrefix-dwd-solar-update",
+    "$TaskPrefix-renewable-solar-submit",
+    "$TaskPrefix-renewable-wind-submit",
+    "$TaskPrefix-price-submit",
+    "$TaskPrefix-load-point-submit",
+    "$TaskPrefix-price-deadline-safety-submit"
+)
+
+foreach ($taskName in $obsoleteTasks) {
+    $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    if ($null -ne $task) {
+        Write-Host "Removing obsolete task $taskName"
+        if (-not $WhatIfOnly) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+        }
+    }
+}
+
 $jobs = @(
-    @{ Name = "dwd-wind-update"; Time = "10:00"; Job = "dwd-wind-update"; DurationHours = 2 },
-    @{ Name = "renewable-wind-warmup"; Time = "10:35"; Job = "renewable-wind-warmup"; DurationHours = 2 },
-    @{ Name = "dwd-solar-update"; Time = "10:50"; Job = "dwd-solar-update"; DurationHours = 2 },
-    @{ Name = "renewable-solar-submit"; Time = "11:10"; Job = "renewable-solar-submit"; DurationHours = 2 },
-    @{ Name = "renewable-wind-submit"; Time = "11:20"; Job = "renewable-wind-submit"; DurationHours = 2 },
-    @{ Name = "price-submit"; Time = "11:30"; Job = "price-submit"; DurationHours = 2 },
-    @{ Name = "load-point-submit"; Time = "11:35"; Job = "load-point-submit"; DurationHours = 2 },
-    @{ Name = "price-deadline-safety-submit"; Time = "11:54"; Job = "price-deadline-safety-submit"; DurationHours = 1 },
     @{ Name = "repair-operational-data"; Time = "12:25"; Job = "repair-operational-data"; DurationHours = 3 },
     @{ Name = "commit-operational-archive"; Time = "14:00"; Job = "commit-operational-archive"; DurationHours = 2 },
     @{ Name = "backup-operational-artifacts"; Time = "14:30"; Job = "backup-operational-artifacts"; DurationHours = 2 }
@@ -59,4 +72,4 @@ Write-Host "Done. Inspect tasks with:"
 Write-Host "  Get-ScheduledTask -TaskName '$TaskPrefix-*'"
 Write-Host ""
 Write-Host "Run one manually, for example:"
-Write-Host "  Start-ScheduledTask -TaskName '$TaskPrefix-load-point-submit'"
+Write-Host "  Start-ScheduledTask -TaskName '$TaskPrefix-repair-operational-data'"

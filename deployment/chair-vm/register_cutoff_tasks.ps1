@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $obsoleteTasks = @(
-    "$TaskPrefix-price-cutoff-1200-submit"
+    "$TaskPrefix-price-cutoff-1200-compute"
 )
 
 foreach ($taskName in $obsoleteTasks) {
@@ -23,15 +23,17 @@ foreach ($taskName in $obsoleteTasks) {
 $jobs = @(
     @{ Name = "dwd-run00-update"; Time = "04:05"; Job = "dwd-run00-update"; DurationHours = 3 },
     @{ Name = "renewable-run00-features-update"; Time = "05:15"; Job = "renewable-run00-features-update"; DurationHours = 2 },
+    @{ Name = "dwd-run03-update"; Time = "06:25"; Job = "dwd-run03-update"; DurationHours = 2 },
     @{ Name = "price-cutoff-0700-submit"; Time = "06:40"; Job = "price-cutoff-0700-submit"; DurationHours = 2 },
+    @{ Name = "renewable-run03-features-update"; Time = "06:50"; Job = "renewable-run03-features-update"; DurationHours = 2 },
     @{ Name = "price-cutoff-0800-submit"; Time = "07:40"; Job = "price-cutoff-0800-submit"; DurationHours = 2 },
     @{ Name = "reserve-publication-poll"; Time = "07:55"; Job = "reserve-publication-poll"; DurationHours = 4 },
     @{ Name = "price-cutoff-0900-submit"; Time = "08:40"; Job = "price-cutoff-0900-submit"; DurationHours = 2 },
     @{ Name = "dwd-run06-cutoff-update"; Time = "09:23"; Job = "dwd-run06-cutoff-update"; DurationHours = 2 },
-    @{ Name = "renewable-cutoff-features-update"; Time = "09:40"; Job = "renewable-cutoff-features-update"; DurationHours = 2 },
-    @{ Name = "price-cutoff-1000-submit"; Time = "09:45"; Job = "price-cutoff-1000-submit"; DurationHours = 2 },
+    @{ Name = "renewable-cutoff-features-update"; Time = "09:38"; Job = "renewable-cutoff-features-update"; DurationHours = 2 },
+    @{ Name = "price-cutoff-1000-submit"; Time = "09:40"; Job = "price-cutoff-1000-submit"; DurationHours = 2 },
     @{ Name = "price-cutoff-1100-submit"; Time = "10:40"; Job = "price-cutoff-1100-submit"; DurationHours = 2 },
-    @{ Name = "price-cutoff-1200-compute"; Time = "11:40"; Job = "price-cutoff-1200-compute"; DurationHours = 2 }
+    @{ Name = "price-cutoff-1200-submit"; Time = "11:40"; Job = "price-cutoff-1200-submit"; DurationHours = 2 }
 )
 
 function New-WslAction {
@@ -73,4 +75,4 @@ Write-Host "Done. Inspect tasks with:"
 Write-Host "  Get-ScheduledTask -TaskName '$TaskPrefix-*'"
 Write-Host ""
 Write-Host "Run one manually, for example:"
-Write-Host "  Start-ScheduledTask -TaskName '$TaskPrefix-price-cutoff-1200-compute'"
+Write-Host "  Start-ScheduledTask -TaskName '$TaskPrefix-price-cutoff-1200-submit'"

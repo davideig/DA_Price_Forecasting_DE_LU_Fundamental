@@ -1,0 +1,109 @@
+# Operational cutoff deployment change report
+
+This report describes the `deployment-spec` implementation of
+`docs/operational_cutoff_data_spec.md`. Merging this branch to `main` deploys it
+to the chair VM at the next 14:00 pull; do not merge until the migration and
+rollout steps have been reviewed.
+
+## Live submission configs
+
+Each cutoff submits its own load, solar, onshore-wind, and price forecasts.
+The price model consumes the immutable component histories written by that
+same cutoff job.
+
+| Cutoff | Weather run | Load | Solar | Wind | Price |
+| --- | --- | --- | --- | --- | --- |
+| 07:00 | 00 UTC | `configs/deployment/cutoffs/load_0700_run00.yaml` | `configs/deployment/cutoffs/solar_0700_run00.yaml` | `configs/deployment/cutoffs/wind_0700_run00.yaml` | `configs/deployment/cutoffs/price_0700_run00.yaml` |
+| 08:00 | 03 UTC | `configs/deployment/cutoffs/load_0800_run03.yaml` | `configs/deployment/cutoffs/solar_0800_run03.yaml` | `configs/deployment/cutoffs/wind_0800_run03.yaml` | `configs/deployment/cutoffs/price_0800_run03.yaml` |
+| 09:00 | 03 UTC | `configs/deployment/cutoffs/load_0900_run03.yaml` | `configs/deployment/cutoffs/solar_0900_run03.yaml` | `configs/deployment/cutoffs/wind_0900_run03.yaml` | `configs/deployment/cutoffs/price_0900_run03.yaml` |
+| 10:00 | 06 UTC | `configs/deployment/cutoffs/load_1000_run06.yaml` | `configs/deployment/cutoffs/solar_1000_run06.yaml` | `configs/deployment/cutoffs/wind_1000_run06.yaml` | `configs/deployment/cutoffs/price_1000_run06.yaml` |
+| 11:00 | 06 UTC | `configs/deployment/cutoffs/load_1100_run06.yaml` | `configs/deployment/cutoffs/solar_1100_run06.yaml` | `configs/deployment/cutoffs/wind_1100_run06.yaml` | `configs/deployment/cutoffs/price_1100_run06.yaml` |
+| 12:00 | 06 UTC | `configs/deployment/cutoffs/load_1200_run06.yaml` | `configs/deployment/cutoffs/solar_1200_run06.yaml` | `configs/deployment/cutoffs/wind_1200_run06.yaml` | `configs/deployment/cutoffs/price_1200_run06.yaml` |
+
+All load configs require weather-backed training rows and refresh the trailing
+14 days of ENTSO-E realized load. All solar and wind configs refresh the
+trailing 14 days of realized generation. Wind has one Open-Meteo input,
+ICON-D2, rather than the former seven-provider set. Open-Meteo previous-run
+fallback is disabled throughout the deployment configs.
+
+The realized-data limits are 05:30, 06:30, 07:30, 08:30, 09:30, and 10:30 for
+the six load models. Solar and wind use the same sequence except that their
+12:00 final-paper configuration remains at 10:00 as required by the spec.
+
+## Weather preprocessing configs
+
+The 00, 03, and 06 UTC histories have separate aggregation and feature output
+paths under `configs/deployment/cutoff_preprocessing/`. For each run this
+directory contains:
+
+- `dwd_icon_c2_runXX.yaml`
+- `dwd_solar_runXX.yaml`
+- `dwd_wind_runXX.yaml`
+- `load_open_meteo_history_runXX.yaml`
+- `solar_dwd_features_runXX.yaml`
+- `solar_open_meteo_features_runXX.yaml`
+- `wind_dwd_features_runXX.yaml`
+- `wind_open_meteo_features_runXX.yaml`
+
+The cluster assignments, population weights, MaStR capacity inputs, and
+state-to-TSO mappings remain fixed snapshots. They are not scheduled for
+automatic updates.
+
+## Schedule changes
+
+The cutoff scheduler owns every live submission:
+
+| Local time | Job | Change |
+| --- | --- | --- |
+| 04:05 | `dwd-run00-update` | unchanged time; now uses strict deployment configs |
+| 05:15 | `renewable-run00-features-update` | unchanged time; cross-run bootstrap removed |
+| 06:25 | `dwd-run03-update` | added |
+| 06:40 | `price-cutoff-0700-submit` | unchanged |
+| 06:50 | `renewable-run03-features-update` | added |
+| 07:40 | `price-cutoff-0800-submit` | now uses run03 |
+| 07:55 | `reserve-publication-poll` | unchanged; observational only |
+| 08:40 | `price-cutoff-0900-submit` | now uses run03 |
+| 09:23 | `dwd-run06-cutoff-update` | unchanged time; downloads all three run06 aggregations |
+| 09:38 | `renewable-cutoff-features-update` | moved from 09:40 |
+| 09:40 | `price-cutoff-1000-submit` | moved from 09:45 |
+| 10:40 | `price-cutoff-1100-submit` | unchanged |
+| 11:40 | `price-cutoff-1200-submit` | replaces compute-only task and now submits |
+
+The general scheduler unregisters the obsolete duplicate weather, warm-up,
+final-paper submission, and deadline-safety tasks. It retains only:
+
+- 12:25 `repair-operational-data`
+- 14:00 `commit-operational-archive`
+- 14:30 `backup-operational-artifacts`
+
+## Component forecast histories
+
+Each cutoff job writes load, solar, and wind forecasts before price runs to:
+
+```text
+data/processed/component_forecast_history/<cutoff>/<component>.csv
+```
+
+Rows for a delivery day are immutable after first write. A later rerun is
+stored under `reruns/`. Historical warm-up rows are marked `backfilled`; cached
+or imputed target-day forecasts are marked `fallback_used`. Renewable feature
+fallback provenance is propagated into that flag. The complete directory is
+included in the operational archive.
+
+## One-time rollout
+
+Run this sequence outside the submission window after merging but before
+enabling the new tasks:
+
+```bash
+python deployment/chair-vm/migrate_cutoff_weather_histories.py
+python deployment/chair-vm/migrate_cutoff_weather_histories.py --apply
+./deployment/chair-vm/run_scheduled_job.sh backfill-fixed-run-open-meteo
+./deployment/chair-vm/run_scheduled_job.sh cutoff-prewarm-all
+```
+
+The migration quarantines legacy run06-to-run00 copies; it does not delete
+them. Then register both PowerShell task files and verify the next-run times.
+
+Reserve inputs remain disabled in the live price configs until the publication
+time measurements required by section 5.5 of the spec are complete.

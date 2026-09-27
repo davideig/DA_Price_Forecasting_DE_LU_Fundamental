@@ -286,6 +286,37 @@ def _incremental_feature_payload(payload: dict, config: RegionalRenewableFeature
     return incremental
 
 
+def feature_provenance_path(output_file: Path) -> Path:
+    return output_file.with_suffix(f"{output_file.suffix}.operational_provenance.json")
+
+
+def _record_feature_provenance(
+    config: RegionalRenewableFeatureConfig,
+    forecast_day: date,
+    *,
+    fallback_used: bool,
+    donor_day: date | None = None,
+    reason: str | None = None,
+) -> None:
+    path = feature_provenance_path(config.output_file)
+    records: dict[str, dict[str, object]] = {}
+    if path.exists():
+        try:
+            records = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            records = {}
+    records[forecast_day.isoformat()] = {
+        "fallback_used": fallback_used,
+        "donor_day": donor_day.isoformat() if donor_day else None,
+        "reason": reason,
+        "recorded_at_utc": datetime.now(ZoneInfo("UTC")).isoformat(),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(f"{path.suffix}.tmp")
+    temporary.write_text(json.dumps(records, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+
+
 def _run_feature_payload_incrementally(
     payload: dict,
     repo_root: Path,
@@ -333,6 +364,13 @@ def _run_feature_payload_incrementally(
         combined = pd.concat([existing, fallback_frame])
         combined = combined.loc[~combined.index.duplicated(keep="last")].sort_index()
         save_timestamp_csv(combined, config.output_file)
+        _record_feature_provenance(
+            config,
+            forecast_day,
+            fallback_used=True,
+            donor_day=donor_day,
+            reason=str(exc),
+        )
         print(
             f"[fallback] Renewable feature refresh failed ({exc}); "
             f"using cached feature day {donor_day} for {forecast_day}.",
@@ -344,6 +382,7 @@ def _run_feature_payload_incrementally(
         refreshed = pd.concat([existing, refreshed])
         refreshed = refreshed.loc[~refreshed.index.duplicated(keep="last")].sort_index()
     save_timestamp_csv(refreshed, config.output_file)
+    _record_feature_provenance(config, forecast_day, fallback_used=False)
     print(f"[cache] Renewable feature cache updated through {forecast_day}.", flush=True)
 
 
@@ -373,7 +412,7 @@ def update_actual_generation_cache(
     config: RenewableGenerationModelConfig,
     *,
     forecast_date: date,
-    refresh_overlap_days: int = 1,
+    refresh_overlap_days: int | None = None,
 ) -> Path:
     """Refresh actual renewable generation through the latest target-available day.
 
@@ -386,16 +425,24 @@ def update_actual_generation_cache(
     if target_end_day < config.entsoe_start_date:
         return config.actual_generation_file
 
+    overlap_days = (
+        config.actual_generation_refresh_lookback_days
+        if refresh_overlap_days is None
+        else max(refresh_overlap_days, 0)
+    )
     existing: pd.DataFrame | None = None
     fetch_start_day = config.entsoe_start_date
     if config.actual_generation_file.exists():
         existing = load_timestamp_csv(config.actual_generation_file, config.target_tz)
         if not existing.empty:
             latest_day = existing.index.max().tz_convert(config.target_tz).date()
-            fetch_start_day = max(
-                config.entsoe_start_date,
-                latest_day - timedelta(days=max(refresh_overlap_days, 0)),
-            )
+            if overlap_days > 0:
+                fetch_start_day = max(
+                    config.entsoe_start_date,
+                    target_end_day - timedelta(days=overlap_days - 1),
+                )
+            else:
+                fetch_start_day = max(config.entsoe_start_date, latest_day + timedelta(days=1))
 
     if fetch_start_day > target_end_day:
         print(f"[Renewables] Actual generation cache already available through {target_end_day}.")

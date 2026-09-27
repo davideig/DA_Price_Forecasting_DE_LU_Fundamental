@@ -178,6 +178,34 @@ def test_operational_archive_profile_uses_required_inputs_only(tmp_path: Path, m
     assert Path("data/processed/operational_quality") in paths
 
 
+def test_operational_profile_tracks_only_dedicated_live_configs() -> None:
+    from da_price_forecasting.scripts.check_data_pack import PROFILE_PATTERNS, _expand_profile
+
+    patterns = PROFILE_PATTERNS["operational"]
+    assert patterns == (
+        "configs/deployment/cutoffs/*.yaml",
+        "configs/deployment/cutoff_preprocessing/*.yaml",
+    )
+
+    configs = _expand_profile(Path.cwd(), "operational")
+    assert len(configs) == 48
+    assert all(path.is_relative_to(Path.cwd() / "configs/deployment") for path in configs)
+    assert any(path.name == "load_0800_run03.yaml" for path in configs)
+    assert any(path.name == "dwd_wind_run03.yaml" for path in configs)
+
+
+def test_operational_archive_profile_includes_run03_and_excludes_removed_wind_providers() -> None:
+    paths = {str(path) for path in _profile_include_paths(Path.cwd(), "operational")}
+
+    assert "data/processed/icon_aggregated_c2_run03" in paths
+    assert "data/processed/icon_aggregated_mastr_solar_tso_c25_run03" in paths
+    assert "data/processed/icon_aggregated_mastr_wind_c100_run03" in paths
+    assert any("open_meteo_icon_d2_single_run03" in path for path in paths)
+    assert "data/processed/component_forecast_history" in paths
+    removed_providers = ("ecmwf", "arpege", "ukmo", "gfs", "harmonie", "icon_eu")
+    assert not any(provider in path for provider in removed_providers for path in paths)
+
+
 def test_operational_profile_export_refuses_missing_configured_inputs(
     tmp_path: Path,
     monkeypatch,

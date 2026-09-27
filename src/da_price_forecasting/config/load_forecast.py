@@ -132,7 +132,10 @@ class LoadForecastModelConfig(RepoConfigModel):
     entsoe_error_rolling_min_observations: int = 24
     target_availability_lag_days: int = 1
     target_availability_cutoff_hour: int | None = None
+    require_weather_for_training: bool = False
+    weather_presence_column: str = "weather_weighted_t2m_C"
     target_availability_cutoff_minute: int = 0
+    actual_load_refresh_lookback_days: int = 0
 
     start_folder_date: date = date(2025, 8, 1)
     required_run: str = "09"
@@ -443,6 +446,8 @@ class LoadForecastModelConfig(RepoConfigModel):
             raise ValueError("target_availability_cutoff_hour must be between 0 and 23.")
         if self.target_availability_cutoff_minute not in {0, 15, 30, 45}:
             raise ValueError("target_availability_cutoff_minute must be one of 0, 15, 30, or 45.")
+        if self.actual_load_refresh_lookback_days < 0:
+            raise ValueError("actual_load_refresh_lookback_days must be non-negative.")
         if self.dwd_icon_download_timeout_seconds < 1:
             raise ValueError("dwd_icon_download_timeout_seconds must be positive.")
         if self.dwd_icon_request_pause_seconds < 0:

@@ -4,6 +4,24 @@ This file is the short index for the fixed thesis models. Historical sweeps and
 failed experiments are kept under `configs/archive/`; do not use them unless you
 are deliberately revisiting old experiments.
 
+## One-Command Operational Use
+
+The public runner selects the fixed config for a model and cutoff, updates its
+required data, and writes a reusable next-day CSV:
+
+```bash
+pixi run forecast-next-day --model load --cutoff 0700
+pixi run forecast-next-day --model solar --cutoff 0900
+pixi run forecast-next-day --model wind --cutoff 1100
+pixi run forecast-next-day --model price --cutoff 1200
+pixi run forecast-next-day --model all --cutoff final
+```
+
+All four models support `0700`, `0800`, `0900`, `1000`, `1100`, `1200`, and
+`final`. The command is the normal interface for next-day use; the longer
+commands below are the exact lower-level interfaces for reproducing historical
+experiments.
+
 ## First-stage Forecasts
 
 ### Load
@@ -84,4 +102,3 @@ pixi run -e forecast python -m da_price_forecasting.scripts.price_feature_import
   --output-dir output/diagnostics/price_feature_importance/paper_core_fast \
   --max-days 4 --mtu-step 12
 ```
-

@@ -54,40 +54,39 @@ git lfs pull
 pixi install
 ```
 
-Restore the processed archive when it is included in the clone:
+Copy the credential template and fill the API keys used by current-data
+updates:
 
 ```bash
-test -f data/archive/operational/manifest.json
-pixi run operational-archive verify
-pixi run operational-archive restore
-pixi run check-data-pack --profile operational
+cp .env.example .env
 ```
 
-If the manifest check fails, unpack the separately published data pack in the
-repository root instead. See [docs/data_pack.md](docs/data_pack.md).
-
-Run the final first-stage models:
+Run any released next-day model with one command:
 
 ```bash
-pixi run forecast-load-final
-pixi run forecast-solar-final
-pixi run forecast-wind-final
+pixi run forecast-next-day --model wind --cutoff 1100
+pixi run forecast-next-day --model price --cutoff final
+pixi run forecast-next-day --model all --cutoff final
 ```
 
-Run the final price workflow without submitting to Energy Arena:
+The command restores the Git archive on a fresh clone, fetches and appends the
+required current inputs, runs the exact selected config and its dependencies,
+and writes target-day CSVs under:
+
+```text
+results/operational_forecasts/<forecast-date>/<cutoff>/<model>.csv
+```
+
+Local CSV generation is the default. Energy Arena submission is deliberately
+opt-in:
 
 ```bash
-pixi run energy-arena-price-final-daily --dry-run
+pixi run forecast-next-day --model all --cutoff final --submit
 ```
 
-To evaluate an already restored set of first-stage forecast caches without
-refreshing APIs:
-
-```bash
-pixi run energy-arena-price-final-daily \
-  --dry-run \
-  --skip-first-stage-refresh
-```
+The older config-specific tasks remain available for exact historical
+experiments. See [docs/quickstart.md](docs/quickstart.md) for the complete
+cutoff matrix and offline-cache options.
 
 ## Credentials
 

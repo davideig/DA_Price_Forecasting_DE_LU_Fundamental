@@ -1,6 +1,14 @@
 # Output Schemas
 
-The first-stage model outputs are regular CSV files under `results/`.
+The reusable next-day runner writes regular CSV files under:
+
+```text
+results/operational_forecasts/<forecast-date>/<cutoff>/<model>.csv
+```
+
+Each file contains only the requested local delivery day. Lower-level model
+outputs and historical caches remain in their existing directories under
+`results/`.
 
 ## Load Forecast
 

@@ -118,7 +118,59 @@ ENERGY_ARENA_WIND_CHALLENGE_ID=...
 
 Keep `.env` local. It is ignored by Git and is never included in data packs.
 
-## 6. Run The Final Models
+## 6. Run A Released Model
+
+For normal reuse, run one model and cutoff profile with one command:
+
+```bash
+pixi run forecast-next-day --model wind --cutoff 1100
+```
+
+The command performs four steps:
+
+1. Restore the bundled operational archive when runtime data is absent.
+2. Fetch and append only the current inputs needed by the selected model.
+3. Run the exact model config registered for the selected cutoff.
+4. Export a target-day CSV under `results/operational_forecasts/`.
+
+Available examples:
+
+```bash
+pixi run forecast-next-day --model load --cutoff 0700
+pixi run forecast-next-day --model solar --cutoff 0900
+pixi run forecast-next-day --model wind --cutoff 1100
+pixi run forecast-next-day --model price --cutoff 1200
+pixi run forecast-next-day --model all --cutoff final
+```
+
+Selecting `price` automatically refreshes and runs its matching load, solar,
+and wind dependencies. `all` additionally publishes those first-stage
+forecasts as separate stable CSVs. No Energy Arena request is made unless
+`--submit` is passed.
+
+```bash
+pixi run forecast-next-day --model all --cutoff final --submit
+```
+
+Use `--forecast-date YYYY-MM-DD` to override tomorrow, or
+`--skip-data-refresh` for an offline run from restored/cached inputs.
+
+### Cutoff registry
+
+| Cutoff | Weather run | Load model |
+| --- | --- | --- |
+| `0700`, `0800`, `0900` | 00 UTC | Direct |
+| `1000` | 06 UTC | Direct |
+| `1100`, `1200` | 06 UTC | Residual |
+| `final` | 06 UTC | Final paper model family |
+
+The early profiles are the operationally causal deployment variants. The
+retrospective thesis configs remain available for exact paper reproduction in
+`configs/rq3_cutoff_grid/RUN_ORDER.md`.
+
+### Direct config execution
+
+The lower-level tasks remain useful for historical experiments and debugging.
 
 Run first-stage forecasts:
 
@@ -156,7 +208,7 @@ Dry-run payloads and live response files are written under:
 results/energy_arena_submissions/
 ```
 
-## 7. Run RQ3 Cutoffs
+## 7. Run RQ3 Cutoffs Directly
 
 The operational runner supports `0700`, `0800`, `0900`, `1000`, `1100`, and
 `1200`:
@@ -175,7 +227,16 @@ weather-availability adapter and is documented in
 
 ## 8. Use Forecasts Elsewhere
 
-Forecast files are timestamp-indexed CSVs. Important point columns include:
+The stable next-day files are stored as:
+
+```text
+results/operational_forecasts/<forecast-date>/<cutoff>/load.csv
+results/operational_forecasts/<forecast-date>/<cutoff>/solar.csv
+results/operational_forecasts/<forecast-date>/<cutoff>/wind.csv
+results/operational_forecasts/<forecast-date>/<cutoff>/price.csv
+```
+
+They are timestamp-indexed CSVs. Important point columns include:
 
 ```text
 Load_Model_MW

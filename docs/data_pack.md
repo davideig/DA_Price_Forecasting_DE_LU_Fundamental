@@ -52,12 +52,13 @@ results/price_forecast_results/
 
 Raw DWD GRIB folders, Energy Arena submission artifacts, logs, `.env`, and
 machine-specific files are deliberately excluded. CSV histories are split into
-monthly Parquet partitions. The large per-variable DWD aggregation files are
-combined into one Parquet bundle per issue and only the latest 14 issue days per
-aggregation are retained; their derived renewable feature histories remain
-complete. Unchanged artifacts are copied forward instead of recomputed. The
-exporter refuses any artifact larger than 95 MiB and verifies checksums before
-the VM commits it.
+monthly Parquet partitions. The per-variable DWD aggregation files are combined
+into one Parquet bundle per issue. The compact two-cluster weather histories
+consumed directly by the 70-day price models are retained in full. Bulky wind
+and solar DWD intermediates retain the latest 14 issue days because their
+complete derived feature histories are archived separately. Unchanged
+artifacts are copied forward instead of recomputed. The exporter refuses any
+artifact larger than 95 MiB and verifies checksums before the VM commits it.
 
 Git LFS stores every changed Parquet version as a separate object. Monitor the
 repository owner's LFS storage and bandwidth usage as the daily archive grows;

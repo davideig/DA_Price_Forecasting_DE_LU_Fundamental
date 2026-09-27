@@ -55,6 +55,7 @@ DEFAULT_EXCLUDE_NAMES = {
 TABLE_SUFFIXES = {".csv", ".parquet"}
 COPY_SUFFIXES = {".json", ".yaml", ".yml", ".txt", ".pkl", ".xlsx"}
 DWD_ISSUE_DIRECTORY_RE = re.compile(r"^dwd_icon_daily_(?P<day>\d{8})_(?P<run>\d{2})$")
+PRICE_DWD_AGGREGATION_RE = re.compile(r"^icon_aggregated_c2(?:_run\d{2})?$")
 BUNDLE_SOURCE_COLUMN = "__archive_source_path"
 BUNDLE_ROW_COLUMN = "__archive_row_order"
 
@@ -139,10 +140,16 @@ def _apply_dwd_retention(
         issue_days_by_root.setdefault(aggregation_root, set()).add(day)
         issues_by_file[path] = (aggregation_root, day)
 
-    retained_days = {
-        root: set(sorted(days)[-retention_days:])
-        for root, days in issue_days_by_root.items()
-    }
+    retained_days = {}
+    for root, days in issue_days_by_root.items():
+        # Price models consume these small c2 bundles directly for a 70-day
+        # rolling fit. Renewable models consume complete derived histories, so
+        # their bulky intermediate aggregations can use the bounded window.
+        retained_days[root] = (
+            set(days)
+            if PRICE_DWD_AGGREGATION_RE.fullmatch(root.name)
+            else set(sorted(days)[-retention_days:])
+        )
     selected = [
         path
         for path in files
@@ -546,7 +553,8 @@ def export_archive(
     print(f"Archive root:            {archive_root}")
     print(f"Selected source files:   {len(sources):,}")
     print(f"Source groups:           {source_group_count:,}")
-    print(f"DWD retention:           {dwd_retention_days} latest issue days per aggregation")
+    print(f"DWD retention:           {dwd_retention_days} latest issue days for renewable aggregations")
+    print("Price c2 retention:      complete history")
     print(f"Older DWD files omitted: {omitted:,}")
     if missing:
         print("")

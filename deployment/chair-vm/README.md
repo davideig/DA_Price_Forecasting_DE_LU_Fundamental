@@ -91,8 +91,9 @@ pixi run check-data-thesis
 The archive lives under `data/archive/operational/` in Git. It contains compact,
 time-partitioned Parquet copies of the processed data and selected forecast
 caches; the restore command materializes the CSV/parquet files expected by the
-model configs. Complete derived feature histories are retained. Bulky
-intermediate DWD aggregations use a rolling 14-issue-day continuation window.
+model configs. Complete derived feature histories and the compact c2 weather
+history consumed directly by the price models are retained. Bulky intermediate
+DWD wind and solar aggregations use a rolling 14-issue-day continuation window.
 
 If the archive is not available yet, bootstrap from a local bundle or an old VM
 backup with these directories/files:

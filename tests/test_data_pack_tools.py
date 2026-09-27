@@ -253,7 +253,7 @@ def test_operational_archive_bundles_and_restores_one_dwd_issue(tmp_path: Path) 
 
 
 def test_operational_archive_retains_latest_dwd_issue_days(tmp_path: Path, capsys) -> None:
-    root = tmp_path / "data" / "processed" / "icon_aggregated_c2_run06"
+    root = tmp_path / "data" / "processed" / "icon_aggregated_mastr_wind_c100_run06"
     for day in ("20260923", "20260924", "20260925"):
         issue = root / f"dwd_icon_daily_{day}_06"
         issue.mkdir(parents=True)
@@ -280,6 +280,39 @@ def test_operational_archive_retains_latest_dwd_issue_days(tmp_path: Path, capsy
         "dwd_icon_daily_20260925_06.parquet",
     }
     assert "Older DWD files omitted: 1" in capsys.readouterr().out
+
+
+def test_operational_archive_retains_complete_price_dwd_history(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "data" / "processed" / "icon_aggregated_c2_run06"
+    for day in ("20260923", "20260924", "20260925"):
+        issue = root / f"dwd_icon_daily_{day}_06"
+        issue.mkdir(parents=True)
+        (issue / f"t2m_K_{day}06_raw.csv").write_text(
+            f"timestamp,cluster_0\n{day[:4]}-{day[4:6]}-{day[6:]}T06:00:00Z,280\n",
+            encoding="utf-8",
+        )
+    archive_root = tmp_path / "data" / "archive" / "operational"
+
+    assert export_archive(
+        tmp_path,
+        archive_root,
+        [Path("data/processed")],
+        "zstd",
+        False,
+        95.0,
+        False,
+        dwd_retention_days=2,
+    ) == 0
+
+    bundles = {path.name for path in (archive_root / "bundles").rglob("*.parquet")}
+    assert bundles == {
+        "dwd_icon_daily_20260923_06.parquet",
+        "dwd_icon_daily_20260924_06.parquet",
+        "dwd_icon_daily_20260925_06.parquet",
+    }
+    output = capsys.readouterr().out
+    assert "Price c2 retention:      complete history" in output
+    assert "Older DWD files omitted: 0" in output
 
 
 def test_operational_archive_reuses_unchanged_artifacts(tmp_path: Path, capsys) -> None:

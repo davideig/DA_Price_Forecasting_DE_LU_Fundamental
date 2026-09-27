@@ -25,6 +25,7 @@ $jobs = @(
     @{ Name = "renewable-run00-features-update"; Time = "05:15"; Job = "renewable-run00-features-update"; DurationHours = 2 },
     @{ Name = "price-cutoff-0700-submit"; Time = "06:40"; Job = "price-cutoff-0700-submit"; DurationHours = 2 },
     @{ Name = "price-cutoff-0800-submit"; Time = "07:40"; Job = "price-cutoff-0800-submit"; DurationHours = 2 },
+    @{ Name = "reserve-publication-poll"; Time = "07:55"; Job = "reserve-publication-poll"; DurationHours = 4 },
     @{ Name = "price-cutoff-0900-submit"; Time = "08:40"; Job = "price-cutoff-0900-submit"; DurationHours = 2 },
     @{ Name = "dwd-run06-cutoff-update"; Time = "09:23"; Job = "dwd-run06-cutoff-update"; DurationHours = 2 },
     @{ Name = "renewable-cutoff-features-update"; Time = "09:40"; Job = "renewable-cutoff-features-update"; DurationHours = 2 },

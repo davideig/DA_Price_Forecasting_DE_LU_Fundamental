@@ -340,6 +340,10 @@ case "$job" in
     refresh_run06_features
     ;;
 
+  reserve-publication-poll)
+    "$PIXI" run poll-reserve-publication
+    ;;
+
   cutoff-prewarm-all)
     echo "--- Preparing run00 inputs for cutoff 0700 ---"
     refresh_run00_features

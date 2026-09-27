@@ -254,6 +254,7 @@ compute-only because the dedicated final-paper jobs own the single effective
 05:15 renewable-run00-features-update
 06:40 price-cutoff-0700-submit
 07:40 price-cutoff-0800-submit
+07:55 reserve-publication-poll
 08:40 price-cutoff-0900-submit
 09:23 dwd-run06-cutoff-update
 09:40 renewable-cutoff-features-update
@@ -261,6 +262,23 @@ compute-only because the dedicated final-paper jobs own the single effective
 10:40 price-cutoff-1100-submit
 11:40 price-cutoff-1200-compute
 ```
+
+`reserve-publication-poll` is observational only. Once per minute it checks the
+public regelleistung.net capacity-results endpoint for tomorrow's FCR, aFRR,
+and mFRR results. It records the first observed publication time in:
+
+```text
+data/processed/operational_quality/reserve_publication_times.csv
+```
+
+The task stops after all three products are observed or at 11:20. Existing
+observations are resumed without being overwritten, so a restarted task does
+not replace an earlier publication time. These measurements validate the
+assumed 08:30, 09:30, and 10:30 availability times used in the retrospective
+reserve-market experiment; the normal deployed cutoff models remain the
+non-reserve variants until the observations support changing them.
+The 14:00 operational-archive job includes this CSV in the Git archive, and the
+task's console output is also retained in `logs/chair_vm_tasks/`.
 
 The compute-only task still writes the 12:00 RQ3 forecasts and dry-run payloads
 for auditing and reproducibility. It does not call the Energy-Arena submission

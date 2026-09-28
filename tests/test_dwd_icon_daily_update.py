@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import json
 from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from da_price_forecasting.preprocessing import dwd_icon_operational as operational
 from da_price_forecasting.preprocessing.dwd_icon_operational import (
+    ensure_dwd_icon_weather,
     missing_dwd_issue_days_to_process,
     processed_weather_folder,
+    processed_weather_folder_is_complete,
     processed_weather_folder_is_ready,
 )
 from da_price_forecasting.scripts import dwd_icon_daily_update as daily_update
@@ -33,6 +37,58 @@ def test_partial_dwd_folder_is_retried(tmp_path: Path) -> None:
         catch_up_missing_days=False,
         min_csv_files=2,
     ) == [issue_day]
+
+
+def test_dwd_update_materializes_previous_run_with_provenance(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[date, str]] = []
+
+    def fake_download(**kwargs):  # noqa: ANN003
+        calls.append((kwargs["issue_day"], kwargs["run_hour"]))
+        if kwargs["run_hour"] == "06":
+            raise FileNotFoundError("requested run unavailable")
+        return tmp_path / "raw"
+
+    def fake_aggregate(config):  # noqa: ANN001
+        issue_day = datetime.strptime(config.only_day, "%Y%m%d").date()
+        folder = processed_weather_folder(config.output_parent, issue_day, config.only_run_hour)
+        folder.mkdir(parents=True, exist_ok=True)
+        for name in ("t2m.csv", "u10.csv"):
+            (folder / name).write_text(
+                "timestamp,cluster_0\n2026-09-25T00:00:00Z,1.0\n",
+                encoding="utf-8",
+            )
+
+    monkeypatch.setattr(operational, "download_dwd_icon_d2_run", fake_download)
+    monkeypatch.setattr(
+        "da_price_forecasting.preprocessing.icon_d2_aggregation.run_aggregation",
+        fake_aggregate,
+    )
+    icon_dir = tmp_path / "icon_c2_run06"
+    updated = ensure_dwd_icon_weather(
+        repo_root=tmp_path,
+        icon_dir=icon_dir,
+        forecast_start=date(2026, 9, 26),
+        forecast_end=date(2026, 9, 26),
+        run_hour="06",
+        folder_offset_date=date(2025, 10, 26),
+        raw_base_dir=tmp_path / "raw",
+        shapefile_path=tmp_path / "countries.shp",
+        n_clusters=2,
+        variables=["t_2m", "u_10m"],
+        catch_up_missing_days=False,
+        fallback_previous_runs=True,
+        fallback_step_hours=3,
+        fallback_max_lookback_hours=3,
+    )
+
+    requested = processed_weather_folder(icon_dir, date(2026, 9, 25), "06")
+    assert updated == [date(2026, 9, 25)]
+    assert calls == [(date(2026, 9, 25), "06"), (date(2026, 9, 25), "03")]
+    assert processed_weather_folder_is_complete(requested, min_csv_files=2)
+    provenance = json.loads((requested / "operational_run_provenance.json").read_text(encoding="utf-8"))
+    assert provenance["fallback_used"] is True
+    assert provenance["requested_run_utc"] == "2026-09-25T06:00"
+    assert provenance["actual_run_utc"] == "2026-09-25T03:00"
 
 
 def test_daily_update_uses_one_target_forecast_day(monkeypatch, tmp_path: Path) -> None:

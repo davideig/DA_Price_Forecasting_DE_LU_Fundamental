@@ -341,9 +341,7 @@ def run_daily_price_cutoff_energy_arena(
 
     component_histories = {}
     for label in ("load", "solar", "wind"):
-        feature_fallback_used = label in {"solar", "wind"} and model_feature_fallback_used(
-            first_stage_payloads[label], repo_root, day
-        )
+        feature_fallback_used = model_feature_fallback_used(first_stage_payloads[label], repo_root, day)
         stored = store_component_forecast_history(
             repo_root=repo_root,
             cutoff=cutoff,

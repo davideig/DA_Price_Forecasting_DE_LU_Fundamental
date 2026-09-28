@@ -11,8 +11,9 @@ from da_price_forecasting.paths import find_repo_root
 from da_price_forecasting.preprocessing.dwd_icon_operational import (
     DEFAULT_DWD_ICON_VARIABLES,
     dwd_issue_day_for_forecast,
+    dwd_run_provenance_path,
     processed_weather_folder,
-    processed_weather_folder_is_ready,
+    processed_weather_folder_is_complete,
 )
 from da_price_forecasting.scripts.check_data_pack import _expand_profile, collect_required_paths
 from da_price_forecasting.scripts.dwd_icon_daily_update import load_model_config
@@ -21,12 +22,11 @@ from da_price_forecasting.scripts.dwd_icon_daily_update import load_model_config
 DEFAULT_TARGET_TZ = "Europe/Berlin"
 DEFAULT_REPORT_DIR = Path("data/processed/operational_quality")
 DWD_CONFIG_PATHS = (
-    Path("configs/preprocessing/weather_aggregation/dwd_icon_mastr_wind_c100_run00_daily_update.yaml"),
-    Path("configs/preprocessing/weather_aggregation/dwd_icon_mastr_solar_tso_c25_run00_daily_update.yaml"),
-    Path("configs/preprocessing/weather_aggregation/dwd_icon_c2_run00_daily_update.yaml"),
-    Path("configs/preprocessing/weather_aggregation/dwd_icon_mastr_wind_c100_run06_daily_update.yaml"),
-    Path("configs/preprocessing/weather_aggregation/dwd_icon_mastr_solar_tso_c25_run06_daily_update.yaml"),
-    Path("configs/preprocessing/weather_aggregation/dwd_icon_c2_run06_daily_update.yaml"),
+    *(
+        Path(f"configs/deployment/cutoff_preprocessing/dwd_{kind}_run{run}.yaml")
+        for run in ("00", "03", "06")
+        for kind in ("wind", "solar", "icon_c2")
+    ),
 )
 FALLBACK_MARKERS = (
     "[fallback]",
@@ -43,15 +43,24 @@ def _collect_dwd_weather(repo_root: Path, forecast_date: date) -> list[dict[str,
         folder = processed_weather_folder(config.icon_dir, issue_day, config.required_run)
         expected_csv_files = len(config.dwd_icon_download_variables or DEFAULT_DWD_ICON_VARIABLES)
         csv_files = len(list(folder.glob("*.csv"))) if folder.is_dir() else 0
+        provenance_path = dwd_run_provenance_path(folder)
+        provenance: dict[str, object] = {}
+        if provenance_path.exists():
+            try:
+                provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                provenance = {}
         statuses.append(
             {
                 "config": relative_config.as_posix(),
                 "run_hour_utc": config.required_run,
                 "issue_day": issue_day.isoformat(),
                 "processed_folder": folder.relative_to(repo_root).as_posix(),
-                "ready": processed_weather_folder_is_ready(folder, min_csv_files=expected_csv_files),
+                "ready": processed_weather_folder_is_complete(folder, min_csv_files=expected_csv_files),
                 "csv_files": csv_files,
                 "expected_csv_files": expected_csv_files,
+                "fallback_used": bool(provenance.get("fallback_used")),
+                "actual_run_utc": provenance.get("actual_run_utc"),
             }
         )
     return statuses
@@ -105,7 +114,11 @@ def build_quality_report(
     required_count, missing_inputs = _collect_required_inputs(repo_root)
     fallback_events = _collect_fallback_events(repo_root, operation_date)
     submission_responses = _collect_submission_responses(repo_root, forecast_date)
-    degraded = any(not item["ready"] for item in dwd_weather) or bool(missing_inputs) or bool(fallback_events)
+    degraded = (
+        any(not item["ready"] or bool(item.get("fallback_used")) for item in dwd_weather)
+        or bool(missing_inputs)
+        or bool(fallback_events)
+    )
 
     return {
         "schema_version": 1,

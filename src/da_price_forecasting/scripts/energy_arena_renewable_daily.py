@@ -22,8 +22,14 @@ from ..config import (
     validate_config_payload,
 )
 from ..data.entsoe import fetch_actual_renewable_generation, fetch_actual_solar_generation_by_control_area
+from ..data.weather import open_meteo_run_provenance_path
 from ..paths import find_repo_root, resolve_path
 from ..pipelines.common import load_timestamp_csv, save_timestamp_csv
+from ..preprocessing.dwd_icon_operational import (
+    dwd_issue_day_for_forecast,
+    dwd_run_provenance_path,
+    processed_weather_folder,
+)
 from .run import run_from_config
 
 
@@ -297,6 +303,7 @@ def _record_feature_provenance(
     fallback_used: bool,
     donor_day: date | None = None,
     reason: str | None = None,
+    weather_run: dict[str, object] | None = None,
 ) -> None:
     path = feature_provenance_path(config.output_file)
     records: dict[str, dict[str, object]] = {}
@@ -309,12 +316,35 @@ def _record_feature_provenance(
         "fallback_used": fallback_used,
         "donor_day": donor_day.isoformat() if donor_day else None,
         "reason": reason,
+        "weather_run": weather_run,
         "recorded_at_utc": datetime.now(ZoneInfo("UTC")).isoformat(),
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(f"{path.suffix}.tmp")
     temporary.write_text(json.dumps(records, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     os.replace(temporary, path)
+
+
+def _weather_run_fallback(config: RegionalRenewableFeatureConfig, forecast_day: date) -> dict[str, object] | None:
+    if config.weather_source == "open_meteo":
+        path = open_meteo_run_provenance_path(config.open_meteo_weather_file)
+        key = forecast_day.isoformat()
+    elif config.weather_source == "dwd_icon":
+        issue_day = dwd_issue_day_for_forecast(forecast_day, config.dwd_folder_offset_date)
+        path = dwd_run_provenance_path(
+            processed_weather_folder(config.icon_dir, issue_day, config.required_run)
+        )
+        key = None
+    else:
+        return None
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    record = payload.get(key, {}) if key is not None else payload
+    return record if isinstance(record, dict) and bool(record.get("fallback_used")) else None
 
 
 def _run_feature_payload_incrementally(
@@ -382,7 +412,14 @@ def _run_feature_payload_incrementally(
         refreshed = pd.concat([existing, refreshed])
         refreshed = refreshed.loc[~refreshed.index.duplicated(keep="last")].sort_index()
     save_timestamp_csv(refreshed, config.output_file)
-    _record_feature_provenance(config, forecast_day, fallback_used=False)
+    weather_run = _weather_run_fallback(config, forecast_day)
+    _record_feature_provenance(
+        config,
+        forecast_day,
+        fallback_used=weather_run is not None,
+        reason=str(weather_run.get("reason")) if weather_run and weather_run.get("reason") else None,
+        weather_run=weather_run,
+    )
     print(f"[cache] Renewable feature cache updated through {forecast_day}.", flush=True)
 
 

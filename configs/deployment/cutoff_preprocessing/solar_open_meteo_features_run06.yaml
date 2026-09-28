@@ -20,6 +20,15 @@ config:
   open_meteo_request_pause_seconds: 5.0
   open_meteo_retry_attempts: 8
   open_meteo_retry_backoff_seconds: 60.0
+  open_meteo_skip_unavailable_runs: true
+  open_meteo_fallback_previous_runs: true
+  open_meteo_fallback_step_hours: 3
+  open_meteo_fallback_max_lookback_hours: 3
+  open_meteo_required_non_null_variables:
+    - cloud_cover
+    - cloud_cover_low
+    - cloud_cover_mid
+    - cloud_cover_high
   open_meteo_start_date: "2025-10-25"
   open_meteo_end_date: "2026-05-28"
   open_meteo_batch_size: 250

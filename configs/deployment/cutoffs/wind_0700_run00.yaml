@@ -8,6 +8,11 @@ config:
   entsoe_start_date: "2025-01-01"
   entsoe_end_date: "2026-07-31"
   actual_generation_file: data/processed/renewable_generation/actual_generation_2025_20260731.csv
+  skip_dates:
+    - "2025-10-26"
+    - "2025-10-27"
+    - "2025-10-28"
+    - "2026-02-07"
 
   renewable_proxy_file: data/processed/renewable_proxy/dwd_icon_mastr_wind_c100_run00_regional_renewable_features.csv
   renewable_proxy_fallback_file: data/processed/renewable_proxy/dwd_icon_mastr_wind_c100_run06_regional_renewable_features.csv
@@ -54,7 +59,7 @@ config:
 
   model_type: hist_gradient_boosting
   train_days_rolling: 180
-  min_train_days: 90
+  min_train_days: 20
   target_availability_lag_days: 1
   target_availability_cutoff_hour: 5
   target_availability_cutoff_minute: 30

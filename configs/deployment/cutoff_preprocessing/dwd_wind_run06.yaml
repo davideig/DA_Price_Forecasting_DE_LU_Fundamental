@@ -8,6 +8,9 @@ config:
 
   dwd_icon_auto_update: true
   dwd_icon_catch_up_missing_days: false
+  dwd_icon_fallback_previous_runs: true
+  dwd_icon_fallback_step_hours: 3
+  dwd_icon_fallback_max_lookback_hours: 3
   dwd_icon_raw_dir: data/raw/dwd_icon_daily
   dwd_icon_base_url: https://opendata.dwd.de/weather/nwp/icon-d2/grib/
   dwd_icon_aggregation_n_clusters: 100

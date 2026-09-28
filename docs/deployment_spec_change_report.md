@@ -24,7 +24,17 @@ All load configs require weather-backed training rows and refresh the trailing
 14 days of ENTSO-E realized load. All solar and wind configs refresh the
 trailing 14 days of realized generation. Wind has one Open-Meteo input,
 ICON-D2, rather than the former seven-provider set. Open-Meteo previous-run
-fallback is disabled throughout the deployment configs.
+fallback is enabled throughout the deployment configs with a strict three-hour
+lookback. Required variables are checked for finite values before a run is
+accepted. Wind checks the six speed/direction fields at 80, 120, and 180 m;
+`boundary_layer_height` remains requested for feature compatibility but is not
+part of the validity check. DWD uses the same previous-run policy. Both sources
+store the requested and actual run in provenance metadata, and those files are
+included in the operational archive.
+
+The six wind configs use `min_train_days: 20`, matching the corrected thesis
+warm-up variant. Delivery day 2026-02-07 is excluded where wind enters the
+forecast because no corresponding archived weather run remains available.
 
 The realized-data limits are 05:30, 06:30, 07:30, 08:30, 09:30, and 10:30 for
 the six load models. Solar and wind use the same sequence except that their
@@ -86,9 +96,9 @@ data/processed/component_forecast_history/<cutoff>/<component>.csv
 
 Rows for a delivery day are immutable after first write. A later rerun is
 stored under `reruns/`. Historical warm-up rows are marked `backfilled`; cached
-or imputed target-day forecasts are marked `fallback_used`. Renewable feature
-fallback provenance is propagated into that flag. The complete directory is
-included in the operational archive.
+or imputed target-day forecasts are marked `fallback_used`. Weather-run and
+renewable-feature fallback provenance is propagated into that flag, including
+load weather. The complete directory is included in the operational archive.
 
 ## One-time rollout
 

@@ -1,6 +1,7 @@
 # Operational data specification for the cutoff models
 
-Status: 2026-09-27. All four models specified; reserve timing (5.5) open.
+Status: 2026-09-27 (evening). All four models specified; reserve timing (5.5) is
+measured on 2026-09-28.
 
 ## 1. General rules
 
@@ -16,6 +17,15 @@ Status: 2026-09-27. All four models specified; reserve timing (5.5) open.
 - **Fixed weather run, not "latest".** Each cutoff requests one specific ICON-D2
   run explicitly. Do not use "latest available", otherwise the live model can
   receive a different run than it was trained and backtested with.
+- **Missing or incomplete run.** If the fixed run is not available at the run
+  start, **or is available but its required variables are null**, use the
+  previous run of the same model (e.g. 03 UTC instead of 06 UTC). An earlier
+  run is always admissible. Store the data under the requested run's history
+  with a flag naming the run actually used. Check for null values explicitly:
+  Open-Meteo returned the ICON-D2 06 UTC runs of 2026-05-13, 07-08, and 07-28
+  with all wind variables null while temperature and pressure were present, and
+  a run-level availability check does not catch this. Variables that are always
+  null for a model (see 4.2) are excluded from this check.
 - **Publication delays used.**
 
   | Source | Available |
@@ -78,6 +88,11 @@ seed the history of one run by copying another run's history.
      ENTSO-E forecast error (correction) only up to this time on d-1. Set
      `target_availability_cutoff_hour/minute` accordingly. It must not be left
      unset, which would train on labels up to 23:45 on d-1.
+- Set `require_weather_for_training: true` (with
+  `weather_presence_column: weather_weighted_t2m_C`), so training days without
+  weather features are dropped instead of being learned from. New code option,
+  copy `config/load_forecast.py` and `pipelines/load_forecast.py` from the
+  research repo.
 
 ### 2.3 Operational data flow
 
@@ -182,15 +197,18 @@ MaStR snapshot, local calendar. The differences are listed below.
 **ICON-D2 only.** Other Open-Meteo providers are excluded. Their 06 UTC runs are
 published 3.7-8.1 h after run start (ECMWF 7.7 h, UKMO 8.1 h, GFS 6.5 h, ARPEGE
 3.9 h, ICON-EU 3.8 h, HARMONIE 3.7 h, measured 2026-09-27), i.e. after the 12:00
-deadline, and no backtestable history exists for their earlier runs before
-April 2026.
+deadline. Their 00 UTC runs would be admissible at 12:00 but are older than the
+ICON-D2 06 UTC run. Of these, only GFS and ARPEGE have a usable single-run
+history from October 2025 (ECMWF, UKMO, and HARMONIE return no wind at height
+via Open-Meteo). A GFS/ARPEGE 00 UTC extension is possible later but is not part
+of the thesis model.
 
 ### 4.2 Inputs used at every cutoff
 
 | Input | Source | Operational handling |
 |---|---|---|
 | Surface weather | DWD ICON-D2 GRIB | `t_2m`, `td_2m`, `p`, `u_10m`, `v_10m`, `vmax_10m`, `tot_prec`, `h_snow`, `snow_gsp`; 100 clusters including offshore, grouped into 6 wind regions (offshore, north, west, central, east, south), capacity-weighted. Derived: hub-height wind extrapolated from 10 m to 100 m (power law, exponent 0.14), power-curve and cubic transforms, direction terms |
-| Wind at height and boundary layer | Open-Meteo ICON-D2 | `wind_speed_80m`, `wind_direction_80m`, `wind_speed_120m`, `wind_direction_120m`, `wind_speed_180m`, `wind_direction_180m`, `temperature_2m`, `surface_pressure`, `boundary_layer_height`, `cloud_cover` at capacity points (10 per onshore region, 30 offshore) |
+| Wind at height | Open-Meteo ICON-D2 | `wind_speed_80m`, `wind_direction_80m`, `wind_speed_120m`, `wind_direction_120m`, `wind_speed_180m`, `wind_direction_180m`, `temperature_2m`, `surface_pressure`, `boundary_layer_height`, `cloud_cover` at capacity points (10 per onshore region, 30 offshore). `boundary_layer_height` is always null for ICON-D2; keep requesting it so the feature set stays identical to the thesis model, but exclude it from the null check (rule in 1). The wind variables are required: if they are null, use the previous run |
 | Forecast-derived features | computed from the weather forecast | lags, leads, and differences of the forecast features within the forecast day (4 quarter-hours), wind-direction and high-wind regimes. These are shifts of the forecast, not realized data |
 | Installed capacity | MaStR | onshore and offshore capacity from the fixed snapshot |
 | Static mappings | local files | cluster and region assignment |
@@ -224,18 +242,27 @@ April 2026.
 | Bias correction | 45 days, per hour | 30 days, per quarter-hour |
 | Energy-Arena submission | total | onshore only |
 
-### 4.5 Deployment requirement
+### 4.5 Deployment change
 
-The live wind model uses only DWD ICON-D2 and Open-Meteo ICON-D2. The former
-seven-provider deployment is not part of the operational cutoff registry.
+The live wind model still uses the seven-provider ensemble (with fallback to
+available runs). Switch it to the ICON-D2-only model so that it matches the
+thesis model.
 
 ### 4.6 Backtest note
 
 The seven-provider version used in earlier results requested the 06 UTC run of
 all providers, which is not admissible before 12:00 (verified for ECMWF: the
 cached data matched the 06 UTC run exactly). The ICON-D2-only rerun fixes this.
-With a minimum of 90 training days and DWD wind features starting on
-2025-10-25, the warm-up forecasts start only on 2026-01-24.
+
+- Warm-up for the price model: with a minimum of 90 training days the warm-up
+  forecasts would start only on 2026-01-24, so the warm-up variant uses
+  `min_train_days: 20`, as solar.
+- Data gaps: for delivery days 2026-05-14, 07-09, and 07-29 the Open-Meteo 06 UTC
+  wind fields were null. The backtest uses the 03 UTC run for them (rule in 1).
+  For 2026-02-07 no run is archived any more, so this day is excluded from all
+  evaluations involving wind.
+- Results: matched RMSE about 3,150 MW vs ENTSO-E about 2,260 MW before the data
+  fix (the seven-provider version was 2,707 MW, partly from the late runs).
 
 ## 5. Price model
 
@@ -317,13 +344,16 @@ constraint is data availability, in particular the DWD 06 UTC GRIB at 10:00.
 
 With the run-start rule, reserve results must be available **40 minutes after
 gate closure** (FCR by 08:40, aFRR by 09:40, mFRR by 10:40). The publication
-time is not documented by regelleistung.net. Check the VM logs for the actual
-arrival times. If results arrive later than 40 minutes after gate closure, each
+time is not documented by regelleistung.net. Measured on 2026-09-28 with
+`scripts/poll_reserve_publication.py` (log: `logs/reserve_publication_times.csv`);
+the VM logs are a second source. If results arrive later than 40 minutes after gate closure, each
 reserve block must move one cutoff later.
 
 ### 5.6 Backtest note
 
 The 12:00 price model without reserves and EXAA corresponds to P_gen in RQ2.
+Price evaluations exclude 2026-02-07 (wind, see 4.6) and 2026-06-19 (weather
+unavailable).
 The cutoff backtest uses the same structure with the per-cutoff component
 forecasts. For 07:00-09:00 the backtest uses the 06 UTC run instead of 00/03
 UTC (see 2.4).

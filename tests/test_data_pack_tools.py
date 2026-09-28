@@ -6,12 +6,32 @@ from pathlib import Path
 from da_price_forecasting.scripts.check_data_pack import collect_required_paths
 from da_price_forecasting.scripts.create_feature_pack import build_feature_pack
 from da_price_forecasting.scripts.operational_archive import (
+    _iter_source_files,
     _profile_include_paths,
     export_archive,
     main as operational_archive_main,
     restore_archive,
     verify_archive,
 )
+
+
+def test_operational_archive_includes_run_provenance_for_selected_table(tmp_path: Path) -> None:
+    source = tmp_path / "data" / "processed" / "weather.csv"
+    source.parent.mkdir(parents=True)
+    source.write_text("timestamp,value\n2026-09-27T00:00:00Z,1\n", encoding="utf-8")
+    provenance = source.with_suffix(".csv.run_provenance.json")
+    provenance.write_text('{"2026-09-27": {"fallback_used": true}}\n', encoding="utf-8")
+
+    files, missing, omitted = _iter_source_files(
+        tmp_path,
+        [source.relative_to(tmp_path)],
+        archive_root=tmp_path / "data" / "archive" / "operational",
+        dwd_retention_days=14,
+    )
+
+    assert missing == []
+    assert omitted == 0
+    assert files == [source, provenance]
 
 
 def test_check_data_pack_collects_inputs_but_not_outputs(tmp_path: Path) -> None:

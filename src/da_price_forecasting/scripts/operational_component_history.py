@@ -53,6 +53,19 @@ def model_feature_fallback_used(payload: dict, repo_root: Path, forecast_date: d
             continue
         if bool(records.get(forecast_date.isoformat(), {}).get("fallback_used")):
             return True
+    weather_path = config.get("open_meteo_weather_file")
+    if weather_path:
+        output_file = Path(weather_path)
+        if not output_file.is_absolute():
+            output_file = repo_root / output_file
+        provenance = output_file.with_suffix(f"{output_file.suffix}.run_provenance.json")
+        if provenance.exists():
+            try:
+                records = json.loads(provenance.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                records = {}
+            if bool(records.get(forecast_date.isoformat(), {}).get("fallback_used")):
+                return True
     return False
 
 

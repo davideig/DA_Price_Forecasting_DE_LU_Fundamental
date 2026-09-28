@@ -112,3 +112,16 @@ def test_component_history_detects_feature_level_fallback(tmp_path: Path) -> Non
 
     assert model_feature_fallback_used(payload, tmp_path, date(2026, 9, 28)) is True
     assert model_feature_fallback_used(payload, tmp_path, date(2026, 9, 29)) is False
+
+
+def test_component_history_detects_load_weather_run_fallback(tmp_path: Path) -> None:
+    weather_file = tmp_path / "load_weather.csv"
+    provenance = weather_file.with_suffix(".csv.run_provenance.json")
+    provenance.write_text(
+        '{"2026-09-28": {"fallback_used": true, "actual_run_utc": "2026-09-27T03:00"}}',
+        encoding="utf-8",
+    )
+    payload = {"config": {"open_meteo_weather_file": str(weather_file)}}
+
+    assert model_feature_fallback_used(payload, tmp_path, date(2026, 9, 28)) is True
+    assert model_feature_fallback_used(payload, tmp_path, date(2026, 9, 29)) is False

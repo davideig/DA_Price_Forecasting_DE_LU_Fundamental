@@ -136,6 +136,9 @@ def test_fixed_run_daily_weather_configs_cover_all_inputs() -> None:
             assert validated.config["required_run"] == run
             assert validated.config["icon_dir"] == icon_dir
             assert validated.config["dwd_icon_aggregation_cluster_output_file"] == cluster_file
+            assert validated.config["dwd_icon_fallback_previous_runs"] is True
+            assert validated.config["dwd_icon_fallback_step_hours"] == 3
+            assert validated.config["dwd_icon_fallback_max_lookback_hours"] == 3
 
 
 def test_cutoff_configs_apply_realized_data_limits_and_fixed_weather() -> None:
@@ -160,10 +163,14 @@ def test_cutoff_configs_apply_realized_data_limits_and_fixed_weather() -> None:
         assert load["partial_load_morning_end_minute"] == minute
         assert load["require_weather_for_training"] is True
         assert load["actual_load_refresh_lookback_days"] == 14
-        assert load["open_meteo_fallback_previous_runs"] is False
+        assert load["open_meteo_fallback_previous_runs"] is True
+        assert load["open_meteo_fallback_step_hours"] == 3
+        assert load["open_meteo_fallback_max_lookback_hours"] == 3
         assert solar["actual_generation_refresh_lookback_days"] == 14
         assert wind["actual_generation_refresh_lookback_days"] == 14
+        assert "2026-02-07" in wind["skip_dates"]
         assert price["required_run"] == spec.weather_run
+        assert price["skip_dates"] == ["2026-02-07", "2026-06-19"]
         assert "reserve_market" not in price["features"]["covariates"]
 
         generation_minute = 0 if cutoff == "1200" else minute
@@ -182,6 +189,7 @@ def test_live_wind_uses_only_open_meteo_icon_d2() -> None:
         assert len(config["extra_renewable_proxy_files"]) == 1
         assert "open_meteo_icon_d2" in config["extra_renewable_proxy_files"][0]
         assert config["extra_renewable_proxy_prefixes"] == ["om_"]
+        assert config["min_train_days"] == 20
 
 
 def test_price_configs_read_immutable_component_histories() -> None:
@@ -192,7 +200,7 @@ def test_price_configs_read_immutable_component_histories() -> None:
         assert features["renewable_proxy_files"] == [f"{root}/solar.csv", f"{root}/wind.csv"]
 
 
-def test_all_live_open_meteo_configs_request_fixed_runs_without_run_fallback() -> None:
+def test_all_live_open_meteo_configs_request_fixed_runs_with_previous_run_fallback() -> None:
     paths = list(Path("configs/deployment/cutoffs").glob("*.yaml"))
     paths.extend(Path("configs/deployment/cutoff_preprocessing").glob("*open_meteo*.yaml"))
     checked = 0
@@ -203,7 +211,19 @@ def test_all_live_open_meteo_configs_request_fixed_runs_without_run_fallback() -
         assert config["open_meteo_api_mode"] == "single_run"
         expected_run = next(run for run in ("00", "03", "06") if f"run{run}" in path.name)
         assert config["open_meteo_single_run_hour_utc"] == f"{expected_run}:00"
-        if "open_meteo_fallback_previous_runs" in config:
-            assert config["open_meteo_fallback_previous_runs"] is False
+        assert config["open_meteo_fallback_previous_runs"] is True
+        assert config["open_meteo_fallback_step_hours"] == 3
+        assert config["open_meteo_fallback_max_lookback_hours"] == 3
+        required = config["open_meteo_required_non_null_variables"]
+        if "wind_open_meteo" in path.name:
+            assert required == [
+                "wind_speed_80m",
+                "wind_direction_80m",
+                "wind_speed_120m",
+                "wind_direction_120m",
+                "wind_speed_180m",
+                "wind_direction_180m",
+            ]
+            assert "boundary_layer_height" not in required
         checked += 1
     assert checked >= 15

@@ -1755,6 +1755,7 @@ def _build_load_open_meteo_weather_features(config: LoadForecastModelConfig) -> 
         fallback_previous_runs=config.open_meteo_fallback_previous_runs,
         fallback_step_hours=config.open_meteo_fallback_step_hours,
         fallback_max_lookback_hours=config.open_meteo_fallback_max_lookback_hours,
+        required_non_null_variables=config.open_meteo_required_non_null_variables,
     )
     features = _open_meteo_weather_to_load_features(weather, config)
 

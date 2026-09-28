@@ -59,6 +59,7 @@ class LoadForecastModelConfig(RepoConfigModel):
     open_meteo_fallback_previous_runs: bool = False
     open_meteo_fallback_step_hours: int = Field(default=2, gt=0)
     open_meteo_fallback_max_lookback_hours: int = Field(default=24, ge=0)
+    open_meteo_required_non_null_variables: list[str] = Field(default_factory=list)
     open_meteo_point_selection: Literal["centroid", "grid_mean"] = "centroid"
     open_meteo_max_points_per_cluster: int | None = None
     extra_open_meteo_weather_files: list[Path] = Field(default_factory=list)
@@ -169,6 +170,9 @@ class LoadForecastModelConfig(RepoConfigModel):
     dwd_icon_request_pause_seconds: float = 0.0
     dwd_icon_force_update: bool = False
     dwd_icon_catch_up_missing_days: bool = True
+    dwd_icon_fallback_previous_runs: bool = False
+    dwd_icon_fallback_step_hours: int = Field(default=3, gt=0)
+    dwd_icon_fallback_max_lookback_hours: int = Field(default=3, ge=0)
     dwd_icon_aggregation_shapefile_path: Path = Path("data/shapefile/ne_10m_admin_0_countries.shp")
     dwd_icon_aggregation_n_clusters: int | None = None
     dwd_icon_aggregation_buffer_km: int = 50

@@ -12,6 +12,7 @@ config:
   start_folder_date: '2025-10-25'
   required_run: '00'
   skip_dates:
+    - '2026-02-07'
     - '2026-06-19'
   use_vst: true
   weather_source: DWD

@@ -78,11 +78,6 @@ FINAL_WIND_CONFIG = Path(
 )
 
 DWD_CONFIGS = {
-    "00": {
-        "price": Path("configs/deployment/cutoff_preprocessing/dwd_icon_c2_run00.yaml"),
-        "solar": Path("configs/deployment/cutoff_preprocessing/dwd_solar_run00.yaml"),
-        "wind": Path("configs/deployment/cutoff_preprocessing/dwd_wind_run00.yaml"),
-    },
     "03": {
         "price": Path("configs/deployment/cutoff_preprocessing/dwd_icon_c2_run03.yaml"),
         "solar": Path("configs/deployment/cutoff_preprocessing/dwd_solar_run03.yaml"),
@@ -106,7 +101,7 @@ DEPLOYMENT_FEATURE_CONFIGS = {
             Path(f"configs/deployment/cutoff_preprocessing/solar_open_meteo_features_run{run}.yaml"),
         ),
     }
-    for run in ("00", "03", "06")
+    for run in ("03", "06")
 }
 
 FINAL_FEATURE_CONFIGS = {

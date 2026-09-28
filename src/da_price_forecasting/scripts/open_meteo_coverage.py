@@ -16,7 +16,7 @@ from da_price_forecasting.paths import find_repo_root
 DEFAULT_CONFIG_DIR = Path("configs/deployment/cutoff_preprocessing")
 DEFAULT_REPORT = Path("data/processed/operational_quality/open_meteo_coverage.json")
 MODELS = ("load", "solar", "wind")
-RUNS = ("00", "03", "06")
+RUNS = ("03", "06")
 
 
 def _date_range(start: date, end: date) -> set[date]:

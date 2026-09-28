@@ -208,7 +208,8 @@ def test_operational_profile_tracks_only_dedicated_live_configs() -> None:
     )
 
     configs = _expand_profile(Path.cwd(), "operational")
-    assert len(configs) == 49
+    assert len(configs) == 41
+    assert all("run00" not in path.name for path in configs)
     assert all(path.is_relative_to(Path.cwd() / "configs/deployment") for path in configs)
     assert any(path.name == "load_0800_run03.yaml" for path in configs)
     assert any(path.name == "dwd_wind_run03.yaml" for path in configs)

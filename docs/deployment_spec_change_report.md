@@ -13,7 +13,7 @@ same cutoff job.
 
 | Cutoff | Weather run | Load | Solar | Wind | Price |
 | --- | --- | --- | --- | --- | --- |
-| 07:00 | 00 UTC | `configs/deployment/cutoffs/load_0700_run00.yaml` | `configs/deployment/cutoffs/solar_0700_run00.yaml` | `configs/deployment/cutoffs/wind_0700_run00.yaml` | `configs/deployment/cutoffs/price_0700_run00.yaml` |
+| 07:00 | 03 UTC | `configs/deployment/cutoffs/load_0700_run03.yaml` | `configs/deployment/cutoffs/solar_0700_run03.yaml` | `configs/deployment/cutoffs/wind_0700_run03.yaml` | `configs/deployment/cutoffs/price_0700_run03.yaml` |
 | 08:00 | 03 UTC | `configs/deployment/cutoffs/load_0800_run03.yaml` | `configs/deployment/cutoffs/solar_0800_run03.yaml` | `configs/deployment/cutoffs/wind_0800_run03.yaml` | `configs/deployment/cutoffs/price_0800_run03.yaml` |
 | 09:00 | 03 UTC | `configs/deployment/cutoffs/load_0900_run03.yaml` | `configs/deployment/cutoffs/solar_0900_run03.yaml` | `configs/deployment/cutoffs/wind_0900_run03.yaml` | `configs/deployment/cutoffs/price_0900_run03.yaml` |
 | 10:00 | 06 UTC | `configs/deployment/cutoffs/load_1000_run06.yaml` | `configs/deployment/cutoffs/solar_1000_run06.yaml` | `configs/deployment/cutoffs/wind_1000_run06.yaml` | `configs/deployment/cutoffs/price_1000_run06.yaml` |
@@ -48,7 +48,7 @@ the six load models. Solar and wind use the same sequence except that their
 
 ## Weather preprocessing configs
 
-The 00, 03, and 06 UTC histories have separate aggregation and feature output
+The 03 and 06 UTC primary histories have separate aggregation and feature output
 paths under `configs/deployment/cutoff_preprocessing/`. For each run this
 directory contains:
 
@@ -71,11 +71,9 @@ The cutoff scheduler owns every live submission:
 
 | Local time | Job | Change |
 | --- | --- | --- |
-| 04:05 | `dwd-run00-update` | unchanged time; now uses strict deployment configs |
-| 05:15 | `renewable-run00-features-update` | unchanged time; cross-run bootstrap removed |
-| 06:25 | `dwd-run03-update` | added |
+| 06:21 | `dwd-run03-update` | downloads the fixed 03 UTC run, with 00 UTC only as fallback |
+| 06:24 | `renewable-run03-features-update` | waits for the DWD job and builds both weather channels before 06:40 |
 | 06:40 | `price-cutoff-0700-submit` | unchanged |
-| 06:50 | `renewable-run03-features-update` | added |
 | 07:40 | `price-cutoff-0800-submit` | now uses run03 |
 | 07:55 | `reserve-publication-poll` | unchanged; observational only |
 | 08:40 | `price-cutoff-0900-submit` | now uses run03 |
@@ -120,7 +118,9 @@ python deployment/chair-vm/migrate_cutoff_weather_histories.py --apply
 ```
 
 The migration quarantines legacy run06-to-run00 copies; it does not delete
-them. Run the reserve backfill after 10:23, when all products for the next
+them. The fixed-run backfill now builds only the primary 03 and 06 UTC histories;
+00 UTC data may appear only as a flagged fallback inside the 03 UTC history.
+Run the reserve backfill after 10:23, when all products for the next
 delivery day are available. Then register both PowerShell task files and verify
 the next-run times. The 07:55 publication poll remains enabled to monitor
 whether the measured timings drift.

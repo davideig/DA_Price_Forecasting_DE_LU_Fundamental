@@ -57,7 +57,7 @@ def test_cutoff_first_stage_submission_specs_use_expected_value_columns() -> Non
 
 def test_live_cutoff_weather_mapping_is_causal() -> None:
     expected_runs = {
-        "0700": "00",
+        "0700": "03",
         "0800": "03",
         "0900": "03",
         "1000": "06",
@@ -142,7 +142,7 @@ def test_cutoff_first_stage_forecast_path_comes_from_export_dir(tmp_path: Path) 
 
 def test_fixed_run_daily_weather_configs_cover_all_inputs() -> None:
     config_root = Path("configs/deployment/cutoff_preprocessing")
-    for run in ("00", "03", "06"):
+    for run in ("03", "06"):
         expected = {
             f"dwd_icon_c2_run{run}.yaml": (
                 f"data/processed/icon_aggregated_c2_run{run}",
@@ -251,7 +251,7 @@ def test_all_live_open_meteo_configs_request_fixed_runs_with_previous_run_fallba
         if config.get("weather_source") != "open_meteo" and "open_meteo_api_mode" not in config:
             continue
         assert config["open_meteo_api_mode"] == "single_run"
-        expected_run = next(run for run in ("00", "03", "06") if f"run{run}" in path.name)
+        expected_run = next(run for run in ("03", "06") if f"run{run}" in path.name)
         assert config["open_meteo_single_run_hour_utc"] == f"{expected_run}:00"
         assert config["open_meteo_fallback_previous_runs"] is True
         assert config["open_meteo_fallback_step_hours"] == 3
@@ -268,7 +268,7 @@ def test_all_live_open_meteo_configs_request_fixed_runs_with_previous_run_fallba
             ]
             assert "boundary_layer_height" not in required
         checked += 1
-    assert checked >= 15
+    assert checked == 12
 
 
 def test_live_reserve_products_follow_measured_publication_times() -> None:

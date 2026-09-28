@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from ..config import (
     EnergyArenaSubmissionConfig,
     EntsoeLoadForecastBenchmarkConfig,
@@ -42,7 +44,28 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run one configured forecasting pipeline.")
     parser.add_argument("--config", type=Path, required=True, help="Path to a top-level run YAML config.")
     parser.add_argument("--submit", action="store_true", help="Force API submission for energy_arena_submit runs.")
+    parser.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Override a key in an embedded config; VALUE is parsed as YAML.",
+    )
     return parser
+
+
+def _apply_config_overrides(run_config: RunConfig, overrides: list[str]) -> None:
+    if not overrides:
+        return
+    if run_config.config_path is not None:
+        raise ValueError("--set only supports run files with an embedded config mapping.")
+    for override in overrides:
+        if "=" not in override:
+            raise ValueError(f"Invalid --set value {override!r}; expected KEY=VALUE.")
+        key, raw_value = override.split("=", 1)
+        if not key or key not in run_config.config:
+            raise ValueError(f"Cannot override unknown embedded config key: {key!r}")
+        run_config.config[key] = yaml.safe_load(raw_value)
 
 
 def _load_nested_config(run_config: RunConfig, model_cls: type[Any]) -> Any:
@@ -245,6 +268,7 @@ def run_from_config(run_config: RunConfig, submit_override: bool = False) -> Non
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     run_config = load_config(args.config, RunConfig)
+    _apply_config_overrides(run_config, args.set)
     run_from_config(run_config, submit_override=args.submit)
 
 

@@ -1,15 +1,28 @@
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
 
 from da_price_forecasting.config import RunConfig, RunKind
-from da_price_forecasting.scripts.run import main, run_from_config
+from da_price_forecasting.scripts.run import _apply_config_overrides, main, run_from_config
 
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
+
+
+def test_embedded_config_cli_override_parses_yaml_scalar() -> None:
+    run_config = RunConfig(
+        repo_root=_repo_root(),
+        kind=RunKind.LOAD_FORECAST_MODEL,
+        config={"open_meteo_end_date": "2026-08-02"},
+    )
+
+    _apply_config_overrides(run_config, ["open_meteo_end_date=2026-09-28"])
+
+    assert run_config.config["open_meteo_end_date"] == date(2026, 9, 28)
 
 
 def _write_synthetic_forecast(path: Path) -> None:

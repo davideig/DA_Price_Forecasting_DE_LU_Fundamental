@@ -117,6 +117,25 @@ def open_meteo_run_provenance_path(output_file: Path) -> Path:
     return output_file.with_suffix(f"{output_file.suffix}.run_provenance.json")
 
 
+def _open_meteo_provenance_days(output_file: Path) -> set[date]:
+    path = open_meteo_run_provenance_path(output_file)
+    if not path.exists():
+        return set()
+    try:
+        records = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return set()
+    if not isinstance(records, dict):
+        return set()
+    days: set[date] = set()
+    for value in records:
+        try:
+            days.add(date.fromisoformat(value))
+        except (TypeError, ValueError):
+            continue
+    return days
+
+
 def _record_open_meteo_run_provenance(
     output_file: Path,
     *,
@@ -175,6 +194,56 @@ def _missing_required_open_meteo_variables(
             if numeric.size == 0 or not np.isfinite(numeric).any():
                 missing.add(variable)
     return sorted(missing)
+
+
+def _incomplete_delivery_day_reason(
+    items: list[dict],
+    *,
+    target_day: pd.Timestamp | None,
+    required_variables: list[str],
+) -> str | None:
+    """Require every local delivery-day hour at every requested point."""
+    if target_day is None:
+        return None
+
+    day_start = target_day.normalize()
+    day_end = day_start + pd.DateOffset(days=1)
+    expected = pd.date_range(day_start, day_end, freq="1h", inclusive="left").tz_convert("UTC")
+    expected_ns = set(expected.as_unit("ns").asi8.tolist())
+
+    for point_index, item in enumerate(items):
+        hourly = item.get("hourly")
+        if not isinstance(hourly, dict) or not isinstance(hourly.get("time"), list):
+            return f"point {point_index} has no hourly timestamps"
+
+        timestamps = pd.to_datetime(hourly["time"], utc=True, errors="coerce")
+        positions = {
+            timestamp.value: position
+            for position, timestamp in enumerate(timestamps)
+            if not pd.isna(timestamp)
+        }
+        valid_timestamps = timestamps[~pd.isna(timestamps)]
+        if len(valid_timestamps) == 0 or valid_timestamps.max() < day_end.tz_convert("UTC"):
+            return f"point {point_index} forecast horizon ends before the delivery day"
+        missing_hours = expected_ns.difference(positions)
+        if missing_hours:
+            return (
+                f"point {point_index} covers only {len(expected_ns) - len(missing_hours)}/"
+                f"{len(expected_ns)} delivery-day hours"
+            )
+
+        for variable in required_variables:
+            values = hourly.get(variable)
+            if not isinstance(values, list):
+                return f"point {point_index} is missing required variable {variable}"
+            numeric = pd.to_numeric(pd.Series(values), errors="coerce").to_numpy(dtype=float)
+            expected_positions = [positions[value] for value in expected_ns]
+            if any(
+                position >= len(numeric) or not np.isfinite(numeric[position])
+                for position in expected_positions
+            ):
+                return f"point {point_index} has incomplete delivery-day values for {variable}"
+    return None
 
 
 def _fetch_open_meteo_batch_with_run_fallback(
@@ -240,6 +309,19 @@ def _fetch_open_meteo_batch_with_run_fallback(
                 f"variable(s): {', '.join(missing_variables)}"
             )
             continue
+
+        if candidate_run != run:
+            incomplete_reason = _incomplete_delivery_day_reason(
+                items,
+                target_day=target_day,
+                required_variables=required_non_null_variables or [],
+            )
+            if incomplete_reason:
+                last_error = OpenMeteoModelRunIncomplete(
+                    f"Open-Meteo fallback run {candidate_run} does not cover the full delivery day: "
+                    f"{incomplete_reason}"
+                )
+                continue
 
         if candidate_run != run:
             day_label = target_day.date() if target_day is not None else start_date
@@ -689,6 +771,7 @@ def _missing_single_run_days(
     end_date: date,
     target_tz: str,
     required_non_null_variables: list[str] | None = None,
+    provenance_days: set[date] | None = None,
 ) -> tuple[pd.DatetimeIndex, int, int]:
     expected_days = pd.date_range(
         start=pd.Timestamp(start_date, tz=target_tz),
@@ -698,7 +781,15 @@ def _missing_single_run_days(
     cached_days = pd.DatetimeIndex(cached.index.normalize().unique()).sort_values()
     invalid_days: list[pd.Timestamp] = []
     for day in expected_days.intersection(cached_days):
+        if provenance_days is not None and day.date() not in provenance_days:
+            invalid_days.append(day)
+            continue
         day_values = cached.loc[cached.index.normalize() == day]
+        day_end = day + pd.DateOffset(days=1)
+        expected_hours = pd.date_range(day, day_end, freq="1h", inclusive="left")
+        if not expected_hours.isin(day_values.index).all():
+            invalid_days.append(day)
+            continue
         for variable in required_non_null_variables or []:
             bases = _OPEN_METEO_REQUIRED_CACHE_BASES.get(variable, (variable,))
             columns = [
@@ -1016,6 +1107,7 @@ def fetch_open_meteo_cluster_weather(
             end_date=end_date,
             target_tz=target_tz,
             required_non_null_variables=required_non_null_variables,
+            provenance_days=_open_meteo_provenance_days(output_file),
         )
         completed_days.difference_update(pd.Timestamp(value).normalize() for value in invalid_days)
 
@@ -1266,6 +1358,7 @@ def fetch_open_meteo_point_weather(
             end_date=end_date,
             target_tz=target_tz,
             required_non_null_variables=required_non_null_variables,
+            provenance_days=_open_meteo_provenance_days(output_file),
         )
         completed_days.difference_update(pd.Timestamp(value).normalize() for value in invalid_days)
 
@@ -1452,6 +1545,7 @@ def load_open_meteo_points(
             end_date=end_date,
             target_tz=target_tz,
             required_non_null_variables=required_non_null_variables,
+            provenance_days=_open_meteo_provenance_days(cache_file),
         )
         if missing_days.empty:
             return _slice_open_meteo_days(
@@ -1570,6 +1664,7 @@ def load_open_meteo(
             end_date=end_date,
             target_tz=target_tz,
             required_non_null_variables=required_non_null_variables,
+            provenance_days=_open_meteo_provenance_days(cache_file),
         )
         if missing_days.empty:
             return _slice_open_meteo_days(

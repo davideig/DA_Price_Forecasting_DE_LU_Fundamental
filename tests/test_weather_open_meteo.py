@@ -19,6 +19,40 @@ from da_price_forecasting.data.weather import (
 )
 
 
+def _local_delivery_hour_strings(day: str, target_tz: str = "Europe/Berlin") -> list[str]:
+    start = pd.Timestamp(day, tz=target_tz)
+    timestamps = pd.date_range(
+        start,
+        start + pd.DateOffset(days=1),
+        freq="1h",
+        inclusive="left",
+    ).tz_convert("UTC")
+    return [timestamp.strftime("%Y-%m-%dT%H:%M") for timestamp in timestamps]
+
+
+def _delivery_hours_with_end_boundary(day: str) -> list[str]:
+    values = _local_delivery_hour_strings(day)
+    end = pd.Timestamp(day, tz="Europe/Berlin") + pd.DateOffset(days=1)
+    return [*values, end.tz_convert("UTC").strftime("%Y-%m-%dT%H:%M")]
+
+
+def _write_provenance_days(cache_file: Path, days: list[str], run_hour: str = "06:00") -> None:
+    records = {}
+    for raw_day in days:
+        run_day = date.fromisoformat(raw_day) - pd.Timedelta(days=1)
+        run = f"{run_day.isoformat()}T{run_hour}"
+        records[raw_day] = {
+            "requested_run_utc": run,
+            "actual_run_utc": run,
+            "fallback_used": False,
+            "reason": None,
+        }
+    weather.open_meteo_run_provenance_path(cache_file).write_text(
+        json.dumps(records),
+        encoding="utf-8",
+    )
+
+
 class _OpenMeteoResponse:
     status_code = 200
     headers: dict[str, str] = {}
@@ -113,12 +147,13 @@ def test_single_run_falls_back_when_required_wind_fields_are_null(
         run = kwargs["run"]
         calls.append(run)
         valid = run == "2026-05-13T03:00"
+        times = _delivery_hours_with_end_boundary("2026-05-14")
         return [{
             "hourly": {
-                "time": ["2026-05-13T22:00"],
-                "wind_speed_80m": [8.0 if valid else None],
-                "wind_direction_80m": [240.0 if valid else None],
-                "boundary_layer_height": [None],
+                "time": times,
+                "wind_speed_80m": [8.0 if valid else None] * len(times),
+                "wind_direction_80m": [240.0 if valid else None] * len(times),
+                "boundary_layer_height": [None] * len(times),
             }
         }]
 
@@ -169,11 +204,12 @@ def test_single_run_fallback_restarts_all_geographical_batches(
         requested_run_is_incomplete = latitude == 53.0 and run == "2026-05-13T06:00"
         speed = None if requested_run_is_incomplete else (6.0 if run.endswith("06:00") else 3.0)
         direction = None if requested_run_is_incomplete else 270.0
+        times = _delivery_hours_with_end_boundary("2026-05-14")
         return [{
             "hourly": {
-                "time": ["2026-05-13T22:00"],
-                "wind_speed_80m": [speed],
-                "wind_direction_80m": [direction],
+                "time": times,
+                "wind_speed_80m": [speed] * len(times),
+                "wind_direction_80m": [direction] * len(times),
             }
         }]
 
@@ -206,6 +242,50 @@ def test_single_run_fallback_restarts_all_geographical_batches(
         weather.open_meteo_run_provenance_path(cache_file).read_text(encoding="utf-8")
     )["2026-05-14"]
     assert provenance["actual_run_utc"] == "2026-05-13T03:00"
+
+
+@pytest.mark.parametrize("delivery_day", ["2026-01-14", "2026-05-14"])
+def test_previous_evening_fallback_is_rejected_when_delivery_day_is_incomplete(
+    monkeypatch: pytest.MonkeyPatch,
+    delivery_day: str,
+) -> None:
+    requested_run = f"{(pd.Timestamp(delivery_day) - pd.Timedelta(days=1)).date()}T00:00"
+    fallback_run = f"{(pd.Timestamp(delivery_day) - pd.Timedelta(days=2)).date()}T21:00"
+    full_day = _local_delivery_hour_strings(delivery_day)
+    fallback_end = pd.Timestamp(fallback_run, tz="UTC") + pd.Timedelta(hours=48)
+    incomplete_fallback = [
+        value for value in full_day if pd.Timestamp(value, tz="UTC") <= fallback_end
+    ]
+
+    def fake_fetch(**kwargs):  # noqa: ANN003
+        if kwargs["run"] == requested_run:
+            raise weather.OpenMeteoModelRunUnavailable("requested run unavailable")
+        assert kwargs["run"] == fallback_run
+        return [{
+            "hourly": {
+                "time": incomplete_fallback,
+                "wind_speed_80m": [8.0] * len(incomplete_fallback),
+            }
+        }]
+
+    monkeypatch.setattr(weather, "_fetch_open_meteo_batch", fake_fetch)
+    with pytest.raises(weather.OpenMeteoModelRunIncomplete, match="full delivery day"):
+        weather._fetch_open_meteo_batch_with_run_fallback(
+            base_url="https://example.test",
+            latitude=[52.0],
+            longitude=[13.0],
+            hourly_variables=["wind_speed_80m"],
+            model="icon_d2",
+            cell_selection="nearest",
+            timeout_seconds=30,
+            target_day=pd.Timestamp(delivery_day, tz="Europe/Berlin"),
+            run=requested_run,
+            forecast_days=2,
+            fallback_previous_runs=True,
+            fallback_step_hours=3,
+            fallback_max_lookback_hours=3,
+            required_non_null_variables=["wind_speed_80m"],
+        )
 
 
 def test_fetch_open_meteo_batch_falls_back_from_customer_endpoint_without_api_key(
@@ -385,28 +465,28 @@ def test_load_open_meteo_fetches_only_missing_single_run_days(
     cluster_file = tmp_path / "clusters.csv"
     cluster_file.write_text("cluster_id,lat,lon\n0,52.0,13.0\n")
     cache_file = tmp_path / "open_meteo.csv"
-    existing = pd.DataFrame(
-        {"t2m_cluster_0": [280.0, 281.0, 282.0]},
-        index=pd.DatetimeIndex(
-            [
-                pd.Timestamp("2026-03-20T00:00:00+01:00"),
-                pd.Timestamp("2026-03-21T00:00:00+01:00"),
-                pd.Timestamp("2026-03-22T00:00:00+01:00"),
-            ],
-            name="timestamp",
-        ),
+    existing_index = pd.date_range(
+        "2026-03-20T00:00:00+01:00",
+        "2026-03-22T23:00:00+01:00",
+        freq="1h",
+        name="timestamp",
     )
+    existing = pd.DataFrame({"t2m_cluster_0": 280.0}, index=existing_index)
     existing.to_csv(cache_file)
+    _write_provenance_days(cache_file, ["2026-03-20", "2026-03-21", "2026-03-22"])
     calls: list[tuple[date, date]] = []
 
     def fake_fetch_open_meteo_cluster_weather(**kwargs):  # noqa: ANN003
         calls.append((kwargs["start_date"], kwargs["end_date"]))
         cached = pd.read_csv(cache_file, index_col=0)
         cached.index = pd.to_datetime(cached.index)
-        missing = pd.DataFrame(
-            {"t2m_cluster_0": [283.0]},
-            index=pd.DatetimeIndex([pd.Timestamp("2026-03-23T00:00:00+01:00")], name="timestamp"),
+        missing_index = pd.date_range(
+            "2026-03-23T00:00:00+01:00",
+            periods=24,
+            freq="1h",
+            name="timestamp",
         )
+        missing = pd.DataFrame({"t2m_cluster_0": 283.0}, index=missing_index)
         pd.concat([cached, missing]).to_csv(cache_file)
         return missing
 
@@ -472,6 +552,7 @@ def test_load_open_meteo_returns_only_requested_cached_days(tmp_path: Path) -> N
     cache_file = tmp_path / "open_meteo.csv"
     cache_index = pd.date_range("2026-03-01", "2026-03-11", freq="15min", inclusive="left", tz="Europe/Berlin")
     pd.DataFrame({"t2m_cluster_0": range(len(cache_index))}, index=cache_index).to_csv(cache_file)
+    _write_provenance_days(cache_file, ["2026-03-09", "2026-03-10"])
 
     result = weather.load_open_meteo(
         cluster_file=cluster_file,
@@ -546,28 +627,28 @@ def test_load_open_meteo_points_fetches_only_missing_single_run_days(
 ) -> None:
     points = pd.DataFrame({"weather_point_id": [0], "lat": [52.0], "lon": [8.0]})
     cache_file = tmp_path / "open_meteo_points.csv"
-    existing = pd.DataFrame(
-        {"t2m_point_0": [280.0, 281.0, 282.0]},
-        index=pd.DatetimeIndex(
-            [
-                pd.Timestamp("2026-03-20T00:00:00+01:00"),
-                pd.Timestamp("2026-03-21T00:00:00+01:00"),
-                pd.Timestamp("2026-03-22T00:00:00+01:00"),
-            ],
-            name="timestamp",
-        ),
+    existing_index = pd.date_range(
+        "2026-03-20T00:00:00+01:00",
+        "2026-03-22T23:00:00+01:00",
+        freq="1h",
+        name="timestamp",
     )
+    existing = pd.DataFrame({"t2m_point_0": 280.0}, index=existing_index)
     existing.to_csv(cache_file)
+    _write_provenance_days(cache_file, ["2026-03-20", "2026-03-21", "2026-03-22"])
     calls: list[tuple[date, date]] = []
 
     def fake_fetch_open_meteo_point_weather(**kwargs):  # noqa: ANN003
         calls.append((kwargs["start_date"], kwargs["end_date"]))
         cached = pd.read_csv(cache_file, index_col=0)
         cached.index = pd.to_datetime(cached.index)
-        missing = pd.DataFrame(
-            {"t2m_point_0": [283.0]},
-            index=pd.DatetimeIndex([pd.Timestamp("2026-03-23T00:00:00+01:00")], name="timestamp"),
+        missing_index = pd.date_range(
+            "2026-03-23T00:00:00+01:00",
+            periods=24,
+            freq="1h",
+            name="timestamp",
         )
+        missing = pd.DataFrame({"t2m_point_0": 283.0}, index=missing_index)
         pd.concat([cached, missing]).to_csv(cache_file)
         return missing
 

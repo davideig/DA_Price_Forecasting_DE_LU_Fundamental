@@ -25,6 +25,11 @@ Status: 2026-09-28. All four models specified; reserve timing (5.5) measured.
   with all wind variables null while temperature and pressure were present, and
   a run-level availability check does not catch this. Variables that are always
   null for a model (see 4.2) are excluded from this check.
+  Accept a previous-run fallback only if every required variable covers the
+  complete local delivery day at every requested weather point. In particular,
+  the 21 UTC run from d-2 normally ends before the final one or two hours of day
+  d and therefore is not a valid fallback for the 00 UTC run; skip that delivery
+  day instead of storing a partial forecast.
 - **Publication delays used.**
 
   | Source | Available |
@@ -55,6 +60,13 @@ once enough own history exists. To shorten the transition, back-fill the 00 and
 03 UTC runs from the Open-Meteo single-run archive (about six months available).
 The DWD GRIB path cannot be back-filled, since DWD serves only live runs. Do not
 seed the history of one run by copying another run's history.
+
+**Coverage audit.** Store requested and actual run provenance for every cached
+delivery day. The audit fails for cached days without provenance, a later or
+otherwise invalid actual run (including 06 UTC data in a 00/03 UTC history),
+and gaps from the first archived day onward. Missing days before the first
+archived day are reported as the permitted transition period and do not fail
+the audit. Prewarming starts only after this audit passes.
 
 ## 2. Load model
 

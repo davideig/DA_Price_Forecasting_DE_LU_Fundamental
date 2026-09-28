@@ -143,6 +143,7 @@ check-data-price-final = { cmd = "da-price-check-data-pack --profile price-final
 check-data-thesis = { cmd = "da-price-check-data-pack --profile thesis", default-environment = "core" }
 operational-archive = { cmd = "da-price-operational-archive", default-environment = "core" }
 operational-data-quality = { cmd = "da-price-operational-data-quality", default-environment = "core" }
+open-meteo-coverage = { cmd = "da-price-open-meteo-coverage", default-environment = "core" }
 forecast-next-day = { cmd = "da-price-forecast-next-day", default-environment = "forecast" }
 poll-reserve-publication = { cmd = "da-price-poll-reserve-publication", default-environment = "forecast" }
 forecast-load-final = { cmd = "da-price-forecast --config configs/final/load/load_forecast_hybrid_entsoe_residual_open_meteo_p10_morning1015_daily_weather_lightgbm_paper_febjul_tw224_f180_pop_weighted_quantiles.yaml", default-environment = "forecast" }

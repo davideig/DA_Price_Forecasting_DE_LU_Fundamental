@@ -132,12 +132,29 @@ python deployment/chair-vm/migrate_cutoff_weather_histories.py --apply
 ```
 
 The migration moves suspect paths to `data/quarantine/`; it does not delete
-them. Review the dry-run list before using `--apply`. Then back-fill the 00 and
-03 UTC Open-Meteo single-run histories where the provider archive permits it:
+them. Review the dry-run list before using `--apply`. Then back-fill the 00, 03,
+and 06 UTC Open-Meteo single-run histories where the provider archive permits
+it:
 
 ```bash
 ./deployment/chair-vm/run_scheduled_job.sh backfill-fixed-run-open-meteo
 ```
+
+That job finishes by auditing every run/model cache. You can also run the audit
+directly:
+
+```bash
+pixi run open-meteo-coverage --end-date "$(TZ=Europe/Berlin date +%F)"
+```
+
+It writes
+`data/processed/operational_quality/open_meteo_coverage.json`. Missing days
+before the first archived day are reported as transition coverage; cached days
+without provenance, invalid runs, and gaps within the archive window fail the
+command.
+
+The backfill overrides the old backtest endpoint in these configs and requests
+history through the current local date. It does not modify the YAML files.
 
 Finally, pre-warm all component and price caches without submitting:
 
@@ -249,8 +266,9 @@ task's console output is also retained in `logs/chair_vm_tasks/`.
 The weather mapping is fixed: 07:00 uses 00 UTC, 08:00/09:00 use 03 UTC, and
 10:00-12:00 use 06 UTC for both DWD GRIB and Open-Meteo. Each run has its own
 weather history. The runner contains no cross-run copy bootstrap and
-Open-Meteo previous-run fallback is disabled. Wind uses DWD ICON-D2 plus
-Open-Meteo ICON-D2 only.
+Open-Meteo fallback only moves to the immediately preceding run and requires
+complete delivery-day coverage. Wind uses DWD ICON-D2 plus Open-Meteo ICON-D2
+only.
 
 At 09:23 the deployment downloads and aggregates the newly available `06` UTC
 weather for the 10:00-12:00 models. The 09:38 feature job waits for that

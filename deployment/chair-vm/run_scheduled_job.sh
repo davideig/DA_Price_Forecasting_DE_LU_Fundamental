@@ -171,6 +171,8 @@ case "$job" in
     ;;
 
   cutoff-prewarm-all)
+    echo "--- Auditing fixed-run Open-Meteo histories ---"
+    "$PIXI" run open-meteo-coverage --end-date "$(TZ=Europe/Berlin date +%F)"
     echo "--- Preparing fixed-run feature histories ---"
     refresh_weather_features 00
     refresh_weather_features 03
@@ -249,15 +251,21 @@ case "$job" in
     ;;
 
   backfill-fixed-run-open-meteo)
-    for run in 00 03; do
+    backfill_end="$(TZ=Europe/Berlin date +%F)"
+    for run in 00 03 06; do
       echo "--- Back-filling Open-Meteo fixed run $run UTC ---"
       "$PIXI" run -e forecast da-price-forecast \
-        --config "$DEPLOYMENT_PREPROCESSING/load_open_meteo_history_run${run}.yaml"
+        --config "$DEPLOYMENT_PREPROCESSING/load_open_meteo_history_run${run}.yaml" \
+        --set "open_meteo_end_date=$backfill_end"
       "$PIXI" run -e forecast da-price-forecast \
-        --config "$DEPLOYMENT_PREPROCESSING/wind_open_meteo_features_run${run}.yaml"
+        --config "$DEPLOYMENT_PREPROCESSING/wind_open_meteo_features_run${run}.yaml" \
+        --set "open_meteo_end_date=$backfill_end"
       "$PIXI" run -e forecast da-price-forecast \
-        --config "$DEPLOYMENT_PREPROCESSING/solar_open_meteo_features_run${run}.yaml"
+        --config "$DEPLOYMENT_PREPROCESSING/solar_open_meteo_features_run${run}.yaml" \
+        --set "open_meteo_end_date=$backfill_end"
     done
+    echo "--- Auditing fixed-run Open-Meteo histories ---"
+    "$PIXI" run open-meteo-coverage --end-date "$backfill_end"
     ;;
 
   repair-operational-data)

@@ -9,11 +9,11 @@ config:
   entsoe_end_date: "2026-07-31"
   include_solar_control_area_targets: true
   actual_generation_file: data/processed/renewable_generation/actual_generation_solar_control_areas_2025_20260731.csv
-  renewable_proxy_file: data/processed/renewable_proxy/dwd_icon_mastr_solar_tso_c25_run00_solar_spread_regional_renewable_features.csv
+  renewable_proxy_file: data/processed/renewable_proxy/dwd_icon_mastr_solar_tso_c25_run03_solar_spread_regional_renewable_features.csv
   renewable_proxy_fallback_file: data/processed/renewable_proxy/dwd_icon_mastr_solar_tso_c25_run06_solar_spread_regional_renewable_features.csv
   renewable_proxy_fallback_history_only: true
   extra_renewable_proxy_files:
-    - data/processed/renewable_proxy/open_meteo_icon_d2_single_run00_mastr_solar_tso_c25_cloud_cover_features.csv
+    - data/processed/renewable_proxy/open_meteo_icon_d2_single_run03_mastr_solar_tso_c25_cloud_cover_features.csv
   extra_renewable_proxy_prefixes:
     - om_
   unavailability_file: data/processed/renewable_generation/generation_unavailability_2025_2026.csv
@@ -74,4 +74,4 @@ config:
   hgb_l2_regularization: 2.0
   random_state: 42
 
-  export_dir: results/operational_cutoff_components/solar_0700_run00
+  export_dir: results/operational_cutoff_components/solar_0700_run03

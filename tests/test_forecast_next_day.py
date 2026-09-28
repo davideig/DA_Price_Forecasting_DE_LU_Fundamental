@@ -15,8 +15,8 @@ def test_operational_profiles_use_the_expected_weather_runs_and_configs() -> Non
     late = module.get_operational_profile("1100")
     final = module.get_operational_profile("final")
 
-    assert early.weather_run == "00"
-    assert "run00" in early.wind_config.name
+    assert early.weather_run == "03"
+    assert "run03" in early.wind_config.name
     assert middle.weather_run == "03"
     assert "run03" in middle.wind_config.name
     assert late.weather_run == "06"

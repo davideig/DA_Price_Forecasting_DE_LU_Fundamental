@@ -8,7 +8,7 @@ config:
   entsoe_end_date: '2026-07-31'
   actual_load_file: data/processed/load_forecast/actual_load.csv
   entsoe_load_forecast_file: data/processed/load_forecast/entsoe_load_forecast.csv
-  export_dir: results/operational_cutoff_components/load_0700_run00
+  export_dir: results/operational_cutoff_components/load_0700_run03
 
   load_target_mode: actual_load
   include_entsoe_forecast_features: false
@@ -27,13 +27,13 @@ config:
 
   include_weather_features: true
   weather_source: open_meteo
-  open_meteo_weather_file: data/processed/open_meteo/open_meteo_icon_d2_single_run00_c25_grid_mean_p10_weather.csv
+  open_meteo_weather_file: data/processed/open_meteo/open_meteo_icon_d2_single_run03_c25_grid_mean_p10_weather.csv
   open_meteo_cluster_file: data/clustering/icon_d2_clustering_c25.parquet
   open_meteo_base_url: https://customer-single-runs-api.open-meteo.com/v1/forecast
   open_meteo_api_key_env: OPEN_METEO_API_KEY
   open_meteo_api_mode: single_run
   open_meteo_model: icon_d2
-  open_meteo_single_run_hour_utc: "00:00"
+  open_meteo_single_run_hour_utc: "03:00"
   open_meteo_single_run_forecast_days: 2
   open_meteo_start_date: '2025-09-01'
   open_meteo_end_date: '2026-08-02'

@@ -1,6 +1,7 @@
 # Operational data specification for the cutoff models
 
-Status: 2026-09-28. All four models specified; reserve timing (5.5) measured.
+Status: 2026-09-28. All four models specified; reserve timing (5.5) measured;
+07:00 uses the 03 UTC run (decided 2026-09-28).
 
 ## 1. General rules
 
@@ -25,11 +26,6 @@ Status: 2026-09-28. All four models specified; reserve timing (5.5) measured.
   with all wind variables null while temperature and pressure were present, and
   a run-level availability check does not catch this. Variables that are always
   null for a model (see 4.2) are excluded from this check.
-  Accept a previous-run fallback only if every required variable covers the
-  complete local delivery day at every requested weather point. In particular,
-  the 21 UTC run from d-2 normally ends before the final one or two hours of day
-  d and therefore is not a valid fallback for the 00 UTC run; skip that delivery
-  day instead of storing a partial forecast.
 - **Publication delays used.**
 
   | Source | Available |
@@ -48,25 +44,18 @@ Status: 2026-09-28. All four models specified; reserve timing (5.5) measured.
 | Data | Rule |
 |---|---|
 | Static data (MaStR capacity, cluster assignment, population weights, state-to-TSO mapping) | Stored once as a **fixed snapshot** and not updated. Capacity added after the snapshot is not reflected in the capacity inputs. The rolling bias correction partly absorbs the resulting drift |
-| Weather | Stored as aggregated features, not as GRIB files. **A separate history per ICON-D2 run** (00, 03, 06 UTC). Each run appends the features for the new delivery day. A model trains only on the history of the run it predicts with |
+| Weather | Stored as aggregated features, not as GRIB files. **A separate primary history per deployed ICON-D2 run** (03 and 06 UTC). Each run appends the features for the new delivery day. A model trains only on the history of the run it predicts with. The 00 UTC run is used only as a provenance-marked previous-run fallback within the requested 03 UTC history; it has no separate live history |
 | Realized values (load, generation) | Stored in a local history. On each run, **re-fetch and overwrite the last 7-14 days**, because ENTSO-E revises published values (first estimate, later measured data). Then append the new data |
 | Cutoff limits | Applied **when data is used** (features, labels, bias correction), not when it is stored. The stored history always holds everything published so far |
 
-**Transition for the early runs (00 and 03 UTC).** Until a run has its own
+**Transition for the early run (03 UTC).** Until a run has its own
 history covering the full training window (90 days solar, 180 days wind,
 224 days load), a model using that run is trained partly on another run's
 history and predicts with its own run. This train/predict mismatch disappears
-once enough own history exists. To shorten the transition, back-fill the 00 and
-03 UTC runs from the Open-Meteo single-run archive (about six months available).
+once enough own history exists. To shorten the transition, back-fill the
+03 UTC run from the Open-Meteo single-run archive (about six months available).
 The DWD GRIB path cannot be back-filled, since DWD serves only live runs. Do not
 seed the history of one run by copying another run's history.
-
-**Coverage audit.** Store requested and actual run provenance for every cached
-delivery day. The audit fails for cached days without provenance, a later or
-otherwise invalid actual run (including 06 UTC data in a 00/03 UTC history),
-and gaps from the first archived day onward. Missing days before the first
-archived day are reported as the permitted transition period and do not fail
-the audit. Prewarming starts only after this audit passes.
 
 ## 2. Load model
 
@@ -84,7 +73,7 @@ the audit. Prewarming starts only after this audit passes.
 
 | Cutoff | Run start | ICON-D2 run | Realized load on d-1 up to (end of last quarter-hour) | ENTSO-E load forecast for d | Mode |
 |---|---|---|---|---|---|
-| 07:00 | 06:40 | 00 UTC | 05:30 | no | direct |
+| 07:00 | 06:40 | 03 UTC | 05:30 | no | direct |
 | 08:00 | 07:40 | 03 UTC | 06:30 | no | direct |
 | 09:00 | 08:40 | 03 UTC | 07:30 | no | direct |
 | 10:00 | 09:40 | 06 UTC | 08:30 | no | direct |
@@ -154,7 +143,7 @@ train/predict mismatch.
 
 | Cutoff | Run start | ICON-D2 run (GRIB and Open-Meteo) | Realized generation on d-1 up to (end of last quarter-hour) |
 |---|---|---|---|
-| 07:00 | 06:40 | 00 UTC | 05:30 |
+| 07:00 | 06:40 | 03 UTC | 05:30 |
 | 08:00 | 07:40 | 03 UTC | 06:30 |
 | 09:00 | 08:40 | 03 UTC | 07:30 |
 | 10:00 | 09:40 | 06 UTC | 08:30 |
@@ -166,10 +155,12 @@ train/predict mismatch.
   `target_availability_cutoff_hour/minute` accordingly. **Exception at 12:00:**
   use 10:00, exactly as in the thesis model (slightly more conservative than the
   rule), so that the deployed 12:00 model is identical to the thesis model.
-- **Tight spot at 10:00:** the DWD 06 UTC GRIB is complete at 09:21 CEST, leaving
-  about 19 minutes for download, aggregation, and feature building before the
-  09:40 run start. Monitor this job. In winter the run is available one hour
-  earlier.
+- **Tight spots at 07:00 and 10:00:** the DWD 03 UTC GRIB is complete at
+  06:21 CEST and the 06 UTC GRIB at 09:21 CEST, leaving about 19 minutes for
+  download, aggregation, and feature building before the 06:40 and 09:40 run
+  starts. Monitor these jobs. If the run is not complete in time, the fallback
+  rule in section 1 uses the previous run (00 UTC at 07:00, 03 UTC at 10:00). In
+  winter the runs are available one hour earlier.
 
 ### 3.4 Operational data flow
 
@@ -230,7 +221,7 @@ of the thesis model.
 
 | Cutoff | Run start | ICON-D2 run (GRIB and Open-Meteo) | Realized generation on d-1 up to (end of last quarter-hour) |
 |---|---|---|---|
-| 07:00 | 06:40 | 00 UTC | 05:30 |
+| 07:00 | 06:40 | 03 UTC | 05:30 |
 | 08:00 | 07:40 | 03 UTC | 06:30 |
 | 09:00 | 08:40 | 03 UTC | 07:30 |
 | 10:00 | 09:40 | 06 UTC | 08:30 |
@@ -241,7 +232,7 @@ of the thesis model.
   (`target_availability_cutoff_hour/minute`). **Exception at 12:00:** use 10:00,
   exactly as in the thesis model, so that the deployed 12:00 model is identical
   to the thesis model.
-- Same tight spot at 10:00 as for solar (DWD GRIB complete at 09:21 CEST).
+- Same tight spots at 07:00 and 10:00 as for solar (section 3.3).
 
 ### 4.4 Differences from solar
 
@@ -304,7 +295,7 @@ rolling window, with a variance-stabilizing transformation of the target.
 
 | Cutoff | Run start | ICON-D2 run (raw weather) | Load forecast from | Solar and wind forecasts from | Reserve results | EXAA |
 |---|---|---|---|---|---|---|
-| 07:00 | 06:40 | 00 UTC | 07:00 load model (direct, 00 UTC, actuals to 05:30) | 07:00 solar and wind (00 UTC, actuals to 05:30) | none | no |
+| 07:00 | 06:40 | 03 UTC | 07:00 load model (direct, 03 UTC, actuals to 05:30) | 07:00 solar and wind (03 UTC, actuals to 05:30) | none | no |
 | 08:00 | 07:40 | 03 UTC | 08:00 load model (direct, 03 UTC, actuals to 06:30) | 08:00 solar and wind (03 UTC, actuals to 06:30) | none | no |
 | 09:00 | 08:40 | 03 UTC | 09:00 load model (direct, 03 UTC, actuals to 07:30) | 09:00 solar and wind (03 UTC, actuals to 07:30) | FCR | no |
 | 10:00 | 09:40 | 06 UTC | 10:00 load model (direct, 06 UTC, actuals to 08:30) | 10:00 solar and wind (06 UTC, actuals to 08:30) | FCR, aFRR | no |

@@ -59,15 +59,15 @@ class CutoffSpec:
 CUTOFF_SPECS: dict[str, CutoffSpec] = {
     "0700": CutoffSpec(
         label="0700",
-        weather_run="00",
-        price_config=Path("configs/deployment/cutoffs/price_0700_run00.yaml"),
-        load_config=Path("configs/deployment/cutoffs/load_0700_run00.yaml"),
-        solar_config=Path("configs/deployment/cutoffs/solar_0700_run00.yaml"),
-        wind_config=Path("configs/deployment/cutoffs/wind_0700_run00.yaml"),
+        weather_run="03",
+        price_config=Path("configs/deployment/cutoffs/price_0700_run03.yaml"),
+        load_config=Path("configs/deployment/cutoffs/load_0700_run03.yaml"),
+        solar_config=Path("configs/deployment/cutoffs/solar_0700_run03.yaml"),
+        wind_config=Path("configs/deployment/cutoffs/wind_0700_run03.yaml"),
         approach_name="price_cutoff_0700_noexaa_direct_pgen_lightgbm_c2_d70",
         approach_description=(
             "Operational 07:00 cutoff adaptation with own direct load, solar, and wind forecasts "
-            "using weather available from the 00 UTC run. This is distinct from the paper's "
+            "using weather from the fixed 03 UTC run. This is distinct from the paper's "
             "retrospective 06 UTC early-cutoff backtest."
         ),
     ),

@@ -14,11 +14,11 @@ config:
     - "2025-10-28"
     - "2026-02-07"
 
-  renewable_proxy_file: data/processed/renewable_proxy/dwd_icon_mastr_wind_c100_run00_regional_renewable_features.csv
+  renewable_proxy_file: data/processed/renewable_proxy/dwd_icon_mastr_wind_c100_run03_regional_renewable_features.csv
   renewable_proxy_fallback_file: data/processed/renewable_proxy/dwd_icon_mastr_wind_c100_run06_regional_renewable_features.csv
   renewable_proxy_fallback_history_only: true
   extra_renewable_proxy_files:
-    - data/processed/renewable_proxy/open_meteo_icon_d2_single_run00_wind_hub_p80_provider_common_regional_renewable_features.csv
+    - data/processed/renewable_proxy/open_meteo_icon_d2_single_run03_wind_hub_p80_provider_common_regional_renewable_features.csv
   extra_renewable_proxy_prefixes:
     - om_
   unavailability_file: data/processed/renewable_generation/generation_unavailability_2025_2026.csv
@@ -75,4 +75,4 @@ config:
   hgb_max_features: 0.8
   random_state: 42
 
-  export_dir: results/operational_cutoff_components/wind_0700_run00
+  export_dir: results/operational_cutoff_components/wind_0700_run03

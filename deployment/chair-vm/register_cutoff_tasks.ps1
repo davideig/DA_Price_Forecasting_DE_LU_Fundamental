@@ -7,7 +7,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $obsoleteTasks = @(
-    "$TaskPrefix-price-cutoff-1200-compute"
+    "$TaskPrefix-price-cutoff-1200-compute",
+    "$TaskPrefix-dwd-run00-update",
+    "$TaskPrefix-renewable-run00-features-update"
 )
 
 foreach ($taskName in $obsoleteTasks) {
@@ -21,11 +23,9 @@ foreach ($taskName in $obsoleteTasks) {
 }
 
 $jobs = @(
-    @{ Name = "dwd-run00-update"; Time = "04:05"; Job = "dwd-run00-update"; DurationHours = 3 },
-    @{ Name = "renewable-run00-features-update"; Time = "05:15"; Job = "renewable-run00-features-update"; DurationHours = 2 },
-    @{ Name = "dwd-run03-update"; Time = "06:25"; Job = "dwd-run03-update"; DurationHours = 2 },
+    @{ Name = "dwd-run03-update"; Time = "06:21"; Job = "dwd-run03-update"; DurationHours = 2 },
+    @{ Name = "renewable-run03-features-update"; Time = "06:24"; Job = "renewable-run03-features-update"; DurationHours = 2 },
     @{ Name = "price-cutoff-0700-submit"; Time = "06:40"; Job = "price-cutoff-0700-submit"; DurationHours = 2 },
-    @{ Name = "renewable-run03-features-update"; Time = "06:50"; Job = "renewable-run03-features-update"; DurationHours = 2 },
     @{ Name = "price-cutoff-0800-submit"; Time = "07:40"; Job = "price-cutoff-0800-submit"; DurationHours = 2 },
     @{ Name = "reserve-publication-poll"; Time = "07:55"; Job = "reserve-publication-poll"; DurationHours = 4 },
     @{ Name = "price-cutoff-0900-submit"; Time = "08:40"; Job = "price-cutoff-0900-submit"; DurationHours = 2 },

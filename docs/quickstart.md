@@ -64,7 +64,7 @@ The operational profiles use information available by each live cutoff:
 
 | Profile | Weather run | Load specification |
 | --- | --- | --- |
-| `0700`-`0900` | ICON-D2 00 UTC | Direct load |
+| `0700`-`0900` | ICON-D2 03 UTC | Direct load |
 | `1000` | ICON-D2 06 UTC | Direct load |
 | `1100`-`1200` | ICON-D2 06 UTC | Residual load |
 | `final` | ICON-D2 06 UTC | Final paper model family |

@@ -8,10 +8,8 @@ import yaml
 def test_cutoff_schedule_matches_operational_spec() -> None:
     script = Path("deployment/chair-vm/register_cutoff_tasks.ps1").read_text(encoding="utf-8")
     expected = {
-        "dwd-run00-update": "04:05",
-        "renewable-run00-features-update": "05:15",
-        "dwd-run03-update": "06:25",
-        "renewable-run03-features-update": "06:50",
+        "dwd-run03-update": "06:21",
+        "renewable-run03-features-update": "06:24",
         "price-cutoff-0700-submit": "06:40",
         "price-cutoff-0800-submit": "07:40",
         "reserve-publication-poll": "07:55",
@@ -24,6 +22,9 @@ def test_cutoff_schedule_matches_operational_spec() -> None:
     }
     for job, time in expected.items():
         assert f'Name = "{job}"; Time = "{time}"; Job = "{job}"' in script
+    jobs_block = script.split("$jobs = @(", 1)[1].split(")", 1)[0]
+    assert "dwd-run00-update" not in jobs_block
+    assert "renewable-run00-features-update" not in jobs_block
 
 
 def test_runner_has_no_cross_run_bootstrap_or_multi_provider_wind() -> None:
@@ -38,6 +39,8 @@ def test_runner_has_no_cross_run_bootstrap_or_multi_provider_wind() -> None:
     assert "dmi_harmonie" not in script
     assert "wind_open_meteo_features_run${run}.yaml" in script
     assert "backfill-operational-reserve-market" in script
+    assert "for run in 03 06" in script
+    assert "wait_for_job_lock renewable-run03-features-update 3600" in script
 
 
 def test_general_schedule_removes_duplicate_submission_jobs() -> None:

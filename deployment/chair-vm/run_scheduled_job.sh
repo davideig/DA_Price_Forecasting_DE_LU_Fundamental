@@ -91,8 +91,7 @@ refresh_weather_features() {
   local model_cutoff
   shift
   case "$run" in
-    00) model_cutoff="0700" ;;
-    03) model_cutoff="0800" ;;
+    03) model_cutoff="0700" ;;
     06) model_cutoff="1000" ;;
     *) echo "Unsupported weather run: $run" >&2; return 2 ;;
   esac
@@ -132,15 +131,6 @@ wait_for_job_lock() {
 }
 
 case "$job" in
-  dwd-run00-update)
-    run_dwd_update 00
-    ;;
-
-  renewable-run00-features-update)
-    wait_for_job_lock dwd-run00-update 3600
-    refresh_weather_features 00
-    ;;
-
   dwd-run03-update)
     run_dwd_update 03
     ;;
@@ -174,7 +164,6 @@ case "$job" in
     echo "--- Auditing fixed-run Open-Meteo histories ---"
     "$PIXI" run open-meteo-coverage --end-date "$(TZ=Europe/Berlin date +%F)"
     echo "--- Preparing fixed-run feature histories ---"
-    refresh_weather_features 00
     refresh_weather_features 03
     refresh_weather_features 06
     failed_cutoffs=()
@@ -196,7 +185,7 @@ case "$job" in
     ;;
 
   price-cutoff-0700-submit)
-    wait_for_job_lock renewable-run00-features-update 3600
+    wait_for_job_lock renewable-run03-features-update 3600
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 0700 \
       --submit-first-stage \
@@ -252,7 +241,7 @@ case "$job" in
 
   backfill-fixed-run-open-meteo)
     backfill_end="$(TZ=Europe/Berlin date +%F)"
-    for run in 00 03 06; do
+    for run in 03 06; do
       echo "--- Back-filling Open-Meteo fixed run $run UTC ---"
       "$PIXI" run -e forecast da-price-forecast \
         --config "$DEPLOYMENT_PREPROCESSING/load_open_meteo_history_run${run}.yaml" \
@@ -285,12 +274,10 @@ case "$job" in
       fi
     }
 
-    repair_step "DWD run00" run_dwd_update 00
     repair_step "DWD run03" run_dwd_update 03
     repair_step "DWD run06" run_dwd_update 06
     cleanup_raw_dwd
 
-    repair_step "run00 renewable features" refresh_weather_features 00 --force-feature-refresh
     repair_step "run03 renewable features" refresh_weather_features 03 --force-feature-refresh
     repair_step "run06 renewable features" refresh_weather_features 06 --force-feature-refresh
     repair_step "operational quality report" "$PIXI" run operational-data-quality

@@ -159,7 +159,7 @@ Use `--forecast-date YYYY-MM-DD` to override tomorrow, or
 
 | Cutoff | Weather run | Load model |
 | --- | --- | --- |
-| `0700` | 00 UTC | Direct |
+| `0700` | 03 UTC | Direct |
 | `0800`, `0900` | 03 UTC | Direct |
 | `1000` | 06 UTC | Direct |
 | `1100`, `1200` | 06 UTC | Residual |
@@ -229,7 +229,7 @@ weather-availability adapter and is documented in
 `configs/rq3_cutoff_grid/RUN_ORDER.md`.
 
 For cutoff runs, wind uses ICON-D2 only, Open-Meteo requests the configured
-00/03/06 UTC run explicitly, and every price run first stores immutable
+03/06 UTC primary run explicitly, and every price run first stores immutable
 cutoff-specific component histories under
 `data/processed/component_forecast_history/`.
 

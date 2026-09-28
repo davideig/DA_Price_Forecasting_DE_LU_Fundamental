@@ -24,7 +24,7 @@ DEFAULT_REPORT_DIR = Path("data/processed/operational_quality")
 DWD_CONFIG_PATHS = (
     *(
         Path(f"configs/deployment/cutoff_preprocessing/dwd_{kind}_run{run}.yaml")
-        for run in ("00", "03", "06")
+        for run in ("03", "06")
         for kind in ("wind", "solar", "icon_c2")
     ),
 )

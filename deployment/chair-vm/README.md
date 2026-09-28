@@ -55,9 +55,10 @@ ENERGY_ARENA_SOLAR_CHALLENGE_ID
 ENERGY_ARENA_WIND_CHALLENGE_ID
 ```
 
-`OPEN_METEO_API_KEY` is required because the cutoff deployment requests explicit
-00, 03, and 06 UTC runs from the Open-Meteo customer single-run archive. The
-deployment never substitutes the provider's latest run.
+`OPEN_METEO_API_KEY` is required because the cutoff deployment requests the
+explicit 03 and 06 UTC runs from the Open-Meteo customer single-run archive.
+The 00 UTC run is eligible only as the previous-run fallback for a requested
+03 UTC run. The deployment never substitutes the provider's latest run.
 
 Optionally set `SYNERGIE_BACKUP_DIR` to a WSL-visible Synergie drive folder.
 The scheduled backup job copies the compact operational archive and task logs
@@ -132,8 +133,8 @@ python deployment/chair-vm/migrate_cutoff_weather_histories.py --apply
 ```
 
 The migration moves suspect paths to `data/quarantine/`; it does not delete
-them. Review the dry-run list before using `--apply`. Then back-fill the 00, 03,
-and 06 UTC Open-Meteo single-run histories where the provider archive permits
+them. Review the dry-run list before using `--apply`. Then back-fill the 03 and
+06 UTC Open-Meteo single-run histories where the provider archive permits
 it:
 
 ```bash
@@ -202,7 +203,7 @@ Consequently, Task Scheduler's `Running` state and `LastTaskResult` describe the
 forecasting job itself; closing an unrelated terminal or RDP window does not stop it.
 
 `repair-operational-data` runs after the Energy-Arena deadline. It retries any
-missing current run00/run03/run06 DWD inputs, forcibly revisits the target renewable
+missing current run03/run06 DWD inputs, forcibly revisits the target renewable
 feature day so a morning fallback can be replaced, and writes a dated report to
 `data/processed/operational_quality/`. A failed source remains visible in that
 report and in the task result; it does not block the next day's retry.
@@ -230,11 +231,9 @@ The cutoff tasks submit load, solar, onshore wind, and price for the same
 cutoff information set at every cutoff from 07:00 through 12:00:
 
 ```text
-04:05 dwd-run00-update
-05:15 renewable-run00-features-update
-06:25 dwd-run03-update
+06:21 dwd-run03-update
+06:24 renewable-run03-features-update
 06:40 price-cutoff-0700-submit
-06:50 renewable-run03-features-update
 07:40 price-cutoff-0800-submit
 07:55 reserve-publication-poll
 08:40 price-cutoff-0900-submit
@@ -263,11 +262,13 @@ history before fitting the price model.
 The 14:00 operational-archive job includes this CSV in the Git archive, and the
 task's console output is also retained in `logs/chair_vm_tasks/`.
 
-The weather mapping is fixed: 07:00 uses 00 UTC, 08:00/09:00 use 03 UTC, and
-10:00-12:00 use 06 UTC for both DWD GRIB and Open-Meteo. Each run has its own
-weather history. The runner contains no cross-run copy bootstrap and
-Open-Meteo fallback only moves to the immediately preceding run and requires
-complete delivery-day coverage. Wind uses DWD ICON-D2 plus Open-Meteo ICON-D2
+The weather mapping is fixed: 07:00-09:00 use 03 UTC and 10:00-12:00 use 06 UTC
+for both DWD GRIB and Open-Meteo. The 03 and 06 UTC runs each have their own
+primary weather history. The 00 UTC run is only an explicitly flagged fallback
+for a missing or incomplete 03 UTC run; it has no separate live history. The
+runner contains no cross-run copy bootstrap, and fallback only moves to the
+immediately preceding run and requires complete delivery-day coverage. Wind
+uses DWD ICON-D2 plus Open-Meteo ICON-D2
 only.
 
 At 09:23 the deployment downloads and aggregates the newly available `06` UTC

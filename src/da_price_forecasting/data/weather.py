@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import time
 from contextlib import contextmanager
@@ -15,6 +16,10 @@ import requests
 
 class OpenMeteoModelRunUnavailable(RuntimeError):
     """Raised when Open-Meteo reports a missing historical model run."""
+
+
+class OpenMeteoModelRunIncomplete(OpenMeteoModelRunUnavailable):
+    """Raised when a model run has no usable values for required variables."""
 
 
 def _is_open_meteo_model_run_unavailable(message: object) -> bool:
@@ -108,6 +113,70 @@ def _open_meteo_run_candidates(
     return candidates
 
 
+def open_meteo_run_provenance_path(output_file: Path) -> Path:
+    return output_file.with_suffix(f"{output_file.suffix}.run_provenance.json")
+
+
+def _record_open_meteo_run_provenance(
+    output_file: Path,
+    *,
+    target_day: pd.Timestamp,
+    requested_run: str,
+    actual_run: str,
+    reason: str | None,
+) -> None:
+    path = open_meteo_run_provenance_path(output_file)
+    records: dict[str, dict[str, object]] = {}
+    if path.exists():
+        try:
+            records = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            records = {}
+    records[target_day.date().isoformat()] = {
+        "requested_run_utc": requested_run,
+        "actual_run_utc": actual_run,
+        "fallback_used": actual_run != requested_run,
+        "reason": reason,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(f"{path.suffix}.tmp")
+    temporary.write_text(json.dumps(records, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+
+
+def _missing_required_open_meteo_variables(
+    items: list[dict],
+    *,
+    required_variables: list[str],
+    target_day: pd.Timestamp | None,
+) -> list[str]:
+    """Return required variables without any finite value at every requested point."""
+    missing: set[str] = set()
+    for item in items:
+        hourly = item.get("hourly")
+        if not isinstance(hourly, dict):
+            missing.update(required_variables)
+            continue
+
+        target_mask: np.ndarray | None = None
+        times = hourly.get("time")
+        if target_day is not None and isinstance(times, list):
+            timestamps = pd.to_datetime(times, utc=True, errors="coerce")
+            target_mask = np.asarray(timestamps.tz_convert(target_day.tz).date == target_day.date())
+
+        for variable in required_variables:
+            values = hourly.get(variable)
+            if not isinstance(values, list):
+                missing.add(variable)
+                continue
+            numeric = pd.to_numeric(pd.Series(values), errors="coerce").to_numpy(dtype=float)
+            if target_mask is not None and len(target_mask) == len(numeric):
+                numeric = numeric[target_mask]
+            if numeric.size == 0 or not np.isfinite(numeric).any():
+                missing.add(variable)
+    return sorted(missing)
+
+
 def _fetch_open_meteo_batch_with_run_fallback(
     *,
     base_url: str,
@@ -128,7 +197,8 @@ def _fetch_open_meteo_batch_with_run_fallback(
     fallback_previous_runs: bool = False,
     fallback_step_hours: int = 2,
     fallback_max_lookback_hours: int = 24,
-) -> tuple[list[dict], str | None, int | None]:
+    required_non_null_variables: list[str] | None = None,
+) -> tuple[list[dict], str | None, int | None, str | None]:
     last_error: OpenMeteoModelRunUnavailable | None = None
     for candidate_run, candidate_forecast_days in _open_meteo_run_candidates(
         run=run,
@@ -159,13 +229,25 @@ def _fetch_open_meteo_batch_with_run_fallback(
             last_error = exc
             continue
 
+        missing_variables = _missing_required_open_meteo_variables(
+            items,
+            required_variables=required_non_null_variables or [],
+            target_day=target_day,
+        )
+        if missing_variables:
+            last_error = OpenMeteoModelRunIncomplete(
+                f"Open-Meteo run {candidate_run} has no finite target-day values for required "
+                f"variable(s): {', '.join(missing_variables)}"
+            )
+            continue
+
         if candidate_run != run:
             day_label = target_day.date() if target_day is not None else start_date
             print(
                 "[OPEN-METEO] Using fallback model run "
                 f"{candidate_run} instead of {run} for day {day_label}."
             )
-        return items, candidate_run, candidate_forecast_days
+        return items, candidate_run, candidate_forecast_days, str(last_error) if last_error else None
 
     if last_error is not None:
         raise last_error
@@ -516,6 +598,32 @@ _OPEN_METEO_NORMALISED_COLUMNS = [
     "sunshine_duration",
 ]
 
+_OPEN_METEO_REQUIRED_CACHE_BASES: dict[str, tuple[str, ...]] = {
+    "wind_speed_10m": ("u10", "v10"),
+    "wind_direction_10m": ("u10", "v10"),
+    "wind_speed_80m": ("u80", "v80"),
+    "wind_direction_80m": ("u80", "v80"),
+    "wind_speed_100m": ("u100", "v100"),
+    "wind_direction_100m": ("u100", "v100"),
+    "wind_speed_120m": ("u120", "v120"),
+    "wind_direction_120m": ("u120", "v120"),
+    "wind_speed_180m": ("u180", "v180"),
+    "wind_direction_180m": ("u180", "v180"),
+    "temperature_2m": ("t2m",),
+    "dew_point_2m": ("td2m",),
+    "surface_pressure": ("sp",),
+    "shortwave_radiation": ("ssrd",),
+    "direct_radiation": ("fdir",),
+    "diffuse_radiation": ("diffuse",),
+    "cloud_cover": ("tcc",),
+    "cloud_cover_low": ("lcc",),
+    "cloud_cover_mid": ("mcc",),
+    "cloud_cover_high": ("hcc",),
+    "precipitation": ("tp",),
+    "snow_depth": ("sde",),
+    "boundary_layer_height": ("pblh",),
+}
+
 
 def _normalise_open_meteo_points(points: pd.DataFrame) -> pd.DataFrame:
     required = {"weather_point_id", "lat", "lon"}
@@ -580,6 +688,7 @@ def _missing_single_run_days(
     start_date: date,
     end_date: date,
     target_tz: str,
+    required_non_null_variables: list[str] | None = None,
 ) -> tuple[pd.DatetimeIndex, int, int]:
     expected_days = pd.date_range(
         start=pd.Timestamp(start_date, tz=target_tz),
@@ -587,6 +696,21 @@ def _missing_single_run_days(
         freq="D",
     )
     cached_days = pd.DatetimeIndex(cached.index.normalize().unique()).sort_values()
+    invalid_days: list[pd.Timestamp] = []
+    for day in expected_days.intersection(cached_days):
+        day_values = cached.loc[cached.index.normalize() == day]
+        for variable in required_non_null_variables or []:
+            bases = _OPEN_METEO_REQUIRED_CACHE_BASES.get(variable, (variable,))
+            columns = [
+                column
+                for column in day_values.columns
+                if any(column == base or column.startswith(f"{base}_") for base in bases)
+            ]
+            if not columns or not day_values[columns].apply(pd.to_numeric, errors="coerce").notna().any().any():
+                invalid_days.append(day)
+                break
+    if invalid_days:
+        cached_days = cached_days.difference(pd.DatetimeIndex(invalid_days))
     cached_in_range = expected_days.intersection(cached_days)
     return expected_days.difference(cached_days), len(cached_in_range), len(expected_days)
 
@@ -790,6 +914,7 @@ def fetch_open_meteo_cluster_weather(
     fallback_previous_runs: bool = False,
     fallback_step_hours: int = 2,
     fallback_max_lookback_hours: int = 24,
+    required_non_null_variables: list[str] | None = None,
 ) -> pd.DataFrame:
     """Fetch Open-Meteo weather at cluster centroids and return ICON-style columns."""
     if hourly_variables is None:
@@ -885,6 +1010,14 @@ def fetch_open_meteo_cluster_weather(
         completed_weather = completed_weather.loc[~completed_weather.index.duplicated(keep="last")]
         completed_weather = completed_weather.loc[:, ~completed_weather.columns.duplicated()]
         completed_days = {pd.Timestamp(value).normalize() for value in completed_weather.index.normalize().unique()}
+        invalid_days, _, _ = _missing_single_run_days(
+            completed_weather,
+            start_date=start_date,
+            end_date=end_date,
+            target_tz=target_tz,
+            required_non_null_variables=required_non_null_variables,
+        )
+        completed_days.difference_update(pd.Timestamp(value).normalize() for value in invalid_days)
 
     for target_day, run in requests_to_make:
         if target_day is not None and target_day.normalize() in completed_days:
@@ -893,12 +1026,16 @@ def fetch_open_meteo_cluster_weather(
 
         day_frames_start = len(frames)
         day_unavailable = False
+        requested_run = run
         day_run = run
         day_forecast_days = single_run_forecast_days if run is not None else None
-        for start in range(0, len(points), batch_size):
+        day_fallback_reason: str | None = None
+        start = 0
+        while start < len(points):
             batch = points.iloc[start:start + batch_size]
+            batch_requested_run = day_run
             try:
-                items, day_run, day_forecast_days = _fetch_open_meteo_batch_with_run_fallback(
+                items, batch_run, batch_forecast_days, fallback_reason = _fetch_open_meteo_batch_with_run_fallback(
                     base_url=base_url,
                     latitude=batch["lat"].astype(float).tolist(),
                     longitude=batch["lon"].astype(float).tolist(),
@@ -917,7 +1054,9 @@ def fetch_open_meteo_cluster_weather(
                     fallback_previous_runs=fallback_previous_runs,
                     fallback_step_hours=fallback_step_hours,
                     fallback_max_lookback_hours=fallback_max_lookback_hours,
+                    required_non_null_variables=required_non_null_variables,
                 )
+                day_fallback_reason = day_fallback_reason or fallback_reason
             except OpenMeteoModelRunUnavailable as exc:
                 if not skip_unavailable_runs:
                     raise
@@ -926,6 +1065,17 @@ def fetch_open_meteo_cluster_weather(
                 del frames[day_frames_start:]
                 day_unavailable = True
                 break
+            if start > 0 and batch_run != batch_requested_run:
+                # A fallback selected by a later geographical batch must apply to
+                # the whole day. Restart so one cached day never mixes issue runs.
+                del frames[day_frames_start:]
+                day_run = batch_run
+                day_forecast_days = batch_forecast_days
+                day_fallback_reason = day_fallback_reason or fallback_reason
+                start = 0
+                continue
+            day_run = batch_run
+            day_forecast_days = batch_forecast_days
             if request_pause_seconds > 0:
                 time.sleep(request_pause_seconds)
 
@@ -959,6 +1109,7 @@ def fetch_open_meteo_cluster_weather(
                 }
                 available = [column for column in keep_columns if column in df_cluster.columns]
                 frames.append(df_cluster[available].rename(columns=keep_columns))
+            start += batch_size
 
         if day_unavailable:
             continue
@@ -972,6 +1123,14 @@ def fetch_open_meteo_cluster_weather(
                 completed_weather = day_weather
             output_file.parent.mkdir(parents=True, exist_ok=True)
             completed_weather.to_csv(output_file)
+            if requested_run is not None and day_run is not None:
+                _record_open_meteo_run_provenance(
+                    output_file,
+                    target_day=target_day,
+                    requested_run=requested_run,
+                    actual_run=day_run,
+                    reason=day_fallback_reason,
+                )
             completed_days.add(target_day.normalize())
             print(f"[OPEN-METEO] Cached single-run day: {target_day.date()}")
 
@@ -1048,6 +1207,7 @@ def fetch_open_meteo_point_weather(
     fallback_previous_runs: bool = False,
     fallback_step_hours: int = 2,
     fallback_max_lookback_hours: int = 24,
+    required_non_null_variables: list[str] | None = None,
 ) -> pd.DataFrame:
     """Fetch Open-Meteo weather for fixed representative points and keep point-level columns."""
     if hourly_variables is None:
@@ -1100,6 +1260,14 @@ def fetch_open_meteo_point_weather(
         completed_weather = completed_weather.loc[~completed_weather.index.duplicated(keep="last")]
         completed_weather = completed_weather.loc[:, ~completed_weather.columns.duplicated()]
         completed_days = {pd.Timestamp(value).normalize() for value in completed_weather.index.normalize().unique()}
+        invalid_days, _, _ = _missing_single_run_days(
+            completed_weather,
+            start_date=start_date,
+            end_date=end_date,
+            target_tz=target_tz,
+            required_non_null_variables=required_non_null_variables,
+        )
+        completed_days.difference_update(pd.Timestamp(value).normalize() for value in invalid_days)
 
     for target_day, run in requests_to_make:
         if target_day is not None and target_day.normalize() in completed_days:
@@ -1108,12 +1276,16 @@ def fetch_open_meteo_point_weather(
 
         day_frames_start = len(frames)
         day_unavailable = False
+        requested_run = run
         day_run = run
         day_forecast_days = single_run_forecast_days if run is not None else None
-        for start in range(0, len(points), batch_size):
+        day_fallback_reason: str | None = None
+        start = 0
+        while start < len(points):
             batch = points.iloc[start:start + batch_size]
+            batch_requested_run = day_run
             try:
-                items, day_run, day_forecast_days = _fetch_open_meteo_batch_with_run_fallback(
+                items, batch_run, batch_forecast_days, fallback_reason = _fetch_open_meteo_batch_with_run_fallback(
                     base_url=base_url,
                     latitude=batch["lat"].astype(float).tolist(),
                     longitude=batch["lon"].astype(float).tolist(),
@@ -1132,7 +1304,9 @@ def fetch_open_meteo_point_weather(
                     fallback_previous_runs=fallback_previous_runs,
                     fallback_step_hours=fallback_step_hours,
                     fallback_max_lookback_hours=fallback_max_lookback_hours,
+                    required_non_null_variables=required_non_null_variables,
                 )
+                day_fallback_reason = day_fallback_reason or fallback_reason
             except OpenMeteoModelRunUnavailable as exc:
                 if not skip_unavailable_runs:
                     raise
@@ -1141,6 +1315,16 @@ def fetch_open_meteo_point_weather(
                 del frames[day_frames_start:]
                 day_unavailable = True
                 break
+            if start > 0 and batch_run != batch_requested_run:
+                # Keep every representative point for a target day on one issue run.
+                del frames[day_frames_start:]
+                day_run = batch_run
+                day_forecast_days = batch_forecast_days
+                day_fallback_reason = day_fallback_reason or fallback_reason
+                start = 0
+                continue
+            day_run = batch_run
+            day_forecast_days = batch_forecast_days
             if request_pause_seconds > 0:
                 time.sleep(request_pause_seconds)
 
@@ -1170,6 +1354,7 @@ def fetch_open_meteo_point_weather(
                 keep_columns = _open_meteo_point_keep_columns(point_id)
                 available = [column for column in keep_columns if column in df_point.columns]
                 frames.append(df_point[available].rename(columns=keep_columns))
+            start += batch_size
 
         if day_unavailable:
             continue
@@ -1185,6 +1370,14 @@ def fetch_open_meteo_point_weather(
                 completed_weather = day_weather
             output_file.parent.mkdir(parents=True, exist_ok=True)
             completed_weather.to_csv(output_file)
+            if requested_run is not None and day_run is not None:
+                _record_open_meteo_run_provenance(
+                    output_file,
+                    target_day=target_day,
+                    requested_run=requested_run,
+                    actual_run=day_run,
+                    reason=day_fallback_reason,
+                )
             completed_days.add(target_day.normalize())
             print(f"[OPEN-METEO] Cached single-run point-weather day: {target_day.date()}")
 
@@ -1245,6 +1438,7 @@ def load_open_meteo_points(
     fallback_previous_runs: bool = False,
     fallback_step_hours: int = 2,
     fallback_max_lookback_hours: int = 24,
+    required_non_null_variables: list[str] | None = None,
 ) -> pd.DataFrame:
     """Load cached point-level Open-Meteo weather or fetch missing single-run days."""
     if cache_file.exists() and not force_download:
@@ -1257,6 +1451,7 @@ def load_open_meteo_points(
             start_date=start_date,
             end_date=end_date,
             target_tz=target_tz,
+            required_non_null_variables=required_non_null_variables,
         )
         if missing_days.empty:
             return _slice_open_meteo_days(
@@ -1297,6 +1492,7 @@ def load_open_meteo_points(
                 fallback_previous_runs=fallback_previous_runs,
                 fallback_step_hours=fallback_step_hours,
                 fallback_max_lookback_hours=fallback_max_lookback_hours,
+                required_non_null_variables=required_non_null_variables,
             )
         return _slice_open_meteo_days(
             _read_open_meteo_cache(cache_file, target_tz),
@@ -1328,6 +1524,7 @@ def load_open_meteo_points(
         fallback_previous_runs=fallback_previous_runs,
         fallback_step_hours=fallback_step_hours,
         fallback_max_lookback_hours=fallback_max_lookback_hours,
+        required_non_null_variables=required_non_null_variables,
     )
 
 
@@ -1359,6 +1556,7 @@ def load_open_meteo(
     fallback_previous_runs: bool = False,
     fallback_step_hours: int = 2,
     fallback_max_lookback_hours: int = 24,
+    required_non_null_variables: list[str] | None = None,
 ) -> pd.DataFrame:
     """Load cached Open-Meteo cluster weather or fetch it from the API."""
     if cache_file.exists() and not force_download:
@@ -1371,6 +1569,7 @@ def load_open_meteo(
             start_date=start_date,
             end_date=end_date,
             target_tz=target_tz,
+            required_non_null_variables=required_non_null_variables,
         )
         if missing_days.empty:
             return _slice_open_meteo_days(
@@ -1413,6 +1612,7 @@ def load_open_meteo(
                 fallback_previous_runs=fallback_previous_runs,
                 fallback_step_hours=fallback_step_hours,
                 fallback_max_lookback_hours=fallback_max_lookback_hours,
+                required_non_null_variables=required_non_null_variables,
             )
         return _slice_open_meteo_days(
             _read_open_meteo_cache(cache_file, target_tz),
@@ -1446,4 +1646,5 @@ def load_open_meteo(
         fallback_previous_runs=fallback_previous_runs,
         fallback_step_hours=fallback_step_hours,
         fallback_max_lookback_hours=fallback_max_lookback_hours,
+        required_non_null_variables=required_non_null_variables,
     )

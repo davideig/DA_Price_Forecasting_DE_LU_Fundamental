@@ -16,6 +16,7 @@ from ..pipelines.common import load_timestamp_csv, save_timestamp_csv
 from .dwd_icon_daily_update import run_dwd_icon_daily_update
 from .energy_arena_daily import run_point_base_forecasts, tomorrow_in_tz
 from .energy_arena_price_cutoff_daily import CUTOFF_SPECS
+from .energy_arena_price_cutoff_daily import _price_payload_with_component_histories
 from .energy_arena_price_final_daily import (
     DEFAULT_LOAD_INPUT_CONFIG,
     DEFAULT_PRICE_CONFIG,
@@ -38,6 +39,7 @@ from .energy_arena_renewable_daily import (
     build_renewable_feature_payload,
 )
 from .operational_archive import DEFAULT_ARCHIVE_ROOT, MANIFEST_NAME, restore_archive
+from .operational_component_history import store_component_forecast_history
 from .run import run_from_config
 
 
@@ -77,117 +79,71 @@ FINAL_WIND_CONFIG = Path(
 
 DWD_CONFIGS = {
     "00": {
-        "price": Path("configs/preprocessing/weather_aggregation/dwd_icon_c2_run00_daily_update.yaml"),
-        "solar": Path(
-            "configs/preprocessing/weather_aggregation/"
-            "dwd_icon_mastr_solar_tso_c25_run00_daily_update.yaml"
-        ),
-        "wind": Path(
-            "configs/preprocessing/weather_aggregation/"
-            "dwd_icon_mastr_wind_c100_run00_daily_update.yaml"
-        ),
+        "price": Path("configs/deployment/cutoff_preprocessing/dwd_icon_c2_run00.yaml"),
+        "solar": Path("configs/deployment/cutoff_preprocessing/dwd_solar_run00.yaml"),
+        "wind": Path("configs/deployment/cutoff_preprocessing/dwd_wind_run00.yaml"),
+    },
+    "03": {
+        "price": Path("configs/deployment/cutoff_preprocessing/dwd_icon_c2_run03.yaml"),
+        "solar": Path("configs/deployment/cutoff_preprocessing/dwd_solar_run03.yaml"),
+        "wind": Path("configs/deployment/cutoff_preprocessing/dwd_wind_run03.yaml"),
     },
     "06": {
-        "price": Path("configs/preprocessing/weather_aggregation/dwd_icon_c2_run06_daily_update.yaml"),
-        "solar": Path(
-            "configs/preprocessing/weather_aggregation/"
-            "dwd_icon_mastr_solar_tso_c25_run06_daily_update.yaml"
-        ),
-        "wind": Path(
-            "configs/preprocessing/weather_aggregation/"
-            "dwd_icon_mastr_wind_c100_run06_daily_update.yaml"
-        ),
+        "price": Path("configs/deployment/cutoff_preprocessing/dwd_icon_c2_run06.yaml"),
+        "solar": Path("configs/deployment/cutoff_preprocessing/dwd_solar_run06.yaml"),
+        "wind": Path("configs/deployment/cutoff_preprocessing/dwd_wind_run06.yaml"),
     },
 }
 
-RUN00_WIND_FEATURE_CONFIGS = (
-    Path(
-        "configs/rq3_cutoff_grid/"
-        "preprocess_regional_renewable_features_dwd_icon_mastr_wind_c100_run00_paper_febjul.yaml"
+DEPLOYMENT_FEATURE_CONFIGS = {
+    run: {
+        "wind": (
+            Path(f"configs/deployment/cutoff_preprocessing/wind_dwd_features_run{run}.yaml"),
+            Path(f"configs/deployment/cutoff_preprocessing/wind_open_meteo_features_run{run}.yaml"),
+        ),
+        "solar": (
+            Path(f"configs/deployment/cutoff_preprocessing/solar_dwd_features_run{run}.yaml"),
+            Path(f"configs/deployment/cutoff_preprocessing/solar_open_meteo_features_run{run}.yaml"),
+        ),
+    }
+    for run in ("00", "03", "06")
+}
+
+FINAL_FEATURE_CONFIGS = {
+    "wind": (
+        Path(
+            "configs/preprocessing/renewable_features/"
+            "regional_renewable_features_dwd_icon_mastr_wind_c100_run06_paper_febjul.yaml"
+        ),
+        *(
+            Path(
+                "configs/preprocessing/renewable_features/"
+                f"regional_renewable_features_open_meteo_{provider}_single_run06_"
+                "wind_hub_p80_provider_common_paper_febjul.yaml"
+            )
+            for provider in (
+                "icon_d2",
+                "ecmwf_ifs025",
+                "arpege_europe",
+                "ukmo_seamless",
+                "gfs",
+                "dmi_harmonie_arome_europe",
+                "icon_eu",
+            )
+        ),
     ),
-    Path(
-        "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_"
-        "open_meteo_icon_d2_single_run00_wind_hub_p80_provider_common.yaml"
+    "solar": (
+        Path(
+            "configs/preprocessing/renewable_features/"
+            "regional_renewable_features_dwd_icon_mastr_solar_tso_c25_run06_solar_spread.yaml"
+        ),
+        Path(
+            "configs/preprocessing/renewable_features/"
+            "regional_renewable_features_open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_"
+            "cloud_cover.yaml"
+        ),
     ),
-    Path(
-        "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_"
-        "open_meteo_ecmwf_ifs025_single_run00_wind_hub_p80_provider_common.yaml"
-    ),
-    Path(
-        "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_"
-        "open_meteo_arpege_europe_single_run00_wind_hub_p80_provider_common.yaml"
-    ),
-    Path(
-        "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_"
-        "open_meteo_ukmo_seamless_single_run00_wind_hub_p80_provider_common.yaml"
-    ),
-    Path(
-        "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_"
-        "open_meteo_gfs_single_run00_wind_hub_p80_provider_common.yaml"
-    ),
-    Path(
-        "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_"
-        "open_meteo_dmi_harmonie_arome_europe_single_run00_wind_hub_p80_provider_common.yaml"
-    ),
-    Path(
-        "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_"
-        "open_meteo_icon_eu_single_run00_wind_hub_p80_provider_common.yaml"
-    ),
-)
-RUN00_SOLAR_FEATURE_CONFIGS = (
-    Path(
-        "configs/rq3_cutoff_grid/"
-        "preprocess_regional_renewable_features_dwd_icon_mastr_solar_tso_c25_run00_solar_spread.yaml"
-    ),
-    Path(
-        "configs/rq3_cutoff_grid/preprocess_regional_renewable_features_"
-        "open_meteo_icon_d2_single_run00_mastr_solar_tso_c25_cloud_cover.yaml"
-    ),
-)
-RUN06_WIND_FEATURE_CONFIGS = (
-    Path(
-        "configs/preprocessing/renewable_features/"
-        "regional_renewable_features_dwd_icon_mastr_wind_c100_run06_paper_febjul.yaml"
-    ),
-    Path(
-        "configs/preprocessing/renewable_features/regional_renewable_features_"
-        "open_meteo_icon_d2_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-    ),
-    Path(
-        "configs/preprocessing/renewable_features/regional_renewable_features_"
-        "open_meteo_ecmwf_ifs025_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-    ),
-    Path(
-        "configs/preprocessing/renewable_features/regional_renewable_features_"
-        "open_meteo_arpege_europe_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-    ),
-    Path(
-        "configs/preprocessing/renewable_features/regional_renewable_features_"
-        "open_meteo_ukmo_seamless_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-    ),
-    Path(
-        "configs/preprocessing/renewable_features/regional_renewable_features_"
-        "open_meteo_gfs_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-    ),
-    Path(
-        "configs/preprocessing/renewable_features/regional_renewable_features_"
-        "open_meteo_dmi_harmonie_arome_europe_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-    ),
-    Path(
-        "configs/preprocessing/renewable_features/regional_renewable_features_"
-        "open_meteo_icon_eu_single_run06_wind_hub_p80_provider_common_paper_febjul.yaml"
-    ),
-)
-RUN06_SOLAR_FEATURE_CONFIGS = (
-    Path(
-        "configs/preprocessing/renewable_features/"
-        "regional_renewable_features_dwd_icon_mastr_solar_tso_c25_run06_solar_spread.yaml"
-    ),
-    Path(
-        "configs/preprocessing/renewable_features/regional_renewable_features_"
-        "open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover.yaml"
-    ),
-)
+}
 
 
 @dataclass(frozen=True)
@@ -241,10 +197,9 @@ def get_operational_profile(cutoff: str) -> OperationalProfile:
         )
 
     spec = CUTOFF_SPECS[cutoff]
-    weather_run = "00" if cutoff in {"0700", "0800", "0900"} else "06"
     return OperationalProfile(
         name=cutoff,
-        weather_run=weather_run,
+        weather_run=spec.weather_run,
         price_config=spec.price_config,
         load_config=spec.load_config,
         solar_config=spec.solar_config,
@@ -283,10 +238,10 @@ def _ensure_archive_restored(repo_root: Path) -> None:
         raise RuntimeError(f"Operational archive restore failed with status {status}.")
 
 
-def _feature_configs(weather_run: str, model: str) -> tuple[Path, ...]:
-    if weather_run == "00":
-        return RUN00_SOLAR_FEATURE_CONFIGS if model == "solar" else RUN00_WIND_FEATURE_CONFIGS
-    return RUN06_SOLAR_FEATURE_CONFIGS if model == "solar" else RUN06_WIND_FEATURE_CONFIGS
+def _feature_configs(profile: OperationalProfile, model: str) -> tuple[Path, ...]:
+    if profile.name == "final":
+        return FINAL_FEATURE_CONFIGS[model]
+    return DEPLOYMENT_FEATURE_CONFIGS[profile.weather_run][model]
 
 
 def _refresh_feature_configs(
@@ -333,7 +288,7 @@ def _refresh_data(
     for model in ("wind", "solar"):
         if model in renewable_models:
             _refresh_feature_configs(
-                _feature_configs(profile.weather_run, model),
+                _feature_configs(profile, model),
                 repo_root=repo_root,
                 forecast_date=forecast_date,
             )
@@ -371,9 +326,10 @@ def _run_price_config(
     raw_price_payload = _load_payload(profile.price_config, repo_root)
     first_stage_start = forecast_date - timedelta(days=_price_train_days(raw_price_payload))
 
+    first_stage_paths: dict[str, Path] = {}
     for model, config_path in profile.price_input_configs().items():
         print(f"\n--- Refreshing {model} input for the {profile.name} price model ---")
-        _run_first_stage_config(
+        first_stage_paths[model] = _run_first_stage_config(
             config_path=config_path,
             repo_root=repo_root,
             forecast_date=forecast_date,
@@ -382,8 +338,24 @@ def _run_price_config(
         )
 
     export_dir = resolve_path(work_root, repo_root) / profile.name / forecast_date.isoformat() / "price"
+    if profile.name == "final":
+        price_input_payload = raw_price_payload
+    else:
+        histories = {
+            model: store_component_forecast_history(
+                repo_root=repo_root,
+                cutoff=profile.name,
+                component=model,
+                forecast_path=source_path,
+                forecast_date=forecast_date,
+                target_tz=target_tz,
+            ).path
+            for model, source_path in first_stage_paths.items()
+        }
+        price_input_payload = _price_payload_with_component_histories(raw_price_payload, histories)
+
     price_payload = _mutate_price_payload(
-        raw_price_payload,
+        price_input_payload,
         forecast_date=forecast_date,
         point_history_days=0,
         export_dir=export_dir,

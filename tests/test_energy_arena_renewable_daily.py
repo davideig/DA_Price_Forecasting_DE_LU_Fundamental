@@ -247,6 +247,9 @@ def test_incremental_feature_refresh_uses_cached_donor_day_on_failure(monkeypatc
     updated = load_timestamp_csv(output_file, "Europe/Berlin")
     target_values = updated.loc[daily._local_day_index(target_day, "Europe/Berlin"), "feature"].to_numpy()
     assert np.array_equal(target_values, np.arange(len(donor_index), dtype=float))
+    provenance = json.loads(daily.feature_provenance_path(output_file).read_text(encoding="utf-8"))
+    assert provenance[target_day.isoformat()]["fallback_used"] is True
+    assert provenance[target_day.isoformat()]["donor_day"] == donor_day.isoformat()
 
 
 def test_dated_renewable_work_paths_are_per_forecast_day(tmp_path: Path) -> None:
@@ -305,6 +308,7 @@ def test_update_actual_generation_cache_refreshes_overlap(monkeypatch, tmp_path:
         export_dir=tmp_path / "export",
         target_availability_lag_days=1,
         target_availability_cutoff_hour=10,
+        actual_generation_refresh_lookback_days=4,
         test_start=date(2026, 5, 23),
         test_end=date(2026, 5, 23),
     )

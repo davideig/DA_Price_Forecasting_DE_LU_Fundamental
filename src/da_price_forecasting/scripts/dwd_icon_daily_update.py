@@ -72,6 +72,9 @@ def run_dwd_icon_daily_update(
         request_pause_seconds=config.dwd_icon_request_pause_seconds,
         catch_up_missing_days=catch_up,
         force=force or config.dwd_icon_force_update,
+        fallback_previous_runs=config.dwd_icon_fallback_previous_runs,
+        fallback_step_hours=config.dwd_icon_fallback_step_hours,
+        fallback_max_lookback_hours=config.dwd_icon_fallback_max_lookback_hours,
     )
     if processed_days:
         print("[DWD] Updated issue days: " + ", ".join(day.isoformat() for day in processed_days))

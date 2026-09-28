@@ -59,6 +59,7 @@ class LoadForecastModelConfig(RepoConfigModel):
     open_meteo_fallback_previous_runs: bool = False
     open_meteo_fallback_step_hours: int = Field(default=2, gt=0)
     open_meteo_fallback_max_lookback_hours: int = Field(default=24, ge=0)
+    open_meteo_required_non_null_variables: list[str] = Field(default_factory=list)
     open_meteo_point_selection: Literal["centroid", "grid_mean"] = "centroid"
     open_meteo_max_points_per_cluster: int | None = None
     extra_open_meteo_weather_files: list[Path] = Field(default_factory=list)
@@ -132,7 +133,10 @@ class LoadForecastModelConfig(RepoConfigModel):
     entsoe_error_rolling_min_observations: int = 24
     target_availability_lag_days: int = 1
     target_availability_cutoff_hour: int | None = None
+    require_weather_for_training: bool = False
+    weather_presence_column: str = "weather_weighted_t2m_C"
     target_availability_cutoff_minute: int = 0
+    actual_load_refresh_lookback_days: int = 0
 
     start_folder_date: date = date(2025, 8, 1)
     required_run: str = "09"
@@ -166,6 +170,9 @@ class LoadForecastModelConfig(RepoConfigModel):
     dwd_icon_request_pause_seconds: float = 0.0
     dwd_icon_force_update: bool = False
     dwd_icon_catch_up_missing_days: bool = True
+    dwd_icon_fallback_previous_runs: bool = False
+    dwd_icon_fallback_step_hours: int = Field(default=3, gt=0)
+    dwd_icon_fallback_max_lookback_hours: int = Field(default=3, ge=0)
     dwd_icon_aggregation_shapefile_path: Path = Path("data/shapefile/ne_10m_admin_0_countries.shp")
     dwd_icon_aggregation_n_clusters: int | None = None
     dwd_icon_aggregation_buffer_km: int = 50
@@ -443,6 +450,8 @@ class LoadForecastModelConfig(RepoConfigModel):
             raise ValueError("target_availability_cutoff_hour must be between 0 and 23.")
         if self.target_availability_cutoff_minute not in {0, 15, 30, 45}:
             raise ValueError("target_availability_cutoff_minute must be one of 0, 15, 30, or 45.")
+        if self.actual_load_refresh_lookback_days < 0:
+            raise ValueError("actual_load_refresh_lookback_days must be non-negative.")
         if self.dwd_icon_download_timeout_seconds < 1:
             raise ValueError("dwd_icon_download_timeout_seconds must be positive.")
         if self.dwd_icon_request_pause_seconds < 0:

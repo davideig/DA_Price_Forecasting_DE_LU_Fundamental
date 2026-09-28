@@ -5,6 +5,7 @@ config:
   test_start: "2026-02-01T00:00:00+01:00"
   test_end: "2026-07-31T23:45:00+02:00"
   skip_dates:
+    - "2026-02-07"
     - "2026-06-19"
   frequency: 15min
   n_periods: 96

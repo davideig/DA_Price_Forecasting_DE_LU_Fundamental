@@ -25,6 +25,7 @@ from .energy_arena_price_final_daily import (
     _run_first_stage_payload,
     _write_yaml,
 )
+from .operational_component_history import model_feature_fallback_used, store_component_forecast_history
 from .run import run_from_config
 
 
@@ -32,11 +33,21 @@ DEFAULT_WORK_ROOT = Path("results/energy_arena_work/price_cutoff_grid")
 DEFAULT_LOAD_CHALLENGE_ID_ENV = "ENERGY_ARENA_LOAD_CHALLENGE_ID"
 DEFAULT_SOLAR_CHALLENGE_ID_ENV = "ENERGY_ARENA_SOLAR_CHALLENGE_ID"
 DEFAULT_WIND_CHALLENGE_ID_ENV = "ENERGY_ARENA_WIND_CHALLENGE_ID"
+DEFAULT_RESERVE_CONFIG = Path("configs/deployment/cutoff_preprocessing/reserve_market_operational.yaml")
+RESERVE_PRODUCTS_BY_CUTOFF: dict[str, tuple[str, ...]] = {
+    "0700": (),
+    "0800": (),
+    "0900": ("FCR",),
+    "1000": ("FCR", "aFRR"),
+    "1100": ("FCR", "aFRR", "mFRR"),
+    "1200": ("FCR", "aFRR", "mFRR"),
+}
 
 
 @dataclass(frozen=True)
 class CutoffSpec:
     label: str
+    weather_run: str
     price_config: Path
     load_config: Path
     solar_config: Path
@@ -48,10 +59,11 @@ class CutoffSpec:
 CUTOFF_SPECS: dict[str, CutoffSpec] = {
     "0700": CutoffSpec(
         label="0700",
-        price_config=Path("configs/rq3_cutoff_grid/price_0700_noexaa_direct_load_renewables_weather_c2_run00_d70.yaml"),
-        load_config=Path("configs/rq3_cutoff_grid/load_0700_direct_open_meteo_icon_d2_run00_morning0615_tw224_f180.yaml"),
-        solar_config=Path("configs/rq3_cutoff_grid/solar_0700_dwd_mastr_tso_c25_run00_cloud_geometry_physics_morning0615_d90.yaml"),
-        wind_config=Path("configs/rq3_cutoff_grid/wind_0700_dwd_mastr_c100_multi_provider7_run00_p80_morning0615_d180.yaml"),
+        weather_run="00",
+        price_config=Path("configs/deployment/cutoffs/price_0700_run00.yaml"),
+        load_config=Path("configs/deployment/cutoffs/load_0700_run00.yaml"),
+        solar_config=Path("configs/deployment/cutoffs/solar_0700_run00.yaml"),
+        wind_config=Path("configs/deployment/cutoffs/wind_0700_run00.yaml"),
         approach_name="price_cutoff_0700_noexaa_direct_pgen_lightgbm_c2_d70",
         approach_description=(
             "Operational 07:00 cutoff adaptation with own direct load, solar, and wind forecasts "
@@ -61,56 +73,70 @@ CUTOFF_SPECS: dict[str, CutoffSpec] = {
     ),
     "0800": CutoffSpec(
         label="0800",
-        price_config=Path("configs/rq3_cutoff_grid/price_0800_noexaa_direct_load_renewables_weather_c2_run00_d70.yaml"),
-        load_config=Path("configs/rq3_cutoff_grid/load_0800_direct_open_meteo_icon_d2_run00_morning0715_tw224_f180.yaml"),
-        solar_config=Path("configs/rq3_cutoff_grid/solar_0800_dwd_mastr_tso_c25_run00_cloud_geometry_physics_morning0715_d90.yaml"),
-        wind_config=Path("configs/rq3_cutoff_grid/wind_0800_dwd_mastr_c100_multi_provider7_run00_p80_morning0715_d180.yaml"),
+        weather_run="03",
+        price_config=Path("configs/deployment/cutoffs/price_0800_run03.yaml"),
+        load_config=Path("configs/deployment/cutoffs/load_0800_run03.yaml"),
+        solar_config=Path("configs/deployment/cutoffs/solar_0800_run03.yaml"),
+        wind_config=Path("configs/deployment/cutoffs/wind_0800_run03.yaml"),
         approach_name="price_cutoff_0800_noexaa_direct_pgen_lightgbm_c2_d70",
         approach_description=(
             "Operational 08:00 cutoff adaptation with own direct load, solar, and wind forecasts "
-            "using weather available from the 00 UTC run. This is distinct from the paper's "
+            "using weather from the fixed 03 UTC run. This is distinct from the paper's "
             "retrospective 06 UTC early-cutoff backtest."
         ),
     ),
     "0900": CutoffSpec(
         label="0900",
-        price_config=Path("configs/rq3_cutoff_grid/price_0900_noexaa_direct_load_renewables_weather_c2_run00_d70.yaml"),
-        load_config=Path("configs/rq3_cutoff_grid/load_0900_direct_open_meteo_icon_d2_run00_morning0815_tw224_f180.yaml"),
-        solar_config=Path("configs/rq3_cutoff_grid/solar_0900_dwd_mastr_tso_c25_run00_cloud_geometry_physics_morning0815_d90.yaml"),
-        wind_config=Path("configs/rq3_cutoff_grid/wind_0900_dwd_mastr_c100_multi_provider7_run00_p80_morning0815_d180.yaml"),
-        approach_name="price_cutoff_0900_noexaa_direct_pgen_lightgbm_c2_d70",
+        weather_run="03",
+        price_config=Path("configs/deployment/cutoffs/price_0900_run03.yaml"),
+        load_config=Path("configs/deployment/cutoffs/load_0900_run03.yaml"),
+        solar_config=Path("configs/deployment/cutoffs/solar_0900_run03.yaml"),
+        wind_config=Path("configs/deployment/cutoffs/wind_0900_run03.yaml"),
+        approach_name="price_cutoff_0900_noexaa_direct_pgen_reserve_fcr_lightgbm_c2_d70",
         approach_description=(
             "Operational 09:00 cutoff adaptation with own direct load, solar, and wind forecasts "
-            "using weather available from the 00 UTC run. This is distinct from the paper's "
+            "using weather from the fixed 03 UTC run and published FCR results. This is distinct from the paper's "
             "retrospective 06 UTC early-cutoff backtest."
         ),
     ),
     "1000": CutoffSpec(
         label="1000",
-        price_config=Path("configs/rq3_cutoff_grid/price_1000_noexaa_direct_load_renewables_weather_c2_run06_d70.yaml"),
-        load_config=Path("configs/rq3_cutoff_grid/load_1000_direct_open_meteo_icon_d2_run06_morning0915_tw224_f180.yaml"),
-        solar_config=Path("configs/rq3_cutoff_grid/solar_1000_dwd_mastr_tso_c25_run06_cloud_geometry_physics_morning0915_d90.yaml"),
-        wind_config=Path("configs/rq3_cutoff_grid/wind_1000_dwd_mastr_c100_multi_provider7_run06_p80_morning0915_d180.yaml"),
-        approach_name="price_cutoff_1000_noexaa_direct_pgen_lightgbm_c2_d70",
-        approach_description="RQ3 10:00 cutoff price model with own direct load, solar, and wind forecasts.",
+        weather_run="06",
+        price_config=Path("configs/deployment/cutoffs/price_1000_run06.yaml"),
+        load_config=Path("configs/deployment/cutoffs/load_1000_run06.yaml"),
+        solar_config=Path("configs/deployment/cutoffs/solar_1000_run06.yaml"),
+        wind_config=Path("configs/deployment/cutoffs/wind_1000_run06.yaml"),
+        approach_name="price_cutoff_1000_noexaa_direct_pgen_reserve_fcr_afrr_lightgbm_c2_d70",
+        approach_description=(
+            "RQ3 10:00 cutoff price model with own direct load, solar, and wind forecasts "
+            "plus published FCR and aFRR results."
+        ),
     ),
     "1100": CutoffSpec(
         label="1100",
-        price_config=Path("configs/rq3_cutoff_grid/price_1100_noexaa_residual_load_renewables_weather_c2_run06_d70.yaml"),
-        load_config=Path("configs/rq3_cutoff_grid/load_1100_residual_open_meteo_icon_d2_run06_morning1015_tw224_f180.yaml"),
-        solar_config=Path("configs/rq3_cutoff_grid/solar_1100_dwd_mastr_tso_c25_run06_cloud_geometry_physics_morning1015_d90.yaml"),
-        wind_config=Path("configs/rq3_cutoff_grid/wind_1100_dwd_mastr_c100_multi_provider7_run06_p80_morning1015_d180.yaml"),
-        approach_name="price_cutoff_1100_noexaa_residual_pgen_lightgbm_c2_d70",
-        approach_description="RQ3 11:00 cutoff price model with own residual load, solar, and wind forecasts.",
+        weather_run="06",
+        price_config=Path("configs/deployment/cutoffs/price_1100_run06.yaml"),
+        load_config=Path("configs/deployment/cutoffs/load_1100_run06.yaml"),
+        solar_config=Path("configs/deployment/cutoffs/solar_1100_run06.yaml"),
+        wind_config=Path("configs/deployment/cutoffs/wind_1100_run06.yaml"),
+        approach_name="price_cutoff_1100_noexaa_residual_pgen_reserve_all_lightgbm_c2_d70",
+        approach_description=(
+            "RQ3 11:00 cutoff price model with own residual load, solar, and wind forecasts "
+            "plus published FCR, aFRR, and mFRR results."
+        ),
     ),
     "1200": CutoffSpec(
         label="1200",
-        price_config=Path("configs/rq3_cutoff_grid/price_1200_exaa_residual_load_renewables_weather_c2_run06_d70.yaml"),
-        load_config=Path("configs/rq3_cutoff_grid/load_1200_residual_open_meteo_icon_d2_run06_morning1115_tw224_f180.yaml"),
-        solar_config=Path("configs/rq3_cutoff_grid/solar_1200_dwd_mastr_tso_c25_run06_cloud_geometry_physics_morning1115_d90.yaml"),
-        wind_config=Path("configs/rq3_cutoff_grid/wind_1200_dwd_mastr_c100_multi_provider7_run06_p80_morning1115_d180.yaml"),
-        approach_name="price_cutoff_1200_exaa_residual_pgen_lightgbm_c2_d70",
-        approach_description="RQ3 12:00 cutoff price model with EXAA plus own residual load, solar, and wind forecasts.",
+        weather_run="06",
+        price_config=Path("configs/deployment/cutoffs/price_1200_run06.yaml"),
+        load_config=Path("configs/deployment/cutoffs/load_1200_run06.yaml"),
+        solar_config=Path("configs/deployment/cutoffs/solar_1200_run06.yaml"),
+        wind_config=Path("configs/deployment/cutoffs/wind_1200_run06.yaml"),
+        approach_name="price_cutoff_1200_exaa_residual_pgen_reserve_all_lightgbm_c2_d70",
+        approach_description=(
+            "RQ3 12:00 cutoff price model with EXAA, own residual load, solar and wind forecasts, "
+            "and published FCR, aFRR, and mFRR results."
+        ),
     ),
 }
 
@@ -148,6 +174,46 @@ def _price_payload_with_cutoff_export(price_payload: dict, paths: CutoffDailyPat
     config["experiment_name"] = f"{config.get('experiment_name', paths.price_export_dir.name)}_{cutoff}_daily"
     updated["config"] = config
     return updated
+
+
+def _price_payload_with_component_histories(price_payload: dict, histories: dict[str, Path]) -> dict:
+    updated = copy.deepcopy(price_payload)
+    config = dict(updated["config"])
+    features = dict(config["features"])
+    features["load_forecast_file"] = str(histories["load"])
+    features["renewable_proxy_files"] = [str(histories["solar"]), str(histories["wind"])]
+    config["features"] = features
+    updated["config"] = config
+    return updated
+
+
+def _refresh_reserve_market_features(
+    *,
+    repo_root: Path,
+    cutoff: str,
+    forecast_date: date,
+    history_days: int = 0,
+) -> tuple[str, ...]:
+    products = RESERVE_PRODUCTS_BY_CUTOFF[cutoff]
+    if not products:
+        return products
+
+    payload = copy.deepcopy(_load_payload(DEFAULT_RESERVE_CONFIG, repo_root))
+    config = dict(payload["config"])
+    config.update(
+        {
+            "start_date": (forecast_date - timedelta(days=history_days)).isoformat(),
+            "end_date": forecast_date.isoformat(),
+            "product_types": list(products),
+        }
+    )
+    payload["config"] = config
+    print(
+        "\n--- Refreshing reserve-market features "
+        f"({', '.join(products)}) for {config['start_date']} -> {config['end_date']} ---"
+    )
+    run_from_config(validate_config_payload(payload, RunConfig, repo_root=repo_root))
+    return products
 
 
 def _forecast_file_from_payload(payload: dict, repo_root: Path) -> Path:
@@ -202,9 +268,8 @@ def _first_stage_submission_specs(
     solar_challenge_id: int,
     wind_challenge_id: int,
 ) -> dict[str, dict[str, str | int]]:
-    early_operational = cutoff in {"0700", "0800", "0900"}
-    scope = "Operational" if early_operational else "RQ3"
-    weather_note = " using the admissible 00 UTC weather run" if early_operational else ""
+    weather_run = CUTOFF_SPECS[cutoff].weather_run
+    weather_note = f" using the fixed {weather_run} UTC weather run"
     return {
         "load": {
             "challenge_id": load_challenge_id,
@@ -212,7 +277,7 @@ def _first_stage_submission_specs(
             "source_name": f"load_cutoff_{cutoff}",
             "approach_name": f"load_cutoff_{cutoff}_first_stage",
             "approach_description": (
-                f"{scope} {cutoff} cutoff own load forecast{weather_note}, used by the final price model."
+                f"Operational {cutoff} cutoff own load forecast{weather_note}, used by the price model."
             ),
         },
         "solar": {
@@ -221,7 +286,7 @@ def _first_stage_submission_specs(
             "source_name": f"solar_cutoff_{cutoff}",
             "approach_name": f"solar_cutoff_{cutoff}_first_stage",
             "approach_description": (
-                f"{scope} {cutoff} cutoff own solar generation forecast{weather_note}, used by the final price model."
+                f"Operational {cutoff} cutoff own solar generation forecast{weather_note}, used by the price model."
             ),
         },
         "wind": {
@@ -230,7 +295,7 @@ def _first_stage_submission_specs(
             "source_name": f"wind_onshore_cutoff_{cutoff}",
             "approach_name": f"wind_onshore_cutoff_{cutoff}_first_stage",
             "approach_description": (
-                f"{scope} {cutoff} cutoff own onshore wind forecast{weather_note}, used by the final price model."
+                f"Operational {cutoff} cutoff own onshore wind forecast{weather_note}, used by the price model."
             ),
         },
     }
@@ -280,7 +345,14 @@ def run_daily_price_cutoff_energy_arena(
     print(f"Price model: {spec.price_config}")
     print(f"First-stage cache window: {first_stage_start.isoformat()} -> {day.isoformat()}")
 
+    reserve_products = _refresh_reserve_market_features(
+        repo_root=repo_root,
+        cutoff=cutoff,
+        forecast_date=day,
+    )
+
     first_stage_payloads: dict[str, dict] = {}
+    first_stage_refresh_fallbacks: set[str] = set()
     if refresh_first_stage:
         for label, config_path in (
             ("load", spec.load_config),
@@ -305,6 +377,7 @@ def run_daily_price_cutoff_energy_arena(
                     f"forecast CSVs from the price config if available: {exc}",
                     flush=True,
                 )
+                first_stage_refresh_fallbacks.add(label)
     else:
         print(f"[cache] Reusing existing RQ3 {cutoff} first-stage load/solar/wind forecast CSVs.")
         for label, config_path in (
@@ -319,11 +392,30 @@ def run_daily_price_cutoff_energy_arena(
                 target_tz=target_tz,
             )
 
+    component_histories = {}
+    for label in ("load", "solar", "wind"):
+        feature_fallback_used = model_feature_fallback_used(first_stage_payloads[label], repo_root, day)
+        stored = store_component_forecast_history(
+            repo_root=repo_root,
+            cutoff=cutoff,
+            component=label,
+            forecast_path=_forecast_file_from_payload(first_stage_payloads[label], repo_root),
+            forecast_date=day,
+            target_tz=target_tz,
+            upstream_fallback_used=label in first_stage_refresh_fallbacks or feature_fallback_used,
+        )
+        component_histories[label] = stored
+        print(
+            f"[history] Stored {label} cutoff history -> {stored.path} "
+            f"(fallback_used={stored.fallback_used})",
+            flush=True,
+        )
+
     first_stage_submissions: dict[str, dict[str, int | str | bool]] = {}
     if submit_first_stage:
         print("\n--- Building Energy Arena RQ3 cutoff first-stage submissions ---")
         for label in ("load", "solar", "wind"):
-            forecast_path = _forecast_file_from_payload(first_stage_payloads[label], repo_root)
+            forecast_path = component_histories[label].path
             submission_spec = first_stage_submission_specs[label]
             payload = _build_first_stage_submission_payload(
                 forecast_path=forecast_path,
@@ -348,7 +440,10 @@ def run_daily_price_cutoff_energy_arena(
             }
 
     price_payload = _mutate_price_payload(
-        raw_price_payload,
+        _price_payload_with_component_histories(
+            raw_price_payload,
+            {label: stored.path for label, stored in component_histories.items()},
+        ),
         forecast_date=day,
         point_history_days=point_history_days,
         export_dir=paths.price_export_dir,
@@ -396,11 +491,21 @@ def run_daily_price_cutoff_energy_arena(
             {
                 "forecast_date": day.isoformat(),
                 "cutoff": cutoff,
+                "weather_run_utc": spec.weather_run,
                 "submit": submit,
                 "challenge_id": resolved_challenge_id,
                 "challenge_id_env": DEFAULT_CHALLENGE_ID_ENV,
                 "submit_first_stage": submit_first_stage,
                 "first_stage_submissions": first_stage_submissions,
+                "component_histories": {
+                    label: {
+                        "path": str(stored.path),
+                        "fallback_used": stored.fallback_used,
+                        "fallback_info": stored.fallback_info,
+                        "rerun_path": str(stored.rerun_path) if stored.rerun_path else None,
+                    }
+                    for label, stored in component_histories.items()
+                },
                 "price_config_path": str(spec.price_config),
                 "forecast_path": str(forecast_path),
                 "submission_config": str(paths.submission_config),
@@ -408,6 +513,7 @@ def run_daily_price_cutoff_energy_arena(
                 "fallback_to_cached_first_stage": fallback_to_cached_first_stage,
                 "first_stage_history_days": first_stage_days,
                 "point_history_days": point_history_days,
+                "reserve_products": list(reserve_products),
             },
             handle,
             indent=2,
@@ -526,6 +632,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Generated load/solar/wind forecast cache window. Defaults to price train days plus point history days.",
     )
     parser.add_argument("--point-history-days", type=int, default=0)
+    parser.add_argument(
+        "--reserve-only",
+        action="store_true",
+        help="Refresh reserve-market history for the selected cutoff and exit without running forecasts.",
+    )
+    parser.add_argument(
+        "--reserve-history-days",
+        type=int,
+        default=0,
+        help="Number of historical delivery days to include with --reserve-only.",
+    )
     parser.add_argument("--retry-until", type=_parse_retry_until, default=None)
     parser.add_argument("--retry-interval-minutes", type=float, default=10.0)
     return parser
@@ -533,6 +650,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    if args.reserve_only:
+        repo_root = find_repo_root()
+        day = args.forecast_date or tomorrow_in_tz(args.target_tz)
+        _refresh_reserve_market_features(
+            repo_root=repo_root,
+            cutoff=args.cutoff,
+            forecast_date=day,
+            history_days=args.reserve_history_days,
+        )
+        return
     run_daily_price_cutoff_energy_arena_with_retries(
         cutoff=args.cutoff,
         challenge_id=args.challenge_id,

@@ -11,11 +11,14 @@ from da_price_forecasting.scripts import forecast_next_day as module
 
 def test_operational_profiles_use_the_expected_weather_runs_and_configs() -> None:
     early = module.get_operational_profile("0700")
+    middle = module.get_operational_profile("0800")
     late = module.get_operational_profile("1100")
     final = module.get_operational_profile("final")
 
     assert early.weather_run == "00"
     assert "run00" in early.wind_config.name
+    assert middle.weather_run == "03"
+    assert "run03" in middle.wind_config.name
     assert late.weather_run == "06"
     assert "run06" in late.wind_config.name
     assert final.weather_run == "06"
@@ -33,6 +36,19 @@ def test_cutoff_price_uses_the_same_cutoff_specific_first_stage_configs() -> Non
         "solar": profile.solar_config,
         "wind": profile.wind_config,
     }
+
+
+def test_live_wind_refresh_is_icon_d2_only_but_final_profile_keeps_paper_inputs() -> None:
+    live = module._feature_configs(module.get_operational_profile("0800"), "wind")
+    final = module._feature_configs(module.get_operational_profile("final"), "wind")
+
+    assert len(live) == 2
+    assert all("run03" in str(path) for path in live)
+    live_open_meteo = module._load_payload(live[1], Path.cwd())["config"]
+    assert live_open_meteo["open_meteo_model"] == "icon_d2"
+    assert live_open_meteo["open_meteo_single_run_hour_utc"] == "03:00"
+    assert len(final) == 8
+    assert any("open_meteo_ecmwf_ifs025" in str(path) for path in final)
 
 
 def test_write_target_day_csv_extracts_only_requested_delivery_day(tmp_path: Path) -> None:
@@ -131,7 +147,7 @@ def test_price_command_refreshes_all_dependencies(monkeypatch, tmp_path: Path) -
 
     assert calls["required_models"] == {"load", "solar", "wind", "price"}
     assert calls["profile"].name == "0800"
-    assert calls["profile"].weather_run == "00"
+    assert calls["profile"].weather_run == "03"
 
 
 def test_submission_is_explicit_opt_in(monkeypatch, tmp_path: Path) -> None:

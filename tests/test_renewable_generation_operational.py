@@ -123,6 +123,37 @@ def test_renewable_proxy_supports_summary_ensemble_plus_raw_extra(tmp_path: Path
     assert np.allclose(proxy["eps_u10_ens_std_m_s"], [0.3, 0.4])
 
 
+def test_cross_run_proxy_fallback_is_limited_to_training_history(tmp_path: Path) -> None:
+    target_tz = "Europe/Berlin"
+    history = pd.date_range("2026-09-26T00:00:00+02:00", periods=96, freq="15min")
+    target = pd.date_range("2026-09-27T00:00:00+02:00", periods=96, freq="15min")
+    own_file = tmp_path / "run03.csv"
+    fallback_file = tmp_path / "run06.csv"
+    save_timestamp_csv(pd.DataFrame({"wind_proxy": 3.0}, index=history), own_file)
+    save_timestamp_csv(
+        pd.DataFrame({"wind_proxy": 6.0}, index=history.append(target)),
+        fallback_file,
+    )
+    config = RenewableGenerationModelConfig(
+        repo_root=tmp_path,
+        target_tz=target_tz,
+        renewable_proxy_file=own_file,
+        renewable_proxy_fallback_file=fallback_file,
+        renewable_proxy_fallback_history_only=True,
+        actual_generation_file=tmp_path / "actual.csv",
+        unavailability_file=tmp_path / "unavailable.csv",
+        icon_dir=tmp_path / "icon",
+        export_dir=tmp_path / "export",
+        test_start=date(2026, 9, 20),
+        test_end=date(2026, 9, 27),
+    )
+
+    proxy = _load_renewable_proxy(config)
+
+    assert proxy.loc[history, "wind_proxy"].eq(3.0).all()
+    assert not target.isin(proxy.index).any()
+
+
 def test_partial_actual_generation_features_use_previous_morning() -> None:
     target_tz = "Europe/Berlin"
     actual_index = pd.date_range("2026-04-20T00:00:00+02:00", "2026-04-30T23:45:00+02:00", freq="15min")

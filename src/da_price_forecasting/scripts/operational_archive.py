@@ -45,6 +45,7 @@ PROFILE_BASE_INCLUDE_PATHS = (
     "data/raw/renewable_capacity",
     "data/cache/entsoe",
     "data/processed/operational_quality",
+    "data/processed/component_forecast_history",
 )
 
 DEFAULT_EXCLUDE_NAMES = {
@@ -175,6 +176,16 @@ def _iter_source_files(
             missing.append(relative.as_posix())
             continue
         candidates = [source] if source.is_file() else sorted(path for path in source.rglob("*") if path.is_file())
+        with_provenance: list[Path] = []
+        for candidate in candidates:
+            with_provenance.append(candidate)
+            if candidate.suffix.lower() not in TABLE_SUFFIXES:
+                continue
+            for suffix in ("run_provenance.json", "operational_provenance.json"):
+                provenance = candidate.with_suffix(f"{candidate.suffix}.{suffix}")
+                if provenance.exists():
+                    with_provenance.append(provenance)
+        candidates = with_provenance
         for path in candidates:
             if _is_excluded(path):
                 continue

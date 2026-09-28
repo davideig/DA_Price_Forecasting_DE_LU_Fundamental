@@ -83,6 +83,17 @@ def _partial_load_refresh_day(config: LoadForecastModelConfig, fetch_end: pd.Tim
     return None
 
 
+def _weather_present_mask(dataset: pd.DataFrame, row_mask: np.ndarray, config: LoadForecastModelConfig) -> pd.Series:
+    """Return training rows backed by the configured weather history."""
+    index = dataset.index[row_mask]
+    if not config.require_weather_for_training:
+        return pd.Series(True, index=index)
+    column = config.weather_presence_column
+    if column not in dataset.columns:
+        raise ValueError(f"require_weather_for_training is set, but column {column!r} is missing.")
+    return dataset.loc[row_mask, column].notna()
+
+
 def _target_availability_cutoff(day: pd.Timestamp, config: LoadForecastModelConfig) -> pd.Timestamp:
     cutoff_day = day - pd.Timedelta(days=config.target_availability_lag_days)
     if config.target_availability_cutoff_hour is None:
@@ -290,6 +301,40 @@ def _load_or_fetch_actual_load(config: LoadForecastModelConfig | EntsoeLoadForec
             combined = _combine_timestamp_frames([cached, *fetched_repairs])
             _save_timestamp_csv(combined, config.actual_load_file)
             actual = _restrict_timestamp_window(combined, start, end, config.target_tz)
+
+    if isinstance(config, LoadForecastModelConfig) and config.actual_load_refresh_lookback_days > 0:
+        refresh_start = max(
+            start,
+            full_actual_end - pd.Timedelta(days=config.actual_load_refresh_lookback_days - 1),
+        )
+        try:
+            refreshed = fetch_actual_load(
+                start_day=refresh_start,
+                end_day=full_actual_end,
+                country_code=config.country_code_entsoe,
+                api_key_env=config.entsoe_api_key_env,
+                target_tz=config.target_tz,
+                chunk_days=config.chunk_days,
+                require_complete_days=True,
+            )
+        except Exception as exc:
+            warnings.warn(
+                f"Failed to refresh the trailing actual-load revision window "
+                f"{refresh_start.date()}..{full_actual_end.date()}; using available cache from "
+                f"{config.actual_load_file}: {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        else:
+            if not refreshed.empty:
+                cached = (
+                    _load_timestamp_csv(config.actual_load_file, config.target_tz)
+                    if config.actual_load_file.exists()
+                    else actual
+                )
+                combined = _combine_timestamp_frames([cached, refreshed])
+                _save_timestamp_csv(combined, config.actual_load_file)
+                actual = _restrict_timestamp_window(combined, start, end, config.target_tz)
 
     if isinstance(config, LoadForecastModelConfig):
         refresh_day = _partial_load_refresh_day(config, end)
@@ -1710,6 +1755,7 @@ def _build_load_open_meteo_weather_features(config: LoadForecastModelConfig) -> 
         fallback_previous_runs=config.open_meteo_fallback_previous_runs,
         fallback_step_hours=config.open_meteo_fallback_step_hours,
         fallback_max_lookback_hours=config.open_meteo_fallback_max_lookback_hours,
+        required_non_null_variables=config.open_meteo_required_non_null_variables,
     )
     features = _open_meteo_weather_to_load_features(weather, config)
 
@@ -2187,7 +2233,7 @@ def rolling_load_forecast(
             X_train_all = dataset.loc[train_mask, features]
             y_train_all = model_target.loc[train_mask]
             y_train_actual_all = dataset.loc[train_mask, "Load_Actual_MW"]
-            valid_train = y_train_all.notna()
+            valid_train = y_train_all.notna() & _weather_present_mask(dataset, train_mask, config)
             X_train = X_train_all.loc[valid_train]
             y_train = y_train_all.loc[valid_train]
             y_train_actual = y_train_actual_all.loc[valid_train]
@@ -2238,7 +2284,7 @@ def rolling_load_forecast(
                 X_train_all = dataset.loc[block_train_mask, features]
                 y_train_all = model_target.loc[block_train_mask]
                 y_train_actual_all = dataset.loc[block_train_mask, "Load_Actual_MW"]
-                valid_train = y_train_all.notna()
+                valid_train = y_train_all.notna() & _weather_present_mask(dataset, block_train_mask, config)
                 X_train = X_train_all.loc[valid_train]
                 y_train = y_train_all.loc[valid_train]
                 y_train_actual = y_train_actual_all.loc[valid_train]

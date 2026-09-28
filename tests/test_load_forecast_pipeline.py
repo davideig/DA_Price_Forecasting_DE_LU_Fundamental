@@ -51,6 +51,56 @@ def test_target_availability_cutoff_can_use_morning_cutoff(tmp_path: Path) -> No
     assert lf._target_availability_cutoff(day, config) == pd.Timestamp("2026-01-09T10:15:00+01:00")
 
 
+def test_weather_required_training_mask_excludes_rows_without_weather(tmp_path: Path) -> None:
+    index = pd.date_range("2026-01-01T00:00:00+01:00", periods=3, freq="15min")
+    dataset = pd.DataFrame(
+        {"weather_weighted_t2m_C": [1.0, np.nan, 2.0]},
+        index=index,
+    )
+    row_mask = np.array([True, True, False])
+
+    required = lf._weather_present_mask(
+        dataset,
+        row_mask,
+        _config(tmp_path, require_weather_for_training=True),
+    )
+    optional = lf._weather_present_mask(dataset, row_mask, _config(tmp_path))
+
+    assert required.tolist() == [True, False]
+    assert optional.tolist() == [True, True]
+
+
+def test_actual_load_refreshes_configured_revision_window(monkeypatch, tmp_path: Path) -> None:
+    actual_file = tmp_path / "actual_load.csv"
+    cached_index = pd.date_range("2026-05-01T00:00:00+02:00", periods=21 * 96, freq="15min")
+    cached = pd.DataFrame({"load_actual": 1.0}, index=cached_index)
+    cached.to_csv(actual_file)
+    calls = []
+
+    def fake_fetch_actual_load(**kwargs):
+        calls.append(kwargs)
+        refreshed_index = pd.date_range(kwargs["start_day"], kwargs["end_day"] + pd.Timedelta(days=1), freq="15min", inclusive="left")
+        return pd.DataFrame({"load_actual": 2.0}, index=refreshed_index)
+
+    monkeypatch.setattr(lf, "fetch_actual_load", fake_fetch_actual_load)
+    config = _config(
+        tmp_path,
+        actual_load_file=actual_file,
+        entsoe_start_date=date(2026, 5, 1),
+        entsoe_end_date=date(2026, 5, 21),
+        actual_load_refresh_lookback_days=14,
+        include_partial_load_features=False,
+    )
+
+    result = lf._load_or_fetch_actual_load(config)
+
+    assert len(calls) == 1
+    assert calls[0]["start_day"] == pd.Timestamp("2026-05-08", tz="Europe/Berlin")
+    assert calls[0]["end_day"] == pd.Timestamp("2026-05-21", tz="Europe/Berlin")
+    assert calls[0]["require_complete_days"] is True
+    assert result.loc[pd.Timestamp("2026-05-08T00:00:00+02:00"), "load_actual"] == 2.0
+
+
 def test_windowed_cache_uses_available_cache_when_refresh_fails(tmp_path: Path) -> None:
     cache_file = tmp_path / "actual_load.csv"
     cached_index = pd.date_range("2026-05-20T00:00:00+02:00", periods=96, freq="15min")

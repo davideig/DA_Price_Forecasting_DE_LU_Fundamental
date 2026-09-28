@@ -84,6 +84,9 @@ def _load_renewable_proxy(config: RenewableGenerationModelConfig) -> pd.DataFram
         if config.renewable_proxy_fallback_end_date is not None:
             fallback_end = _as_local_day(config.renewable_proxy_fallback_end_date, config.target_tz)
             fallback = fallback.loc[fallback.index < fallback_end + pd.Timedelta(days=1)]
+        if config.renewable_proxy_fallback_history_only:
+            forecast_day = _as_local_day(config.test_end, config.target_tz)
+            fallback = fallback.loc[fallback.index < forecast_day]
         proxy = proxy.combine_first(fallback).sort_index()
 
     extra_proxies = []

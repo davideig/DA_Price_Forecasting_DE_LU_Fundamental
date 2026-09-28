@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 import os
 import re
+import shutil
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urljoin
 
+import pandas as pd
 import requests
 
 from ..config import IconAggregationConfig
@@ -43,6 +46,67 @@ def processed_weather_folder(icon_dir: Path, issue_day: date, run_hour: str) -> 
 
 def processed_weather_folder_is_ready(path: Path, *, min_csv_files: int = 1) -> bool:
     return path.is_dir() and sum(1 for _ in path.glob("*.csv")) >= min_csv_files
+
+
+def _null_dwd_csv_files(path: Path) -> list[str]:
+    null_files: list[str] = []
+    for csv_path in sorted(path.glob("*.csv")):
+        try:
+            frame = pd.read_csv(csv_path, comment="#")
+        except (OSError, pd.errors.ParserError, pd.errors.EmptyDataError):
+            null_files.append(csv_path.name)
+            continue
+        values = (
+            frame.iloc[:, 1:].apply(pd.to_numeric, errors="coerce")
+            if frame.shape[1] > 1
+            else frame.iloc[:, 0:0]
+        )
+        if values.empty or not values.notna().any().any():
+            null_files.append(csv_path.name)
+    return null_files
+
+
+def processed_weather_folder_is_complete(path: Path, *, min_csv_files: int = 1) -> bool:
+    return processed_weather_folder_is_ready(path, min_csv_files=min_csv_files) and not _null_dwd_csv_files(path)
+
+
+def dwd_run_provenance_path(path: Path) -> Path:
+    return path / "operational_run_provenance.json"
+
+
+def _record_dwd_run_provenance(
+    path: Path,
+    *,
+    requested_issue_day: date,
+    requested_run: str,
+    actual_issue_day: date,
+    actual_run: str,
+    reason: str | None,
+) -> None:
+    payload = {
+        "requested_run_utc": f"{requested_issue_day.isoformat()}T{requested_run}:00",
+        "actual_run_utc": f"{actual_issue_day.isoformat()}T{actual_run}:00",
+        "fallback_used": (requested_issue_day, requested_run) != (actual_issue_day, actual_run),
+        "reason": reason,
+    }
+    provenance = dwd_run_provenance_path(path)
+    temporary = provenance.with_suffix(f"{provenance.suffix}.tmp")
+    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(temporary, provenance)
+
+
+def _previous_dwd_runs(
+    issue_day: date,
+    run_hour: str,
+    *,
+    step_hours: int,
+    max_lookback_hours: int,
+) -> list[tuple[date, str]]:
+    requested = datetime.combine(issue_day, datetime.min.time()).replace(hour=int(run_hour))
+    return [
+        ((requested - timedelta(hours=hours)).date(), f"{(requested - timedelta(hours=hours)).hour:02d}")
+        for hours in range(step_hours, max_lookback_hours + 1, step_hours)
+    ]
 
 
 def raw_weather_folder(raw_base_dir: Path, issue_day: date, run_hour: str) -> Path:
@@ -266,6 +330,9 @@ def ensure_dwd_icon_weather(
     request_pause_seconds: float = 0.0,
     catch_up_missing_days: bool = True,
     force: bool = False,
+    fallback_previous_runs: bool = False,
+    fallback_step_hours: int = 3,
+    fallback_max_lookback_hours: int = 3,
 ) -> list[date]:
     """Download and aggregate missing DWD ICON-D2 issue days for a forecast window."""
     weather_variables = variables or DEFAULT_DWD_ICON_VARIABLES
@@ -282,31 +349,32 @@ def ensure_dwd_icon_weather(
         force=force,
         min_csv_files=len(weather_variables),
     )
+    days_to_process = sorted(
+        set(days_to_process)
+        | {
+            issue_day
+            for issue_day in issue_days
+            if processed_weather_folder_is_ready(
+                processed_weather_folder(icon_dir, issue_day, run_hour),
+                min_csv_files=len(weather_variables),
+            )
+            and not processed_weather_folder_is_complete(
+                processed_weather_folder(icon_dir, issue_day, run_hour),
+                min_csv_files=len(weather_variables),
+            )
+        }
+    )
     if not days_to_process:
         print(f"[DWD] Aggregated ICON weather already available through {max(issue_days).isoformat()}.")
         return []
 
-    print("[DWD] Missing ICON issue days: " + ", ".join(day.isoformat() for day in days_to_process))
-    for issue_day in days_to_process:
-        download_dwd_icon_d2_run(
-            issue_day=issue_day,
-            run_hour=run_hour,
-            raw_base_dir=raw_base_dir,
-            variables=weather_variables,
-            model_levels=model_levels,
-            base_url=base_url,
-            timeout_seconds=timeout_seconds,
-            request_pause_seconds=request_pause_seconds,
-            force=force,
-        )
-
     from .icon_d2_aggregation import run_aggregation
 
-    for issue_day in days_to_process:
+    def aggregate_run(issue_day: date, actual_run: str, output_parent: Path) -> Path:
         aggregation_config = IconAggregationConfig(
             repo_root=repo_root,
             lsdf_base=raw_base_dir,
-            output_parent=icon_dir,
+            output_parent=output_parent,
             shapefile_path=shapefile_path,
             n_clusters=_infer_n_clusters(icon_dir, n_clusters),
             buffer_km=buffer_km,
@@ -317,17 +385,117 @@ def ensure_dwd_icon_weather(
             plot_clusters=False,
             skip_existing_output=False,
             only_day=issue_day.strftime("%Y%m%d"),
-            only_run_hour=run_hour,
+            only_run_hour=actual_run,
             start_date=issue_day,
             variables=weather_variables,
             model_levels=model_levels or [],
         )
         run_aggregation(aggregation_config)
+        return processed_weather_folder(output_parent, issue_day, actual_run)
+
+    print("[DWD] Missing ICON issue days: " + ", ".join(day.isoformat() for day in days_to_process))
+    for issue_day in days_to_process:
+        requested_folder = processed_weather_folder(icon_dir, issue_day, run_hour)
+        requested_failure: Exception | None = None
+        try:
+            download_dwd_icon_d2_run(
+                issue_day=issue_day,
+                run_hour=run_hour,
+                raw_base_dir=raw_base_dir,
+                variables=weather_variables,
+                model_levels=model_levels,
+                base_url=base_url,
+                timeout_seconds=timeout_seconds,
+                request_pause_seconds=request_pause_seconds,
+                force=force,
+            )
+            aggregate_run(issue_day, run_hour, icon_dir)
+            null_files = _null_dwd_csv_files(requested_folder)
+            if null_files or not processed_weather_folder_is_ready(
+                requested_folder,
+                min_csv_files=len(weather_variables),
+            ):
+                raise ValueError(
+                    f"DWD run {issue_day} {run_hour} is incomplete; null or missing outputs: {null_files}"
+                )
+            _record_dwd_run_provenance(
+                requested_folder,
+                requested_issue_day=issue_day,
+                requested_run=run_hour,
+                actual_issue_day=issue_day,
+                actual_run=run_hour,
+                reason=None,
+            )
+            continue
+        except Exception as requested_error:
+            if not fallback_previous_runs:
+                raise
+            requested_failure = requested_error
+            print(
+                f"[DWD] Requested run {issue_day} {run_hour} failed ({requested_error}); "
+                "trying the previous ICON-D2 run."
+            )
+
+        fallback_error: Exception | None = None
+        fallback_root = icon_dir / ".fallback_runs"
+        for fallback_day, fallback_run in _previous_dwd_runs(
+            issue_day,
+            run_hour,
+            step_hours=fallback_step_hours,
+            max_lookback_hours=fallback_max_lookback_hours,
+        ):
+            try:
+                download_dwd_icon_d2_run(
+                    issue_day=fallback_day,
+                    run_hour=fallback_run,
+                    raw_base_dir=raw_base_dir,
+                    variables=weather_variables,
+                    model_levels=model_levels,
+                    base_url=base_url,
+                    timeout_seconds=timeout_seconds,
+                    request_pause_seconds=request_pause_seconds,
+                    force=force,
+                )
+                source_folder = aggregate_run(fallback_day, fallback_run, fallback_root)
+                null_files = _null_dwd_csv_files(source_folder)
+                if null_files or not processed_weather_folder_is_ready(
+                    source_folder,
+                    min_csv_files=len(weather_variables),
+                ):
+                    raise ValueError(
+                        f"DWD fallback run {fallback_day} {fallback_run} is incomplete; "
+                        f"null or missing outputs: {null_files}"
+                    )
+                if requested_folder.exists():
+                    shutil.rmtree(requested_folder)
+                shutil.copytree(source_folder, requested_folder)
+                _record_dwd_run_provenance(
+                    requested_folder,
+                    requested_issue_day=issue_day,
+                    requested_run=run_hour,
+                    actual_issue_day=fallback_day,
+                    actual_run=fallback_run,
+                    reason=str(requested_failure),
+                )
+                print(
+                    f"[DWD] Stored fallback run {fallback_day} {fallback_run} under requested "
+                    f"history {issue_day} {run_hour}."
+                )
+                fallback_error = None
+                break
+            except Exception as exc:
+                fallback_error = exc
+                print(f"[DWD] Fallback run {fallback_day} {fallback_run} failed: {exc}")
+        shutil.rmtree(fallback_root, ignore_errors=True)
+        if fallback_error is not None or not requested_folder.exists():
+            raise RuntimeError(
+                f"DWD run fallback exhausted for requested run {issue_day} {run_hour}."
+            ) from (fallback_error or requested_failure)
 
     missing_after = [
         day
         for day in days_to_process
-        if not processed_weather_folder_is_ready(
+        if not processed_weather_folder_is_complete(
             processed_weather_folder(icon_dir, day, run_hour),
             min_csv_files=len(weather_variables),
         )

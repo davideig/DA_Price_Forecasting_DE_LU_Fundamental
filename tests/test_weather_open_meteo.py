@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 
@@ -97,6 +98,114 @@ def test_fetch_open_meteo_batch_maps_400_model_run_unavailable(monkeypatch: pyte
             forecast_days=2,
             retry_attempts=0,
         )
+
+
+def test_single_run_falls_back_when_required_wind_fields_are_null(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cluster_file = tmp_path / "clusters.csv"
+    cluster_file.write_text("cluster_id,lat,lon\n0,52.0,13.0\n", encoding="utf-8")
+    cache_file = tmp_path / "weather.csv"
+    calls: list[str] = []
+
+    def fake_fetch(**kwargs):  # noqa: ANN003
+        run = kwargs["run"]
+        calls.append(run)
+        valid = run == "2026-05-13T03:00"
+        return [{
+            "hourly": {
+                "time": ["2026-05-13T22:00"],
+                "wind_speed_80m": [8.0 if valid else None],
+                "wind_direction_80m": [240.0 if valid else None],
+                "boundary_layer_height": [None],
+            }
+        }]
+
+    monkeypatch.setattr(weather, "_fetch_open_meteo_batch", fake_fetch)
+    result = fetch_open_meteo_cluster_weather(
+        cluster_file=cluster_file,
+        start_date=date(2026, 5, 14),
+        end_date=date(2026, 5, 14),
+        output_file=cache_file,
+        hourly_variables=["wind_speed_80m", "wind_direction_80m", "boundary_layer_height"],
+        required_non_null_variables=["wind_speed_80m", "wind_direction_80m"],
+        batch_size=1,
+        target_tz="Europe/Berlin",
+        api_mode="single_run",
+        single_run_hour_utc="06:00",
+        fallback_previous_runs=True,
+        fallback_step_hours=3,
+        fallback_max_lookback_hours=3,
+    )
+
+    assert calls == ["2026-05-13T06:00", "2026-05-13T03:00"]
+    assert result.filter(like="u80").notna().any().any()
+    provenance = json.loads(
+        weather.open_meteo_run_provenance_path(cache_file).read_text(encoding="utf-8")
+    )["2026-05-14"]
+    assert provenance["fallback_used"] is True
+    assert provenance["requested_run_utc"] == "2026-05-13T06:00"
+    assert provenance["actual_run_utc"] == "2026-05-13T03:00"
+    assert "wind_speed_80m" in provenance["reason"]
+
+
+def test_single_run_fallback_restarts_all_geographical_batches(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cluster_file = tmp_path / "clusters.csv"
+    cluster_file.write_text(
+        "cluster_id,lat,lon\n0,52.0,13.0\n1,53.0,14.0\n",
+        encoding="utf-8",
+    )
+    cache_file = tmp_path / "weather.csv"
+    calls: list[tuple[float, str]] = []
+
+    def fake_fetch(**kwargs):  # noqa: ANN003
+        latitude = float(kwargs["latitude"][0])
+        run = kwargs["run"]
+        calls.append((latitude, run))
+        requested_run_is_incomplete = latitude == 53.0 and run == "2026-05-13T06:00"
+        speed = None if requested_run_is_incomplete else (6.0 if run.endswith("06:00") else 3.0)
+        direction = None if requested_run_is_incomplete else 270.0
+        return [{
+            "hourly": {
+                "time": ["2026-05-13T22:00"],
+                "wind_speed_80m": [speed],
+                "wind_direction_80m": [direction],
+            }
+        }]
+
+    monkeypatch.setattr(weather, "_fetch_open_meteo_batch", fake_fetch)
+    result = fetch_open_meteo_cluster_weather(
+        cluster_file=cluster_file,
+        start_date=date(2026, 5, 14),
+        end_date=date(2026, 5, 14),
+        output_file=cache_file,
+        hourly_variables=["wind_speed_80m", "wind_direction_80m"],
+        required_non_null_variables=["wind_speed_80m", "wind_direction_80m"],
+        batch_size=1,
+        target_tz="Europe/Berlin",
+        api_mode="single_run",
+        single_run_hour_utc="06:00",
+        fallback_previous_runs=True,
+        fallback_step_hours=3,
+        fallback_max_lookback_hours=3,
+    )
+
+    assert calls == [
+        (52.0, "2026-05-13T06:00"),
+        (53.0, "2026-05-13T06:00"),
+        (53.0, "2026-05-13T03:00"),
+        (52.0, "2026-05-13T03:00"),
+        (53.0, "2026-05-13T03:00"),
+    ]
+    assert result.filter(like="u80").abs().max().max() == pytest.approx(3.0)
+    provenance = json.loads(
+        weather.open_meteo_run_provenance_path(cache_file).read_text(encoding="utf-8")
+    )["2026-05-14"]
+    assert provenance["actual_run_utc"] == "2026-05-13T03:00"
 
 
 def test_fetch_open_meteo_batch_falls_back_from_customer_endpoint_without_api_key(
@@ -322,6 +431,39 @@ def test_load_open_meteo_fetches_only_missing_single_run_days(
         "2026-03-22",
         "2026-03-23",
     }
+
+
+def test_load_open_meteo_refetches_cached_day_with_null_required_fields(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cluster_file = tmp_path / "clusters.csv"
+    cluster_file.write_text("cluster_id,lat,lon\n0,52.0,13.0\n", encoding="utf-8")
+    cache_file = tmp_path / "open_meteo.csv"
+    index = pd.date_range("2026-05-14", periods=4, freq="h", tz="Europe/Berlin")
+    pd.DataFrame({"u80_cluster_0": [None] * 4, "v80_cluster_0": [None] * 4}, index=index).to_csv(
+        cache_file
+    )
+    calls: list[tuple[date, date]] = []
+
+    def fake_fetch(**kwargs):  # noqa: ANN003
+        calls.append((kwargs["start_date"], kwargs["end_date"]))
+        repaired = pd.DataFrame({"u80_cluster_0": [5.0], "v80_cluster_0": [2.0]}, index=index[:1])
+        repaired.to_csv(cache_file)
+        return repaired
+
+    monkeypatch.setattr(weather, "fetch_open_meteo_cluster_weather", fake_fetch)
+    weather.load_open_meteo(
+        cluster_file=cluster_file,
+        start_date=date(2026, 5, 14),
+        end_date=date(2026, 5, 14),
+        cache_file=cache_file,
+        target_tz="Europe/Berlin",
+        api_mode="single_run",
+        required_non_null_variables=["wind_speed_80m", "wind_direction_80m"],
+    )
+
+    assert calls == [(date(2026, 5, 14), date(2026, 5, 14))]
 
 
 def test_load_open_meteo_returns_only_requested_cached_days(tmp_path: Path) -> None:

@@ -118,8 +118,10 @@ python deployment/chair-vm/migrate_cutoff_weather_histories.py --apply
 ```
 
 The migration quarantines legacy run06-to-run00 copies; it does not delete
-them. The fixed-run backfill now builds only the primary 03 and 06 UTC histories;
-00 UTC data may appear only as a flagged fallback inside the 03 UTC history.
+them. The fixed-run backfill now builds only the primary 03 and 06 UTC histories
+within the provider's retained 180-day archive window; 00 UTC data may appear
+only as a flagged fallback inside the 03 UTC history. Older dates are reported
+as transition coverage instead of being repeatedly requested from the API.
 Run the reserve backfill after 10:23, when all products for the next
 delivery day are available. Then register both PowerShell task files and verify
 the next-run times. The 07:55 publication poll remains enabled to monitor

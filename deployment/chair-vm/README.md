@@ -155,7 +155,10 @@ without provenance, invalid runs, and gaps within the archive window fail the
 command.
 
 The backfill overrides the old backtest endpoint in these configs and requests
-history through the current local date. It does not modify the YAML files.
+the retained 180-day archive window through the current local date. Dates before
+that window are left missing and reported as transition coverage by the audit,
+rather than repeatedly requested from an archive that no longer holds them. It
+does not modify the YAML files, and reruns reuse every successfully cached day.
 
 Finally, pre-warm all component and price caches without submitting:
 

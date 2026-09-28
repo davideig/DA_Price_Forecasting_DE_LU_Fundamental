@@ -241,16 +241,24 @@ case "$job" in
 
   backfill-fixed-run-open-meteo)
     backfill_end="$(TZ=Europe/Berlin date +%F)"
+    # The single-run archive retains roughly six months. Avoid spending the
+    # provider quota retrying older dates that the coverage audit treats as
+    # transition history rather than required in-archive coverage.
+    backfill_start="$(TZ=Europe/Berlin date -d "$backfill_end - 180 days" +%F)"
+    echo "Open-Meteo retained archive window: $backfill_start -> $backfill_end"
     for run in 03 06; do
       echo "--- Back-filling Open-Meteo fixed run $run UTC ---"
       "$PIXI" run -e forecast da-price-forecast \
         --config "$DEPLOYMENT_PREPROCESSING/load_open_meteo_history_run${run}.yaml" \
+        --set "open_meteo_start_date=$backfill_start" \
         --set "open_meteo_end_date=$backfill_end"
       "$PIXI" run -e forecast da-price-forecast \
         --config "$DEPLOYMENT_PREPROCESSING/wind_open_meteo_features_run${run}.yaml" \
+        --set "open_meteo_start_date=$backfill_start" \
         --set "open_meteo_end_date=$backfill_end"
       "$PIXI" run -e forecast da-price-forecast \
         --config "$DEPLOYMENT_PREPROCESSING/solar_open_meteo_features_run${run}.yaml" \
+        --set "open_meteo_start_date=$backfill_start" \
         --set "open_meteo_end_date=$backfill_end"
     done
     echo "--- Auditing fixed-run Open-Meteo histories ---"

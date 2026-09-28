@@ -40,6 +40,8 @@ def test_runner_has_no_cross_run_bootstrap_or_multi_provider_wind() -> None:
     assert "wind_open_meteo_features_run${run}.yaml" in script
     assert "backfill-operational-reserve-market" in script
     assert "for run in 03 06" in script
+    assert 'backfill_end - 180 days' in script
+    assert '--set "open_meteo_start_date=$backfill_start"' in script
     assert "wait_for_job_lock renewable-run03-features-update 3600" in script
 
 

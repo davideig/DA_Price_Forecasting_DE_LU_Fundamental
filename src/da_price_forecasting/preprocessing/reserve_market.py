@@ -259,6 +259,13 @@ def _date_range(start_date: date, end_date: date) -> list[date]:
     return [start_date + timedelta(days=offset) for offset in range(days + 1)]
 
 
+def _read_existing_features(path: Path, target_tz: str) -> pd.DataFrame:
+    existing = pd.read_csv(path, index_col=0)
+    existing.index = pd.to_datetime(existing.index, utc=True).tz_convert(target_tz)
+    existing.index.name = "timestamp"
+    return existing
+
+
 def run_reserve_market(config: ReserveMarketConfig) -> None:
     """Build a cached public reserve-capacity covariate archive."""
     print("\n--- Fetching Reserve-Market Capacity Data ---")
@@ -324,13 +331,25 @@ def run_reserve_market(config: ReserveMarketConfig) -> None:
 
     features = pd.concat(feature_frames).sort_index()
     features = features.loc[~features.index.duplicated(keep="last")]
+    if config.append_existing and config.output_file.exists():
+        existing = _read_existing_features(config.output_file, config.target_tz)
+        replaced_days = {timestamp.date() for timestamp in features.index}
+        existing = existing.loc[~existing.index.map(lambda timestamp: timestamp.date() in replaced_days)]
+        features = pd.concat([existing, features]).sort_index()
+        features = features.loc[~features.index.duplicated(keep="last")]
     features.index.name = "timestamp"
     config.output_file.parent.mkdir(parents=True, exist_ok=True)
     features.to_csv(config.output_file)
 
     if config.metadata_file is not None:
         config.metadata_file.parent.mkdir(parents=True, exist_ok=True)
-        pd.DataFrame(metadata_rows).to_csv(config.metadata_file, index=False)
+        metadata = pd.DataFrame(metadata_rows)
+        if config.append_existing and config.metadata_file.exists():
+            existing_metadata = pd.read_csv(config.metadata_file)
+            metadata = pd.concat([existing_metadata, metadata], ignore_index=True)
+            identity = ["delivery_date", "product_type", "market"]
+            metadata = metadata.drop_duplicates(subset=identity, keep="last")
+        metadata.to_csv(config.metadata_file, index=False)
 
     print(
         f"Saved reserve-market features -> {config.output_file} "

@@ -41,6 +41,7 @@ config:
     covariates:
       - load_forecast
       - renewable_generation_proxy
+      - reserve_market
     load_forecast_file: data/processed/component_forecast_history/1200/load.csv
     load_forecast_column: Load_Model_MW
     renewable_proxy_files:
@@ -50,4 +51,27 @@ config:
       - Renewable_Solar_Proxy_MW
       - Renewable_Wind_Proxy_MW
       - Renewable_Total_Proxy_MW
+    reserve_market_file: data/processed/reserve_market/regelleistung_capacity_features_paper_febjul.csv
+    reserve_market_columns:
+      - reserve_fcr_germany_demand_mw
+      - reserve_fcr_germany_capacity_price_eur_mw
+      - reserve_fcr_germany_surplus_mw
+      - reserve_afrr_pos_avg_capacity_price_eur_mw_h
+      - reserve_afrr_pos_marginal_capacity_price_eur_mw_h
+      - reserve_afrr_pos_allocated_mw
+      - reserve_afrr_pos_offered_mw
+      - reserve_afrr_pos_import_export_mw
+      - reserve_afrr_neg_avg_capacity_price_eur_mw_h
+      - reserve_afrr_neg_marginal_capacity_price_eur_mw_h
+      - reserve_afrr_neg_allocated_mw
+      - reserve_afrr_neg_offered_mw
+      - reserve_afrr_neg_import_export_mw
+      - reserve_mfrr_pos_avg_capacity_price_eur_mw_h
+      - reserve_mfrr_pos_marginal_capacity_price_eur_mw_h
+      - reserve_mfrr_pos_offered_mw
+      - reserve_mfrr_pos_import_export_mw
+      - reserve_mfrr_neg_avg_capacity_price_eur_mw_h
+      - reserve_mfrr_neg_marginal_capacity_price_eur_mw_h
+      - reserve_mfrr_neg_offered_mw
+      - reserve_mfrr_neg_import_export_mw
   export_dir: results/operational_cutoff_price/price_1200_run06

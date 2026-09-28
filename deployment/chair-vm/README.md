@@ -228,7 +228,7 @@ cutoff information set at every cutoff from 07:00 through 12:00:
 11:40 price-cutoff-1200-submit
 ```
 
-`reserve-publication-poll` is observational only. Once per minute it checks the
+`reserve-publication-poll` remains observational. Once per minute it checks the
 public regelleistung.net capacity-results endpoint for tomorrow's FCR, aFRR,
 and mFRR results. It records the first observed publication time in:
 
@@ -238,10 +238,11 @@ data/processed/operational_quality/reserve_publication_times.csv
 
 The task stops after all three products are observed or at 11:20. Existing
 observations are resumed without being overwritten, so a restarted task does
-not replace an earlier publication time. These measurements validate the
-assumed 08:30, 09:30, and 10:30 availability times used in the retrospective
-reserve-market experiment; the normal deployed cutoff models remain the
-non-reserve variants until the observations support changing them.
+not replace an earlier publication time. On 2026-09-28, FCR appeared at 08:14,
+aFRR at 09:16, and mFRR at 10:23. The live price models now use FCR from 09:00,
+FCR plus aFRR from 10:00, and all three products from 11:00. Each cutoff job
+downloads the admissible products and appends them to the operational reserve
+history before fitting the price model.
 The 14:00 operational-archive job includes this CSV in the Git archive, and the
 task's console output is also retained in `logs/chair_vm_tasks/`.
 

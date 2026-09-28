@@ -300,6 +300,7 @@ class ReserveMarketConfig(RepoConfigModel):
     request_timeout_seconds: float = 60.0
     force_download: bool = False
     fail_on_missing: bool = False
+    append_existing: bool = False
     publication_times: dict[str, str] = Field(
         default_factory=lambda: {"FCR": "08:30", "aFRR": "09:30", "mFRR": "10:30"}
     )

@@ -36,6 +36,12 @@ The six wind configs use `min_train_days: 20`, matching the corrected thesis
 warm-up variant. Delivery day 2026-02-07 is excluded where wind enters the
 forecast because no corresponding archived weather run remains available.
 
+Reserve publication was measured on 2026-09-28 at 08:14 for FCR, 09:16 for
+aFRR, and 10:23 for mFRR. The live price configs therefore use no reserve data
+at 07:00/08:00, FCR at 09:00, FCR plus aFRR at 10:00, and all three products at
+11:00/12:00. Each applicable cutoff refreshes and appends the published result
+for its delivery day before running the component and price models.
+
 The realized-data limits are 05:30, 06:30, 07:30, 08:30, 09:30, and 10:30 for
 the six load models. Solar and wind use the same sequence except that their
 12:00 final-paper configuration remains at 10:00 as required by the spec.
@@ -109,11 +115,12 @@ enabling the new tasks:
 python deployment/chair-vm/migrate_cutoff_weather_histories.py
 python deployment/chair-vm/migrate_cutoff_weather_histories.py --apply
 ./deployment/chair-vm/run_scheduled_job.sh backfill-fixed-run-open-meteo
+./deployment/chair-vm/run_scheduled_job.sh backfill-operational-reserve-market
 ./deployment/chair-vm/run_scheduled_job.sh cutoff-prewarm-all
 ```
 
 The migration quarantines legacy run06-to-run00 copies; it does not delete
-them. Then register both PowerShell task files and verify the next-run times.
-
-Reserve inputs remain disabled in the live price configs until the publication
-time measurements required by section 5.5 of the spec are complete.
+them. Run the reserve backfill after 10:23, when all products for the next
+delivery day are available. Then register both PowerShell task files and verify
+the next-run times. The 07:55 publication poll remains enabled to monitor
+whether the measured timings drift.

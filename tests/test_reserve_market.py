@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
 
-from da_price_forecasting.preprocessing.reserve_market import build_reserve_capacity_features
+from da_price_forecasting.config import ReserveMarketConfig
+from da_price_forecasting.preprocessing import reserve_market
+from da_price_forecasting.preprocessing.reserve_market import DownloadResult, build_reserve_capacity_features
 
 
 def test_build_fcr_capacity_features_expands_four_hour_blocks() -> None:
@@ -83,3 +86,50 @@ def test_build_capacity_features_treats_dash_placeholders_as_missing() -> None:
     assert features.loc["2026-07-01 00:00:00+02:00", "reserve_fcr_germany_capacity_price_eur_mw"] == 12.5
     assert pd.isna(features.loc["2026-07-01 00:00:00+02:00", "reserve_fcr_crossborder_capacity_price_eur_mw"])
     assert features.loc["2026-07-01 00:00:00+02:00", "reserve_fcr_germany_surplus_mw"] == 1234.5
+
+
+def test_reserve_market_append_preserves_history_and_replaces_target_day(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    output_file = tmp_path / "reserve.csv"
+    existing_index = pd.date_range("2026-07-01", periods=96, freq="15min", tz="Europe/Berlin")
+    pd.DataFrame(
+        {"reserve_fcr_germany_demand_mw": 500.0},
+        index=existing_index,
+    ).to_csv(output_file)
+    raw_path = tmp_path / "result.xlsx"
+    raw_path.write_bytes(b"placeholder")
+    raw = pd.DataFrame(
+        {
+            "PRODUCTNAME": ["NEGPOS_00_24"],
+            "GERMANY_DEMAND_[MW]": [600.0],
+            "GERMANY_SETTLEMENTCAPACITY_PRICE_[EUR/MW]": [12.0],
+            "GERMANY_DEFICIT(-)_SURPLUS(+)_[MW]": [5.0],
+        }
+    )
+    monkeypatch.setattr(
+        reserve_market,
+        "_download_capacity_result",
+        lambda config, product_type, delivery_date: DownloadResult(path=raw_path, status="cached"),
+    )
+    monkeypatch.setattr(reserve_market, "_read_capacity_result_xlsx", lambda path: raw)
+
+    reserve_market.run_reserve_market(
+        ReserveMarketConfig(
+            repo_root=tmp_path,
+            start_date=date(2026, 7, 2),
+            end_date=date(2026, 7, 2),
+            raw_dir=tmp_path / "raw",
+            output_file=output_file,
+            metadata_file=None,
+            product_types=["FCR"],
+            append_existing=True,
+        )
+    )
+
+    result = pd.read_csv(output_file, index_col=0)
+    index = pd.to_datetime(result.index, utc=True).tz_convert("Europe/Berlin")
+    result.index = index
+    assert result.loc["2026-07-01", "reserve_fcr_germany_demand_mw"].eq(500.0).all()
+    assert result.loc["2026-07-02", "reserve_fcr_germany_demand_mw"].eq(600.0).all()

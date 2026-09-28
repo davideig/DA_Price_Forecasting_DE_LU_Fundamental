@@ -14,6 +14,7 @@ def test_cutoff_schedule_matches_operational_spec() -> None:
         "renewable-run03-features-update": "06:50",
         "price-cutoff-0700-submit": "06:40",
         "price-cutoff-0800-submit": "07:40",
+        "reserve-publication-poll": "07:55",
         "price-cutoff-0900-submit": "08:40",
         "dwd-run06-cutoff-update": "09:23",
         "renewable-cutoff-features-update": "09:38",
@@ -36,6 +37,7 @@ def test_runner_has_no_cross_run_bootstrap_or_multi_provider_wind() -> None:
     assert "icon_eu" not in script
     assert "dmi_harmonie" not in script
     assert "wind_open_meteo_features_run${run}.yaml" in script
+    assert "backfill-operational-reserve-market" in script
 
 
 def test_general_schedule_removes_duplicate_submission_jobs() -> None:

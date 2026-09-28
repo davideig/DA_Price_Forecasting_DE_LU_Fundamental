@@ -1,7 +1,6 @@
 # Operational data specification for the cutoff models
 
-Status: 2026-09-27 (evening). All four models specified; reserve timing (5.5) is
-measured on 2026-09-28.
+Status: 2026-09-28. All four models specified; reserve timing (5.5) measured.
 
 ## 1. General rules
 
@@ -340,13 +339,16 @@ load 6 s, solar 17 s (max 70 s), wind 25 s (max 81 s), price 81 s. The models
 take 2-4 min sequentially, well within the 20-minute budget. The binding
 constraint is data availability, in particular the DWD 06 UTC GRIB at 10:00.
 
-### 5.5 Open point: reserve timing
+### 5.5 Reserve timing (measured)
 
 With the run-start rule, reserve results must be available **40 minutes after
 gate closure** (FCR by 08:40, aFRR by 09:40, mFRR by 10:40). The publication
-time is not documented by regelleistung.net. Measured on 2026-09-28 with
-`scripts/poll_reserve_publication.py` (log: `logs/reserve_publication_times.csv`);
-the VM logs are a second source. If results arrive later than 40 minutes after gate closure, each
+time is not documented by regelleistung.net. Measured on 2026-09-28 (delivery
+day 2026-09-29) with `scripts/poll_reserve_publication.py`, polling once per
+minute: FCR 08:14, aFRR 09:16, mFRR 10:23, i.e. 14-23 minutes after gate closure
+and well within the 40-minute budget. **Enable the reserve blocks** as in 5.3
+(FCR from 09:00, aFRR from 10:00, mFRR from 11:00). Keep the daily poll on the
+VM running to confirm this over more days. If results arrive later than 40 minutes after gate closure, each
 reserve block must move one cutoff later.
 
 ### 5.6 Backtest note

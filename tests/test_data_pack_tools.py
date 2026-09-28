@@ -208,10 +208,11 @@ def test_operational_profile_tracks_only_dedicated_live_configs() -> None:
     )
 
     configs = _expand_profile(Path.cwd(), "operational")
-    assert len(configs) == 48
+    assert len(configs) == 49
     assert all(path.is_relative_to(Path.cwd() / "configs/deployment") for path in configs)
     assert any(path.name == "load_0800_run03.yaml" for path in configs)
     assert any(path.name == "dwd_wind_run03.yaml" for path in configs)
+    assert any(path.name == "reserve_market_operational.yaml" for path in configs)
 
 
 def test_operational_archive_profile_includes_run03_and_excludes_removed_wind_providers() -> None:

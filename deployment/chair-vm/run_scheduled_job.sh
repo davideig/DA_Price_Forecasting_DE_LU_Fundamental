@@ -163,6 +163,13 @@ case "$job" in
     "$PIXI" run poll-reserve-publication
     ;;
 
+  backfill-operational-reserve-market)
+    "$PIXI" run energy-arena-price-cutoff-daily \
+      --cutoff 1100 \
+      --reserve-only \
+      --reserve-history-days 90
+    ;;
+
   cutoff-prewarm-all)
     echo "--- Preparing fixed-run feature histories ---"
     refresh_weather_features 00

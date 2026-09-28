@@ -8,6 +8,35 @@ from da_price_forecasting.config.base import load_config_payload
 from da_price_forecasting.scripts import energy_arena_price_cutoff_daily as cutoff_daily
 
 
+FCR_COLUMNS = [
+    "reserve_fcr_germany_demand_mw",
+    "reserve_fcr_germany_capacity_price_eur_mw",
+    "reserve_fcr_germany_surplus_mw",
+]
+AFRR_COLUMNS = [
+    "reserve_afrr_pos_avg_capacity_price_eur_mw_h",
+    "reserve_afrr_pos_marginal_capacity_price_eur_mw_h",
+    "reserve_afrr_pos_allocated_mw",
+    "reserve_afrr_pos_offered_mw",
+    "reserve_afrr_pos_import_export_mw",
+    "reserve_afrr_neg_avg_capacity_price_eur_mw_h",
+    "reserve_afrr_neg_marginal_capacity_price_eur_mw_h",
+    "reserve_afrr_neg_allocated_mw",
+    "reserve_afrr_neg_offered_mw",
+    "reserve_afrr_neg_import_export_mw",
+]
+MFRR_COLUMNS = [
+    "reserve_mfrr_pos_avg_capacity_price_eur_mw_h",
+    "reserve_mfrr_pos_marginal_capacity_price_eur_mw_h",
+    "reserve_mfrr_pos_offered_mw",
+    "reserve_mfrr_pos_import_export_mw",
+    "reserve_mfrr_neg_avg_capacity_price_eur_mw_h",
+    "reserve_mfrr_neg_marginal_capacity_price_eur_mw_h",
+    "reserve_mfrr_neg_offered_mw",
+    "reserve_mfrr_neg_import_export_mw",
+]
+
+
 def test_cutoff_first_stage_submission_specs_use_expected_value_columns() -> None:
     specs = cutoff_daily._first_stage_submission_specs(
         cutoff="0900",
@@ -171,7 +200,20 @@ def test_cutoff_configs_apply_realized_data_limits_and_fixed_weather() -> None:
         assert "2026-02-07" in wind["skip_dates"]
         assert price["required_run"] == spec.weather_run
         assert price["skip_dates"] == ["2026-02-07", "2026-06-19"]
-        assert "reserve_market" not in price["features"]["covariates"]
+        expected_reserve_columns = {
+            "0700": [],
+            "0800": [],
+            "0900": FCR_COLUMNS,
+            "1000": FCR_COLUMNS + AFRR_COLUMNS,
+            "1100": FCR_COLUMNS + AFRR_COLUMNS + MFRR_COLUMNS,
+            "1200": FCR_COLUMNS + AFRR_COLUMNS + MFRR_COLUMNS,
+        }[cutoff]
+        if expected_reserve_columns:
+            assert "reserve_market" in price["features"]["covariates"]
+            assert price["features"]["reserve_market_columns"] == expected_reserve_columns
+        else:
+            assert "reserve_market" not in price["features"]["covariates"]
+            assert "reserve_market_columns" not in price["features"]
 
         generation_minute = 0 if cutoff == "1200" else minute
         for generation in (solar, wind):
@@ -227,3 +269,34 @@ def test_all_live_open_meteo_configs_request_fixed_runs_with_previous_run_fallba
             assert "boundary_layer_height" not in required
         checked += 1
     assert checked >= 15
+
+
+def test_live_reserve_products_follow_measured_publication_times() -> None:
+    assert cutoff_daily.RESERVE_PRODUCTS_BY_CUTOFF == {
+        "0700": (),
+        "0800": (),
+        "0900": ("FCR",),
+        "1000": ("FCR", "aFRR"),
+        "1100": ("FCR", "aFRR", "mFRR"),
+        "1200": ("FCR", "aFRR", "mFRR"),
+    }
+
+
+def test_reserve_refresh_uses_cutoff_products_and_requested_history(monkeypatch) -> None:
+    captured = []
+    monkeypatch.setattr(cutoff_daily, "run_from_config", captured.append)
+
+    products = cutoff_daily._refresh_reserve_market_features(
+        repo_root=Path.cwd(),
+        cutoff="1000",
+        forecast_date=date(2026, 9, 29),
+        history_days=2,
+    )
+
+    assert products == ("FCR", "aFRR")
+    assert len(captured) == 1
+    assert captured[0].kind.value == "reserve_market"
+    assert captured[0].config["start_date"] == "2026-09-27"
+    assert captured[0].config["end_date"] == "2026-09-29"
+    assert captured[0].config["product_types"] == ["FCR", "aFRR"]
+    assert captured[0].config["append_existing"] is True

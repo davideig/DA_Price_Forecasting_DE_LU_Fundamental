@@ -43,11 +43,10 @@ cp .env.example .env
 nano .env
 ```
 
-Required keys:
+Required keys for live submissions:
 
 ```text
 ENTSOE_API_KEY
-OPEN_METEO_API_KEY
 ENERGY_ARENA_API_KEY
 ENERGY_ARENA_PRICE_CHALLENGE_ID
 ENERGY_ARENA_LOAD_CHALLENGE_ID
@@ -55,10 +54,13 @@ ENERGY_ARENA_SOLAR_CHALLENGE_ID
 ENERGY_ARENA_WIND_CHALLENGE_ID
 ```
 
-`OPEN_METEO_API_KEY` is required because the cutoff deployment requests the
-explicit 03 and 06 UTC runs from the Open-Meteo customer single-run archive.
-The 00 UTC run is eligible only as the previous-run fallback for a requested
-03 UTC run. The deployment never substitutes the provider's latest run.
+`OPEN_METEO_API_KEY` is optional in the code. When it is absent or empty,
+fixed-run requests automatically fall back from the configured customer host
+to Open-Meteo's rate-limited public non-commercial single-runs endpoint. Set a
+customer key on a production VM for commercial use, dedicated capacity, and
+better operational reliability. The 00 UTC run is eligible only as the
+previous-run fallback for a requested 03 UTC run. The deployment never
+substitutes the provider's latest run.
 
 Optionally set `SYNERGIE_BACKUP_DIR` to a WSL-visible Synergie drive folder.
 The scheduled backup job copies the compact operational archive and task logs

@@ -113,6 +113,25 @@ refresh_weather_features() {
     "$@"
 }
 
+refresh_current_open_meteo() {
+  local current_day
+  local run
+  local config
+  current_day="$(TZ=Europe/Berlin date +%F)"
+  for run in 03 06; do
+    for config in \
+      "$DEPLOYMENT_PREPROCESSING/load_open_meteo_history_run${run}.yaml" \
+      "$DEPLOYMENT_PREPROCESSING/wind_open_meteo_features_run${run}.yaml" \
+      "$DEPLOYMENT_PREPROCESSING/solar_open_meteo_features_run${run}.yaml"; do
+      "$PIXI" run -e forecast da-price-forecast \
+        --config "$config" \
+        --set "open_meteo_start_date=$current_day" \
+        --set "open_meteo_end_date=$current_day" \
+        --set open_meteo_force_download=true
+    done
+  done
+}
+
 wait_for_job_lock() {
   local other_job="$1"
   local timeout_seconds="${2:-10800}"
@@ -160,7 +179,20 @@ case "$job" in
       --reserve-history-days 90
     ;;
 
+  refresh-current-fixed-run-weather)
+    run_dwd_update 03
+    run_dwd_update 06
+    refresh_current_open_meteo
+    "$PIXI" run open-meteo-coverage --end-date "$(TZ=Europe/Berlin date +%F)"
+    refresh_weather_features 03
+    refresh_weather_features 06
+    ;;
+
   cutoff-prewarm-all)
+    echo "--- Refreshing current fixed-run weather inputs ---"
+    run_dwd_update 03
+    run_dwd_update 06
+    refresh_current_open_meteo
     echo "--- Auditing fixed-run Open-Meteo histories ---"
     "$PIXI" run open-meteo-coverage --end-date "$(TZ=Europe/Berlin date +%F)"
     echo "--- Preparing fixed-run feature histories ---"

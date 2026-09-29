@@ -11,6 +11,7 @@ from da_price_forecasting.features.covariates import (
     build_daily_vector_covariate_features,
     load_load_forecast_covariates,
 )
+from da_price_forecasting.features.engineering import merge_all_features
 from da_price_forecasting.pipelines import lear
 
 
@@ -24,6 +25,23 @@ def _config(**overrides) -> LearOperationalConfig:
         "test_end": "2025-01-03T00:00:00+01:00",
     } | overrides
     return LearOperationalConfig.model_validate(payload)
+
+
+def test_merge_all_features_keeps_missing_column_lists_one_dimensional() -> None:
+    index = pd.date_range("2025-01-01", periods=2, freq="D", tz="Europe/Berlin")
+    weather = pd.DataFrame({"weather": [float("nan"), float("nan")]}, index=index)
+    price = pd.DataFrame({"price": [float("nan"), float("nan")]}, index=index)
+    load = pd.DataFrame({"load": [1.0, 2.0]}, index=index)
+    temporal = pd.DataFrame({"weekday": [1, 2]}, index=index)
+
+    features, dropped = merge_all_features(weather, price, load, temporal)
+
+    assert features.empty
+    assert dropped["date"].tolist() == list(index)
+    assert dropped["nan_columns"].tolist() == [
+        ["weather", "price"],
+        ["weather", "price"],
+    ]
 
 
 def test_build_daily_scalar_covariate_features_uses_last_value_per_day() -> None:

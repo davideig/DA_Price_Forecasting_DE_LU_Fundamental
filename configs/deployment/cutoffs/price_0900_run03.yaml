@@ -13,6 +13,7 @@ config:
   required_run: '03'
   skip_dates:
     - '2026-02-07'
+    - '2026-06-12'
     - '2026-06-19'
   use_vst: true
   weather_source: DWD

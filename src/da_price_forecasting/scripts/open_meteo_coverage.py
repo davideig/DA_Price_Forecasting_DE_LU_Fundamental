@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,7 @@ from da_price_forecasting.paths import find_repo_root
 
 DEFAULT_CONFIG_DIR = Path("configs/deployment/cutoff_preprocessing")
 DEFAULT_REPORT = Path("data/processed/operational_quality/open_meteo_coverage.json")
+DEFAULT_QUARANTINE_DIR = Path("data/quarantine/open_meteo_unverified_transition")
 MODELS = ("load", "solar", "wind")
 RUNS = ("03", "06")
 
@@ -125,6 +127,9 @@ def audit_dataset(
     configured_end = date.fromisoformat(str(config["open_meteo_end_date"]))
     audit_end = end_date or configured_end
     target_tz = str(config.get("target_tz", "Europe/Berlin"))
+    allowed_missing_days = {
+        date.fromisoformat(str(raw_day)) for raw_day in config.get("skip_dates", [])
+    }
     cache_path = repo_root / str(config["open_meteo_weather_file"])
     provenance_path = open_meteo_run_provenance_path(cache_path)
     cached_days = _cached_delivery_days(cache_path, target_tz)
@@ -143,11 +148,13 @@ def audit_dataset(
         if archive_start
         else relevant_days - cached_days
     )
-    missing_within_archive = (
+    raw_missing_within_archive = (
         _date_range(archive_start, audit_end) - cached_days - provenance_without_cache
         if archive_start
         else set()
     )
+    allowed_missing_within_archive = raw_missing_within_archive & allowed_missing_days
+    missing_within_archive = raw_missing_within_archive - allowed_missing_days
 
     requested_hour = int(run)
     invalid_provenance = [
@@ -191,6 +198,8 @@ def audit_dataset(
         "transition_missing_ranges": _date_ranges(transition_missing),
         "missing_within_archive_days": len(missing_within_archive),
         "missing_within_archive_ranges": _date_ranges(missing_within_archive),
+        "allowed_missing_days": len(allowed_missing_within_archive),
+        "allowed_missing_ranges": _date_ranges(allowed_missing_within_archive),
         "unverified_cached_days": len(unverified_cached),
         "unverified_cached_ranges": _date_ranges(unverified_cached),
         "provenance_without_cache_days": len(provenance_without_cache),
@@ -198,6 +207,89 @@ def audit_dataset(
         "invalid_provenance": invalid_provenance,
         "status": "failed" if failures else ("transition" if transition_missing else "ok"),
     }
+
+
+def _prune_dates_from_csv(
+    path: Path,
+    *,
+    target_tz: str,
+    days: set[date],
+    backup_path: Path,
+) -> int:
+    if not days or not path.exists():
+        return 0
+    frame = pd.read_csv(path, index_col=0)
+    timestamps = pd.to_datetime(frame.index, errors="coerce", utc=True)
+    local_days = pd.Series(timestamps.tz_convert(target_tz).date, index=frame.index)
+    remove = local_days.isin(days).to_numpy()
+    if not remove.any():
+        return 0
+
+    backup_path.parent.mkdir(parents=True, exist_ok=True)
+    if not backup_path.exists():
+        shutil.copy2(path, backup_path)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    frame.loc[~remove].to_csv(temporary)
+    temporary.replace(path)
+    return int(remove.sum())
+
+
+def prune_unverified_transition_rows(
+    *,
+    repo_root: Path,
+    config_dir: Path = DEFAULT_CONFIG_DIR,
+    end_date: date | None = None,
+    quarantine_dir: Path = DEFAULT_QUARANTINE_DIR,
+) -> list[dict[str, object]]:
+    """Back up and remove cached rows older than the first proven fixed-run day."""
+    resolved_config_dir = config_dir if config_dir.is_absolute() else repo_root / config_dir
+    resolved_quarantine = (
+        quarantine_dir if quarantine_dir.is_absolute() else repo_root / quarantine_dir
+    )
+    changes: list[dict[str, object]] = []
+    for run in RUNS:
+        for model in MODELS:
+            config_path = resolved_config_dir / (
+                f"load_open_meteo_history_run{run}.yaml"
+                if model == "load"
+                else f"{model}_open_meteo_features_run{run}.yaml"
+            )
+            config = _read_config(config_path)
+            target_tz = str(config.get("target_tz", "Europe/Berlin"))
+            cache_path = repo_root / str(config["open_meteo_weather_file"])
+            cached_days = _cached_delivery_days(cache_path, target_tz)
+            provenance_days = set(_read_provenance(open_meteo_run_provenance_path(cache_path)))
+            if end_date:
+                cached_days = {day for day in cached_days if day <= end_date}
+                provenance_days = {day for day in provenance_days if day <= end_date}
+            if not provenance_days:
+                continue
+            archive_start = min(provenance_days)
+            unverified_days = cached_days - provenance_days
+            prune_days = {day for day in unverified_days if day < archive_start}
+            blocked_days = unverified_days - prune_days
+            paths = [cache_path]
+            if config.get("output_file"):
+                paths.append(repo_root / str(config["output_file"]))
+            removed_rows = 0
+            for path in paths:
+                relative = path.relative_to(repo_root)
+                removed_rows += _prune_dates_from_csv(
+                    path,
+                    target_tz=target_tz,
+                    days=prune_days,
+                    backup_path=resolved_quarantine / relative,
+                )
+            changes.append(
+                {
+                    "model": model,
+                    "run": run,
+                    "pruned_days": len(prune_days),
+                    "removed_rows": removed_rows,
+                    "blocked_days": len(blocked_days),
+                }
+            )
+    return changes
 
 
 def build_coverage_report(
@@ -237,12 +329,35 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config-dir", type=Path, default=DEFAULT_CONFIG_DIR)
     parser.add_argument("--end-date", type=date.fromisoformat, default=None)
     parser.add_argument("--output", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument(
+        "--prune-unverified-transition",
+        action="store_true",
+        help=(
+            "Back up and remove cache/feature rows before each dataset's first "
+            "provenance-backed day. Unverified rows inside the archive remain failures."
+        ),
+    )
+    parser.add_argument("--quarantine-dir", type=Path, default=DEFAULT_QUARANTINE_DIR)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     repo_root = args.repo_root.resolve() if args.repo_root else find_repo_root(Path.cwd())
+    if args.prune_unverified_transition:
+        changes = prune_unverified_transition_rows(
+            repo_root=repo_root,
+            config_dir=args.config_dir,
+            end_date=args.end_date,
+            quarantine_dir=args.quarantine_dir,
+        )
+        for change in changes:
+            print(
+                f"[weather-coverage] {change['model']} run{change['run']}: "
+                f"pruned_days={change['pruned_days']}; "
+                f"removed_rows={change['removed_rows']}; "
+                f"blocked_unverified_days={change['blocked_days']}"
+            )
     report = build_coverage_report(
         repo_root=repo_root,
         config_dir=args.config_dir,
@@ -260,6 +375,7 @@ def main(argv: list[str] | None = None) -> int:
             f"fallback_days={item['fallback_days']}; "
             f"transition_missing={item['transition_missing_days']}; "
             f"archive_gaps={item['missing_within_archive_days']}; "
+            f"allowed_missing={item['allowed_missing_days']}; "
             f"unverified={item['unverified_cached_days']}"
         )
     print(f"[weather-coverage] Saved report: {output}")

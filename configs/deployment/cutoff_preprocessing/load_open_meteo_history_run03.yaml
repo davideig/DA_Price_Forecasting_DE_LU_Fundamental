@@ -3,6 +3,7 @@ config:
   repo_root: "."
   target_tz: Europe/Berlin
   fetch_weather_only: true
+  skip_dates: ["2026-06-12"]
 
   weather_source: open_meteo
   open_meteo_weather_file: data/processed/open_meteo/open_meteo_icon_d2_single_run03_c25_grid_mean_p10_weather.csv

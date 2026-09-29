@@ -8,7 +8,22 @@ import pandas as pd
 import yaml
 
 from da_price_forecasting.data.weather import open_meteo_run_provenance_path
-from da_price_forecasting.scripts.open_meteo_coverage import audit_dataset
+from da_price_forecasting.scripts.open_meteo_coverage import _cached_delivery_days, audit_dataset
+
+
+def test_cached_delivery_days_accepts_mixed_cet_and_cest_offsets(tmp_path: Path) -> None:
+    cache = tmp_path / "mixed_offsets.csv"
+    cache.write_text(
+        "timestamp,value\n"
+        "2026-01-15T00:00:00+01:00,1\n"
+        "2026-07-15T00:00:00+02:00,2\n",
+        encoding="utf-8",
+    )
+
+    assert _cached_delivery_days(cache, "Europe/Berlin") == {
+        date(2026, 1, 15),
+        date(2026, 7, 15),
+    }
 
 
 def _write_fixture(

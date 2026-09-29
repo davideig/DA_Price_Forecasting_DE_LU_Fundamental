@@ -51,14 +51,13 @@ def _cached_delivery_days(path: Path, target_tz: str) -> set[date]:
     if not path.exists() or path.stat().st_size == 0:
         return set()
     frame = pd.read_csv(path, index_col=0, usecols=[0])
-    timestamps = pd.to_datetime(frame.index, errors="coerce", utc=False)
+    # Operational caches span CET and CEST, so their ISO timestamps can carry
+    # mixed UTC offsets. Normalize them before converting to the deployment TZ.
+    timestamps = pd.to_datetime(frame.index, errors="coerce", utc=True)
     timestamps = timestamps[~pd.isna(timestamps)]
     if len(timestamps) == 0:
         return set()
-    if timestamps.tz is None:
-        timestamps = timestamps.tz_localize(target_tz, ambiguous="infer", nonexistent="shift_forward")
-    else:
-        timestamps = timestamps.tz_convert(target_tz)
+    timestamps = timestamps.tz_convert(target_tz)
     return set(timestamps.date)
 
 

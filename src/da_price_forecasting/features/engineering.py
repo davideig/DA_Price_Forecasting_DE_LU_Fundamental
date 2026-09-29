@@ -241,10 +241,14 @@ def merge_all_features(
             X = X.join(feature_block, how="inner").sort_index()
 
     nan_mask = X.isna().any(axis=1)
+    missing_columns = [
+        row.index[row.to_numpy()].tolist()
+        for _, row in X.loc[nan_mask].isna().iterrows()
+    ]
     dropped_info = pd.DataFrame(
         {
-            "date": X.index[nan_mask],
-            "nan_columns": X.loc[nan_mask].isna().apply(lambda row: row.index[row].tolist(), axis=1).values,
+            "date": list(X.index[nan_mask]),
+            "nan_columns": missing_columns,
         }
     )
 

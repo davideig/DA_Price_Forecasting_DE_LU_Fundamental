@@ -176,6 +176,24 @@ def _load_weather_features(
     return build_dwd_features(df_hourly=df_dwd_hourly, df_qh=df_dwd_qh, tz_local=target_tz)
 
 
+def _prepend_transition_weather_history(
+    primary: pd.DataFrame,
+    transition: pd.DataFrame,
+) -> pd.DataFrame:
+    """Prepend older transition rows without filling gaps in primary history."""
+    if primary.empty or transition.empty:
+        return primary
+
+    if set(primary.columns) != set(transition.columns):
+        raise ValueError("Primary and transition DWD histories have different feature columns.")
+    transition = transition.reindex(columns=primary.columns)
+    older_transition = transition.loc[transition.index < primary.index.min()]
+    combined = pd.concat([older_transition, primary]).sort_index()
+    combined = combined.loc[~combined.index.duplicated(keep="last")]
+    combined.index.name = primary.index.name
+    return combined
+
+
 def _load_or_skip_weather_features(
     config: LearOperationalConfig | LearAncConfig,
     daily_index: pd.DatetimeIndex,
@@ -183,7 +201,7 @@ def _load_or_skip_weather_features(
     if not config.include_raw_weather_features:
         return pd.DataFrame(index=daily_index).rename_axis("date")
 
-    return _load_weather_features(
+    primary = _load_weather_features(
         weather_source=config.weather_source,
         era5_dirs=config.era5_dirs,
         icon_dir=config.icon_dir,
@@ -193,6 +211,27 @@ def _load_or_skip_weather_features(
         folder_offset_date=config.dwd_folder_offset_date,
         target_tz=config.target_tz,
     )
+    if config.weather_source != WeatherSource.DWD or config.icon_transition_history_dir is None:
+        return primary
+
+    transition = _load_weather_features(
+        weather_source=config.weather_source,
+        era5_dirs=config.era5_dirs,
+        icon_dir=config.icon_transition_history_dir,
+        start_folder_date=config.icon_transition_history_start_folder_date or config.start_folder_date,
+        required_run=config.icon_transition_history_run,
+        skip_dates=config.icon_transition_history_skip_dates,
+        folder_offset_date=config.dwd_folder_offset_date,
+        target_tz=config.target_tz,
+    )
+    combined = _prepend_transition_weather_history(primary, transition)
+    print(
+        f"[weather-transition] Prepended {len(combined) - len(primary)} older DWD feature day(s) "
+        f"from run {config.icon_transition_history_run}; primary run {config.required_run} "
+        f"starts at {primary.index.min().date()}.",
+        flush=True,
+    )
+    return combined
 
 
 def _build_lear_extra_covariate_features(

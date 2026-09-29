@@ -154,6 +154,20 @@ before the first archived day are reported as transition coverage; cached days
 without provenance, invalid runs, and gaps within the archive window fail the
 command.
 
+After the initial backfill, legacy cache rows that predate the first
+provenance-backed day can be quarantined and removed with:
+
+```bash
+pixi run open-meteo-coverage \
+  --end-date "$(TZ=Europe/Berlin date +%F)" \
+  --prune-unverified-transition
+```
+
+The command backs up every changed cache and derived feature file below
+`data/quarantine/open_meteo_unverified_transition/`. It only removes
+unverified dates before the first proven fixed-run date; an unverified date
+inside the proven archive window remains a hard audit failure.
+
 The backfill overrides the old backtest endpoint in these configs and requests
 the retained 180-day archive window through the current local date. Dates before
 that window are left missing and reported as transition coverage by the audit,

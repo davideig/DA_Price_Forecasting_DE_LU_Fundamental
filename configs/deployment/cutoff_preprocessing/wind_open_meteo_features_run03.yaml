@@ -3,6 +3,7 @@ config:
   repo_root: "."
   weather_source: open_meteo
   target_tz: Europe/Berlin
+  skip_dates: ["2026-06-12"]
 
   cluster_file: data/clustering/icon_d2_clustering_c25.parquet
   capacity_file: data/raw/renewable_capacity/installed_capacity.csv

@@ -57,6 +57,12 @@ once enough own history exists. To shorten the transition, back-fill the
 The DWD GRIB path cannot be back-filled, since DWD serves only live runs. Do not
 seed the history of one run by copying another run's history.
 
+The provider archive contains no usable 03 UTC run or immediate 00 UTC
+fallback for delivery day 2026-06-12. This known source outage is explicitly
+excluded from the run03 load, solar, wind, and dependent price training
+histories. The coverage audit reports it as an allowed missing day; every
+other gap inside the provenance-backed archive remains an error.
+
 ## 2. Load model
 
 ### 2.1 Inputs used at every cutoff

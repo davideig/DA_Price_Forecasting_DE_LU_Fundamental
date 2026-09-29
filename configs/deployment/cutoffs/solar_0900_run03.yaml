@@ -2,6 +2,7 @@ kind: renewable_generation_model
 config:
   repo_root: "."
   target_tz: Europe/Berlin
+  skip_dates: ["2026-06-12"]
   country_code_entsoe: DE_LU
   entsoe_api_key_env: ENTSOE_API_KEY
 

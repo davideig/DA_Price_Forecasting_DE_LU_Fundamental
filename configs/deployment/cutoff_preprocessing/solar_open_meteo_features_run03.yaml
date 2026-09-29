@@ -4,6 +4,7 @@ config:
   weather_source: open_meteo
   feature_mode: cloud_cover
   target_tz: Europe/Berlin
+  skip_dates: ["2026-06-12"]
 
   cluster_file: data/clustering/icon_d2_mastr_solar_tso_c25.csv
   capacity_file: data/raw/renewable_capacity/installed_capacity.csv

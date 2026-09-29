@@ -113,6 +113,7 @@ enabling the new tasks:
 python deployment/chair-vm/migrate_cutoff_weather_histories.py
 python deployment/chair-vm/migrate_cutoff_weather_histories.py --apply
 ./deployment/chair-vm/run_scheduled_job.sh backfill-fixed-run-open-meteo
+pixi run open-meteo-coverage --end-date YYYY-MM-DD --prune-unverified-transition
 ./deployment/chair-vm/run_scheduled_job.sh backfill-operational-reserve-market
 ./deployment/chair-vm/run_scheduled_job.sh cutoff-prewarm-all
 ```
@@ -122,6 +123,11 @@ them. The fixed-run backfill now builds only the primary 03 and 06 UTC histories
 within the provider's retained 180-day archive window; 00 UTC data may appear
 only as a flagged fallback inside the 03 UTC history. Older dates are reported
 as transition coverage instead of being repeatedly requested from the API.
+After backfilling, run `pixi run open-meteo-coverage --end-date YYYY-MM-DD
+--prune-unverified-transition` once to back up and remove legacy pre-provenance
+rows from the weather caches and derived renewable feature files. The known
+2026-06-12 run03 source outage is configured as an explicit skipped training
+date; unexplained archive gaps still fail the audit.
 Run the reserve backfill after 10:23, when all products for the next
 delivery day are available. Then register both PowerShell task files and verify
 the next-run times. The 07:55 publication poll remains enabled to monitor

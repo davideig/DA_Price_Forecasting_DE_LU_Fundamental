@@ -13,6 +13,7 @@ config:
     - "2025-10-27"
     - "2025-10-28"
     - "2026-02-07"
+    - "2026-06-12"
 
   renewable_proxy_file: data/processed/renewable_proxy/dwd_icon_mastr_wind_c100_run03_regional_renewable_features.csv
   renewable_proxy_fallback_file: data/processed/renewable_proxy/dwd_icon_mastr_wind_c100_run06_regional_renewable_features.csv

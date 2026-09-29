@@ -32,6 +32,10 @@ class LearOperationalConfig(RepoConfigModel):
         ]
     )
     icon_dir: Path = Path("data/processed/icon_aggregated_c5")
+    icon_transition_history_dir: Path | None = None
+    icon_transition_history_run: str | None = None
+    icon_transition_history_start_folder_date: date | None = None
+    icon_transition_history_skip_dates: list[date] = Field(default_factory=list)
     dwd_folder_offset_date: date = date(2025, 10, 26)
     start_folder_date: date = date(2025, 8, 1)
     required_run: str = "09"
@@ -104,6 +108,12 @@ class LearOperationalConfig(RepoConfigModel):
     def _resolve_paths(self) -> "LearOperationalConfig":
         self.era5_dirs = [resolve_path(path, self.repo_root) for path in self.era5_dirs]
         self.icon_dir = resolve_path(self.icon_dir, self.repo_root)
+        if self.icon_transition_history_dir is not None:
+            self.icon_transition_history_dir = resolve_path(self.icon_transition_history_dir, self.repo_root)
+        if (self.icon_transition_history_dir is None) != (self.icon_transition_history_run is None):
+            raise ValueError(
+                "icon_transition_history_dir and icon_transition_history_run must be configured together."
+            )
         self.entsoe_price_file = resolve_path(self.entsoe_price_file, self.repo_root)
         self.entsoe_exaa_price_file = resolve_path(self.entsoe_exaa_price_file, self.repo_root)
         if self.export_dir is not None:

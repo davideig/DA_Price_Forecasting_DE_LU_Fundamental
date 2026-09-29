@@ -36,6 +36,12 @@ config:
   lgbm_learning_rate: 0.03
   lgbm_reg_lambda: 5.0
   icon_dir: data/processed/icon_aggregated_c2_run03
+  icon_transition_history_dir: data/processed/icon_aggregated_c2_run06
+  icon_transition_history_run: '06'
+  icon_transition_history_start_folder_date: '2025-10-25'
+  icon_transition_history_skip_dates:
+    - '2026-02-07'
+    - '2026-06-19'
   n_clusters: 2
   train_days_rolling: 70
   features:

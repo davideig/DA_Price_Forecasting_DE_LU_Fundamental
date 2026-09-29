@@ -201,10 +201,15 @@ def test_cutoff_configs_apply_realized_data_limits_and_fixed_weather() -> None:
         assert price["required_run"] == spec.weather_run
         expected_price_skip_dates = ["2026-02-07", "2026-06-19"]
         if cutoff in {"0700", "0800", "0900"}:
+            assert price["icon_transition_history_dir"] == "data/processed/icon_aggregated_c2_run06"
+            assert price["icon_transition_history_run"] == "06"
+            assert price["icon_transition_history_skip_dates"] == expected_price_skip_dates
             assert "2026-06-12" in load["skip_dates"]
             assert "2026-06-12" in solar["skip_dates"]
             assert "2026-06-12" in wind["skip_dates"]
             expected_price_skip_dates.insert(1, "2026-06-12")
+        else:
+            assert "icon_transition_history_dir" not in price
         assert price["skip_dates"] == expected_price_skip_dates
         expected_reserve_columns = {
             "0700": [],

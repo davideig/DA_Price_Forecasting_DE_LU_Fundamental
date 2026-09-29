@@ -9,6 +9,29 @@ import pytest
 from da_price_forecasting.pipelines import lear
 
 
+def test_transition_weather_history_only_prepends_dates_before_primary() -> None:
+    index = pd.date_range("2026-09-27", periods=4, freq="D", tz="Europe/Berlin")
+    primary = pd.DataFrame({"weather": [3.0, 4.0]}, index=index[2:])
+    transition = pd.DataFrame({"weather": [1.0, 2.0, 30.0, 40.0]}, index=index)
+
+    combined = lear._prepend_transition_weather_history(primary, transition)
+
+    assert combined.index.tolist() == index.tolist()
+    assert combined["weather"].tolist() == [1.0, 2.0, 3.0, 4.0]
+
+
+def test_transition_weather_history_does_not_fill_primary_period_gaps() -> None:
+    index = pd.date_range("2026-09-27", periods=4, freq="D", tz="Europe/Berlin")
+    primary = pd.DataFrame({"weather": [2.0, 4.0]}, index=index[[1, 3]])
+    transition = pd.DataFrame({"weather": [1.0, 20.0, 30.0, 40.0]}, index=index)
+
+    combined = lear._prepend_transition_weather_history(primary, transition)
+
+    assert combined.index.tolist() == index[[0, 1, 3]].tolist()
+    assert index[2] not in combined.index
+    assert combined["weather"].tolist() == [1.0, 2.0, 4.0]
+
+
 def test_price_cache_refreshes_missing_tail(tmp_path: Path) -> None:
     cache_file = tmp_path / "prices.csv"
     cached_index = pd.date_range("2026-05-20T00:00:00+02:00", periods=96, freq="15min")
@@ -64,4 +87,3 @@ def test_price_cache_uses_available_cache_when_refresh_fails(tmp_path: Path) -> 
     assert result.index.min() == cached_index[0]
     assert result.index.max() == cached_index[-1]
     assert result["price_da"].notna().all()
-

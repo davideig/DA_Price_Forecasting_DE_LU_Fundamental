@@ -11,13 +11,13 @@ config:
   output_file: data/processed/renewable_proxy/open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover_features.csv
 
   open_meteo_weather_file: data/processed/open_meteo/open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover_weather.csv
-  open_meteo_base_url: https://single-runs-api.open-meteo.com/v1/forecast
-  open_meteo_api_key_env: null
+  open_meteo_base_url: https://customer-single-runs-api.open-meteo.com/v1/forecast
+  open_meteo_api_key_env: OPEN_METEO_API_KEY
   open_meteo_api_mode: single_run
   open_meteo_model: icon_d2
   open_meteo_single_run_hour_utc: "06:00"
   open_meteo_single_run_forecast_days: 2
-  open_meteo_request_pause_seconds: 5.0
+  open_meteo_request_pause_seconds: 0.5
   open_meteo_retry_attempts: 8
   open_meteo_retry_backoff_seconds: 60.0
   open_meteo_skip_unavailable_runs: true
@@ -31,7 +31,7 @@ config:
     - cloud_cover_high
   open_meteo_start_date: "2025-10-25"
   open_meteo_end_date: "2026-05-28"
-  open_meteo_batch_size: 250
+  open_meteo_batch_size: 100
   open_meteo_cell_selection: nearest
   open_meteo_force_download: false
   open_meteo_point_selection: centroid

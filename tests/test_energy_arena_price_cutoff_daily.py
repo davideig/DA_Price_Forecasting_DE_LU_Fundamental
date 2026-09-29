@@ -251,6 +251,10 @@ def test_all_live_open_meteo_configs_request_fixed_runs_with_previous_run_fallba
         if config.get("weather_source") != "open_meteo" and "open_meteo_api_mode" not in config:
             continue
         assert config["open_meteo_api_mode"] == "single_run"
+        assert config["open_meteo_base_url"] == (
+            "https://customer-single-runs-api.open-meteo.com/v1/forecast"
+        )
+        assert config["open_meteo_api_key_env"] == "OPEN_METEO_API_KEY"
         expected_run = next(run for run in ("03", "06") if f"run{run}" in path.name)
         assert config["open_meteo_single_run_hour_utc"] == f"{expected_run}:00"
         assert config["open_meteo_fallback_previous_runs"] is True

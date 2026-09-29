@@ -43,6 +43,12 @@ def test_runner_has_no_cross_run_bootstrap_or_multi_provider_wind() -> None:
     assert 'backfill_end - 180 days' in script
     assert '--set "open_meteo_start_date=$backfill_start"' in script
     assert "wait_for_job_lock renewable-run03-features-update 3600" in script
+    assert "refresh-current-fixed-run-weather" in script
+    assert "refresh_current_open_meteo" in script
+    assert '--set "open_meteo_start_date=$current_day"' in script
+    assert "--set open_meteo_force_download=true" in script
+    prewarm = script.split("  cutoff-prewarm-all)", 1)[1].split("    ;;", 1)[0]
+    assert prewarm.index("refresh_current_open_meteo") < prewarm.index("open-meteo-coverage")
 
 
 def test_general_schedule_removes_duplicate_submission_jobs() -> None:

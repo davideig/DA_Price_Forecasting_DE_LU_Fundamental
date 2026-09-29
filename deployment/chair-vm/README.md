@@ -181,7 +181,10 @@ Finally, pre-warm all component and price caches without submitting:
 ```
 
 The pre-warm uses the deployment configs under `configs/deployment/cutoffs/`.
-It requests one fixed weather run per cutoff and never submits to Energy Arena.
+It first refreshes today's 03 and 06 UTC DWD and Open-Meteo inputs, audits their
+provenance, and then requests one fixed weather run per cutoff. It never submits
+to Energy Arena. To refresh and validate only the current weather inputs, use
+`refresh-current-fixed-run-weather`.
 
 ## 5. Register Daily Tasks
 

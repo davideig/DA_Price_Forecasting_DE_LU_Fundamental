@@ -21,8 +21,10 @@ Create a local environment file:
 cp .env.example .env
 ```
 
-Set `ENTSOE_API_KEY` and `OPEN_METEO_API_KEY` for current-data updates. Add the
-Energy Arena API key and challenge IDs only when using `--submit`.
+Set `ENTSOE_API_KEY` for current realized-data updates. `OPEN_METEO_API_KEY` is
+optional: when absent, fixed-run weather requests use Open-Meteo's public
+single-runs endpoint. Add the Energy Arena API key and challenge IDs only when
+using `--submit`.
 
 ## Run A Next-Day Model
 

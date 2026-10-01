@@ -101,12 +101,19 @@ The principal variables are:
 | Variable | Needed for |
 | --- | --- |
 | `ENTSOE_API_KEY` | Updating load, generation, and price data |
-| `OPEN_METEO_API_KEY` | Updating customer single-run weather data |
+| `OPEN_METEO_API_KEY` | Optional customer quota for single-run weather updates |
 | `ENERGY_ARENA_API_KEY` | Live Energy Arena submissions |
 | `ENERGY_ARENA_*_CHALLENGE_ID` | Selecting live submission challenges |
 
 Do not commit `.env`. Offline reproduction from a complete data archive does
 not require Energy Arena credentials.
+
+Open-Meteo credentials are optional. If `OPEN_METEO_API_KEY` is set, configs
+use the dedicated customer endpoint. Without it, the client automatically uses
+the public single-runs endpoint with the same fixed `run=` requests. The public
+service is appropriate for ordinary daily reuse but has lower rate limits and
+no uptime guarantee, so large backfills and production deployments should use
+a customer key.
 
 ## Data And Outputs
 

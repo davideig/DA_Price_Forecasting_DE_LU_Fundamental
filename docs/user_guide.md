@@ -103,8 +103,11 @@ Fill only the variables needed for the intended operation. At minimum:
 
 ```dotenv
 ENTSOE_API_KEY=...
-OPEN_METEO_API_KEY=...
 ```
+
+`OPEN_METEO_API_KEY` is optional. Set it to use Open-Meteo's customer endpoint
+for higher quotas and production reliability. If it is empty or absent, the
+same fixed-run requests use the public single-runs endpoint automatically.
 
 Live submissions additionally require:
 

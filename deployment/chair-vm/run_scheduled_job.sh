@@ -218,6 +218,7 @@ case "$job" in
 
   price-cutoff-0700-submit)
     wait_for_job_lock renewable-run03-features-update 3600
+    refresh_weather_features 03
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 0700 \
       --submit-first-stage \
@@ -227,6 +228,7 @@ case "$job" in
 
   price-cutoff-0800-submit)
     wait_for_job_lock renewable-run03-features-update 3600
+    refresh_weather_features 03
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 0800 \
       --submit-first-stage \
@@ -236,6 +238,7 @@ case "$job" in
 
   price-cutoff-0900-submit)
     wait_for_job_lock renewable-run03-features-update 3600
+    refresh_weather_features 03
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 0900 \
       --submit-first-stage \
@@ -246,6 +249,7 @@ case "$job" in
   price-cutoff-1000-submit)
     wait_for_job_lock dwd-run06-cutoff-update 1800
     wait_for_job_lock renewable-cutoff-features-update 1800
+    refresh_weather_features 06
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 1000 \
       --submit-first-stage \
@@ -255,6 +259,7 @@ case "$job" in
 
   price-cutoff-1100-submit)
     wait_for_job_lock renewable-cutoff-features-update 3600
+    refresh_weather_features 06
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 1100 \
       --submit-first-stage \
@@ -264,6 +269,7 @@ case "$job" in
 
   price-cutoff-1200-submit)
     wait_for_job_lock renewable-cutoff-features-update 3600
+    refresh_weather_features 06
     "$PIXI" run energy-arena-price-cutoff-daily \
       --cutoff 1200 \
       --submit-first-stage \

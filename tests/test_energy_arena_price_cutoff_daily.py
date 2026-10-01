@@ -271,6 +271,10 @@ def test_all_live_open_meteo_configs_request_fixed_runs_with_previous_run_fallba
         assert config["open_meteo_fallback_previous_runs"] is True
         assert config["open_meteo_fallback_step_hours"] == 3
         assert config["open_meteo_fallback_max_lookback_hours"] == 3
+        if expected_run == "03" or "load_" in path.name:
+            assert config["open_meteo_archive_start_date"] == "2026-04-03"
+        else:
+            assert config["open_meteo_archive_start_date"] == "2026-07-01"
         required = config["open_meteo_required_non_null_variables"]
         if "wind_open_meteo" in path.name:
             assert required == [

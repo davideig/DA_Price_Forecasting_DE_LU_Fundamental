@@ -31,7 +31,6 @@ DWD_CONFIG_PATHS = (
 FALLBACK_MARKERS = (
     "[fallback]",
     "using fallback model run",
-    "skipping unavailable model run",
 )
 
 

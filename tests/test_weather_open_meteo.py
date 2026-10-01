@@ -513,6 +513,105 @@ def test_load_open_meteo_fetches_only_missing_single_run_days(
     }
 
 
+def test_load_open_meteo_retries_cached_fallback_for_requested_day(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cluster_file = tmp_path / "clusters.csv"
+    cluster_file.write_text("cluster_id,lat,lon\n0,52.0,13.0\n", encoding="utf-8")
+    cache_file = tmp_path / "open_meteo.csv"
+    target = date(2026, 10, 2)
+    index = pd.date_range("2026-10-02", periods=24, freq="h", tz="Europe/Berlin")
+    pd.DataFrame({"t2m_cluster_0": 280.0}, index=index).to_csv(cache_file)
+    provenance = {
+        target.isoformat(): {
+            "requested_run_utc": "2026-10-01T03:00",
+            "actual_run_utc": "2026-10-01T00:00",
+            "fallback_used": True,
+            "reason": "primary run incomplete",
+        }
+    }
+    weather.open_meteo_run_provenance_path(cache_file).write_text(
+        json.dumps(provenance), encoding="utf-8"
+    )
+    calls: list[tuple[date, date, set[date]]] = []
+
+    def fake_fetch(**kwargs):  # noqa: ANN003
+        calls.append(
+            (kwargs["start_date"], kwargs["end_date"], kwargs["retry_fallback_days"])
+        )
+        _write_provenance_days(cache_file, [target.isoformat()], run_hour="03:00")
+        return pd.read_csv(cache_file, index_col=0)
+
+    monkeypatch.setattr(weather, "fetch_open_meteo_cluster_weather", fake_fetch)
+
+    weather.load_open_meteo(
+        cluster_file=cluster_file,
+        start_date=target,
+        end_date=target,
+        cache_file=cache_file,
+        api_mode="single_run",
+        retry_fallback_date=target,
+    )
+
+    assert calls == [(target, target, {target})]
+
+
+def test_load_open_meteo_clamps_requests_to_archive_start(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cluster_file = tmp_path / "clusters.csv"
+    cluster_file.write_text("cluster_id,lat,lon\n0,52.0,13.0\n", encoding="utf-8")
+    cache_file = tmp_path / "open_meteo.csv"
+    calls: list[tuple[date, date]] = []
+
+    def fake_fetch(**kwargs):  # noqa: ANN003
+        calls.append((kwargs["start_date"], kwargs["end_date"]))
+        return pd.DataFrame()
+
+    monkeypatch.setattr(weather, "fetch_open_meteo_cluster_weather", fake_fetch)
+
+    weather.load_open_meteo(
+        cluster_file=cluster_file,
+        start_date=date(2025, 9, 1),
+        end_date=date(2026, 4, 5),
+        cache_file=cache_file,
+        api_mode="single_run",
+        archive_start_date=date(2026, 4, 3),
+    )
+
+    assert calls == [(date(2026, 4, 3), date(2026, 4, 5))]
+
+
+def test_load_open_meteo_passes_excluded_days_to_fresh_cache_fetch(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cluster_file = tmp_path / "clusters.csv"
+    cluster_file.write_text("cluster_id,lat,lon\n0,52.0,13.0\n", encoding="utf-8")
+    cache_file = tmp_path / "open_meteo.csv"
+    excluded = date(2026, 6, 12)
+    captured: set[date] = set()
+
+    def fake_fetch(**kwargs):  # noqa: ANN003
+        captured.update(kwargs["excluded_days"])
+        return pd.DataFrame()
+
+    monkeypatch.setattr(weather, "fetch_open_meteo_cluster_weather", fake_fetch)
+
+    weather.load_open_meteo(
+        cluster_file=cluster_file,
+        start_date=date(2026, 6, 11),
+        end_date=date(2026, 6, 13),
+        cache_file=cache_file,
+        api_mode="single_run",
+        excluded_dates=[excluded],
+    )
+
+    assert captured == {excluded}
+
+
 def test_load_open_meteo_refetches_cached_day_with_null_required_fields(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

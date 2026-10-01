@@ -17,6 +17,7 @@ config:
   open_meteo_model: icon_d2
   open_meteo_single_run_hour_utc: "06:00"
   open_meteo_single_run_forecast_days: 2
+  open_meteo_archive_start_date: "2026-07-01"
   open_meteo_request_pause_seconds: 0.5
   open_meteo_retry_attempts: 8
   open_meteo_retry_backoff_seconds: 60.0

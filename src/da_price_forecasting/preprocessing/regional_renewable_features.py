@@ -1351,6 +1351,9 @@ def _load_weather(config: RegionalRenewableFeatureConfig) -> pd.DataFrame:
             fallback_step_hours=config.open_meteo_fallback_step_hours,
             fallback_max_lookback_hours=config.open_meteo_fallback_max_lookback_hours,
             required_non_null_variables=config.open_meteo_required_non_null_variables,
+            archive_start_date=config.open_meteo_archive_start_date,
+            excluded_dates=config.skip_dates,
+            retry_fallback_date=config.open_meteo_retry_fallback_date,
         )
     raise ValueError(f"Unsupported regional renewable weather_source: {config.weather_source!r}")
 
@@ -1384,6 +1387,9 @@ def _load_open_meteo_capacity_point_weather(
         fallback_step_hours=config.open_meteo_fallback_step_hours,
         fallback_max_lookback_hours=config.open_meteo_fallback_max_lookback_hours,
         required_non_null_variables=config.open_meteo_required_non_null_variables,
+        archive_start_date=config.open_meteo_archive_start_date,
+        excluded_dates=config.skip_dates,
+        retry_fallback_date=config.open_meteo_retry_fallback_date,
     )
 
 

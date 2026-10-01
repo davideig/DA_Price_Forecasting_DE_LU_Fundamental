@@ -69,8 +69,12 @@ published snapshot and re-check the linked upstream terms before redistribution.
 
 On the chair VM, `deployment/chair-vm/register_tasks.ps1` first runs the
 post-deadline `DAForecast-repair-operational-data` task. It retries missing
-current weather inputs, refreshes the affected renewable features, and writes a
-dated report below `data/processed/operational_quality/`. The later
+current weather inputs, refreshes the affected renewable features, and applies
+the documented 14-day persistent-gap policy to realized load and generation.
+Imputed processed values retain cell-level provenance in
+`data/processed/operational_quality/`; raw source responses are never
+overwritten by imputation. The task also writes a dated quality report there.
+The later
 `DAForecast-commit-operational-archive` task waits for repair to finish, exports
 and verifies the bounded `operational` profile, commits changed archive files,
 and pushes them. The profile contains the inputs used by the deployed final and

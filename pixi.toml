@@ -143,6 +143,7 @@ check-data-price-final = { cmd = "da-price-check-data-pack --profile price-final
 check-data-thesis = { cmd = "da-price-check-data-pack --profile thesis", default-environment = "core" }
 operational-archive = { cmd = "da-price-operational-archive", default-environment = "core" }
 operational-data-quality = { cmd = "da-price-operational-data-quality", default-environment = "core" }
+operational-gap-repair = { cmd = "da-price-operational-gap-repair", default-environment = "core" }
 open-meteo-coverage = { cmd = "da-price-open-meteo-coverage", default-environment = "core" }
 forecast-next-day = { cmd = "da-price-forecast-next-day", default-environment = "forecast" }
 poll-reserve-publication = { cmd = "da-price-poll-reserve-publication", default-environment = "forecast" }

@@ -43,7 +43,7 @@ cp .env.example .env
 nano .env
 ```
 
-Required keys:
+Required keys for live submissions:
 
 ```text
 ENTSOE_API_KEY
@@ -58,7 +58,7 @@ ENERGY_ARENA_WIND_CHALLENGE_ID
 the chair VM for higher quotas and production reliability. When it is present,
 the explicit 03 and 06 UTC requests use the customer single-run endpoint. When
 it is absent, the weather client automatically switches to the public
-single-runs endpoint and sends no API key.
+non-commercial single-runs endpoint and sends no API key.
 The 00 UTC run is eligible only as the previous-run fallback for a requested
 03 UTC run. The deployment never substitutes the provider's latest run.
 If Open-Meteo is still publishing required variables, the current cutoff may

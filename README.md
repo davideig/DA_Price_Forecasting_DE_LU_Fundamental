@@ -106,14 +106,10 @@ The principal variables are:
 | `ENERGY_ARENA_*_CHALLENGE_ID` | Selecting live submission challenges |
 
 Do not commit `.env`. Offline reproduction from a complete data archive does
-not require Energy Arena credentials.
-
-Open-Meteo credentials are optional. If `OPEN_METEO_API_KEY` is set, configs
-use the dedicated customer endpoint. Without it, the client automatically uses
-the public single-runs endpoint with the same fixed `run=` requests. The public
-service is appropriate for ordinary daily reuse but has lower rate limits and
-no uptime guarantee, so large backfills and production deployments should use
-a customer key.
+not require Energy Arena credentials. Without `OPEN_METEO_API_KEY`, fixed-run
+weather requests automatically use Open-Meteo's rate-limited public
+non-commercial single-runs endpoint with the same fixed `run=` requests. Set a
+customer key for commercial use, large backfills, or production reliability.
 
 ## Data And Outputs
 

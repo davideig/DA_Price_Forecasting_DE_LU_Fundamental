@@ -285,6 +285,7 @@ def _incremental_feature_payload(payload: dict, config: RegionalRenewableFeature
     if config.weather_source == "open_meteo":
         body["open_meteo_start_date"] = history_start.isoformat()
         body["open_meteo_end_date"] = forecast_day.isoformat()
+        body["open_meteo_retry_fallback_date"] = forecast_day.isoformat()
     elif config.weather_source == "dwd_icon":
         body["start_folder_date"] = _dwd_issue_day(history_start, config.dwd_folder_offset_date).isoformat()
 
@@ -351,6 +352,21 @@ def _weather_run_fallback(config: RegionalRenewableFeatureConfig, forecast_day: 
     return record if isinstance(record, dict) and bool(record.get("fallback_used")) else None
 
 
+def _feature_fallback(
+    config: RegionalRenewableFeatureConfig,
+    forecast_day: date,
+) -> dict[str, object] | None:
+    path = feature_provenance_path(config.output_file)
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    record = payload.get(forecast_day.isoformat(), {})
+    return record if isinstance(record, dict) and bool(record.get("fallback_used")) else None
+
+
 def _run_feature_payload_incrementally(
     payload: dict,
     repo_root: Path,
@@ -367,7 +383,16 @@ def _run_feature_payload_incrementally(
             print(f"[cache] Ignoring unreadable renewable feature cache {config.output_file}: {exc}", flush=True)
 
     has_target = _feature_cache_has_day(existing, forecast_day, config.target_tz)
-    if has_target and not force_refresh and not _feature_source_is_newer(config, forecast_day):
+    cached_fallback = bool(
+        config.weather_source == "open_meteo"
+        and (_weather_run_fallback(config, forecast_day) or _feature_fallback(config, forecast_day))
+    )
+    if (
+        has_target
+        and not force_refresh
+        and not cached_fallback
+        and not _feature_source_is_newer(config, forecast_day)
+    ):
         if existing is not None:
             _ensure_capacity_artifacts(config, existing)
         print(f"[cache] Renewable feature cache already covers {forecast_day}; skipping rebuild.", flush=True)
@@ -375,6 +400,8 @@ def _run_feature_payload_incrementally(
 
     if force_refresh:
         reason = "forced repair"
+    elif cached_fallback:
+        reason = "cached fallback input"
     else:
         reason = "newer weather source" if has_target else "missing target day"
     incremental_payload = _incremental_feature_payload(payload, config, forecast_day)

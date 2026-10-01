@@ -60,6 +60,8 @@ class LoadForecastModelConfig(RepoConfigModel):
     open_meteo_fallback_step_hours: int = Field(default=2, gt=0)
     open_meteo_fallback_max_lookback_hours: int = Field(default=24, ge=0)
     open_meteo_required_non_null_variables: list[str] = Field(default_factory=list)
+    open_meteo_archive_start_date: date | None = None
+    open_meteo_retry_fallback_date: date | None = None
     open_meteo_point_selection: Literal["centroid", "grid_mean"] = "centroid"
     open_meteo_max_points_per_cluster: int | None = None
     extra_open_meteo_weather_files: list[Path] = Field(default_factory=list)

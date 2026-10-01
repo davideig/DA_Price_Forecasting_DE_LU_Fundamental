@@ -26,6 +26,15 @@ Status: 2026-09-28. All four models specified; reserve timing (5.5) measured;
   with all wind variables null while temperature and pressure were present, and
   a run-level availability check does not catch this. Variables that are always
   null for a model (see 4.2) are excluded from this check.
+- **Retry current-day fallbacks.** A fallback cached for the current delivery
+  day is not considered final for later cutoffs. Each cutoff retries the fixed
+  requested run and replaces the cached target day when that run has become
+  complete. The previous run remains the final admissible fallback when the
+  preferred run is still incomplete at execution time.
+- **Do not retry expired archive dates in live jobs.** The genuine fixed-run
+  archive boundary is configured per operational history. Dates before that
+  boundary, plus explicitly documented provider-outage dates, remain transition
+  coverage and are not requested again by every cutoff job.
 - **Publication delays used.**
 
   | Source | Available |

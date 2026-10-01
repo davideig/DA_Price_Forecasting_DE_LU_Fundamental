@@ -59,6 +59,12 @@ ENERGY_ARENA_WIND_CHALLENGE_ID
 explicit 03 and 06 UTC runs from the Open-Meteo customer single-run archive.
 The 00 UTC run is eligible only as the previous-run fallback for a requested
 03 UTC run. The deployment never substitutes the provider's latest run.
+If Open-Meteo is still publishing required variables, the current cutoff may
+use the previous run. Every later cutoff retries a provenance-marked target-day
+fallback and upgrades the cached day when the requested run becomes complete.
+Known dates before the genuine single-run archive boundary are excluded from
+live requests, so transition gaps do not generate repeated API calls or false
+operational alarms.
 
 Optionally set `SYNERGIE_BACKUP_DIR` to a WSL-visible Synergie drive folder.
 The scheduled backup job copies the compact operational archive and task logs
@@ -173,6 +179,9 @@ the retained 180-day archive window through the current local date. Dates before
 that window are left missing and reported as transition coverage by the audit,
 rather than repeatedly requested from an archive that no longer holds them. It
 does not modify the YAML files, and reruns reuse every successfully cached day.
+The same archive boundaries are stored in the live deployment YAML files. The
+daily quality report counts an actual fallback selection, but not an expected
+historical `modelRunUnavailable` skip.
 
 Finally, pre-warm all component and price caches without submitting:
 

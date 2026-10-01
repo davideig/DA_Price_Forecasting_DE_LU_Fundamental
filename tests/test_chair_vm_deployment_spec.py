@@ -47,6 +47,8 @@ def test_runner_has_no_cross_run_bootstrap_or_multi_provider_wind() -> None:
     assert "refresh_current_open_meteo" in script
     assert '--set "open_meteo_start_date=$current_day"' in script
     assert "--set open_meteo_force_download=true" in script
+    assert script.count("refresh_weather_features 03") >= 3
+    assert script.count("refresh_weather_features 06") >= 3
     prewarm = script.split("  cutoff-prewarm-all)", 1)[1].split("    ;;", 1)[0]
     assert prewarm.index("refresh_current_open_meteo") < prewarm.index("open-meteo-coverage")
 

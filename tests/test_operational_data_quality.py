@@ -23,6 +23,17 @@ def test_collect_fallback_events_filters_and_records_source(tmp_path: Path) -> N
     assert all(event["log"].endswith("_2026-09-25.log") for event in events)
 
 
+def test_collect_fallback_events_ignores_unavailable_historical_archive_days(tmp_path: Path) -> None:
+    logs = tmp_path / "logs" / "chair_vm_tasks"
+    logs.mkdir(parents=True)
+    (logs / "price-submit_2026-09-25.log").write_text(
+        "[OPEN-METEO] Skipping unavailable model run for day 2026-03-28\n",
+        encoding="utf-8",
+    )
+
+    assert quality._collect_fallback_events(tmp_path, date(2026, 9, 25)) == []
+
+
 def test_build_quality_report_marks_fallback_as_degraded(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         quality,

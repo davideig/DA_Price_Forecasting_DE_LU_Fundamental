@@ -114,6 +114,7 @@ def _mutate_first_stage_payload(
         config["entsoe_end_date"] = forecast_date.isoformat()
     if "open_meteo_end_date" in config:
         config["open_meteo_end_date"] = forecast_date.isoformat()
+        config["open_meteo_retry_fallback_date"] = forecast_date.isoformat()
     config.setdefault("target_tz", target_tz)
     updated["config"] = config
     return updated

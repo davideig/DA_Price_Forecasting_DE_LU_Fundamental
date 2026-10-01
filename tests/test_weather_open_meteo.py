@@ -288,8 +288,10 @@ def test_previous_evening_fallback_is_rejected_when_delivery_day_is_incomplete(
         )
 
 
+@pytest.mark.parametrize("api_key", [None, ""])
 def test_fetch_open_meteo_batch_falls_back_from_customer_endpoint_without_api_key(
     monkeypatch: pytest.MonkeyPatch,
+    api_key: str | None,
 ) -> None:
     request = {}
 
@@ -298,7 +300,10 @@ def test_fetch_open_meteo_batch_falls_back_from_customer_endpoint_without_api_ke
         request["params"] = kwargs["params"]
         return _OpenMeteoResponse()
 
-    monkeypatch.delenv("OPEN_METEO_API_KEY", raising=False)
+    if api_key is None:
+        monkeypatch.delenv("OPEN_METEO_API_KEY", raising=False)
+    else:
+        monkeypatch.setenv("OPEN_METEO_API_KEY", api_key)
     monkeypatch.setattr("da_price_forecasting.data.weather.requests.get", fake_get)
 
     items = _fetch_open_meteo_batch(

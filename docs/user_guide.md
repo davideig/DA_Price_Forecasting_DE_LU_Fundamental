@@ -103,6 +103,14 @@ Fill only the variables needed for the intended operation. At minimum:
 
 ```dotenv
 ENTSOE_API_KEY=...
+```
+
+`OPEN_METEO_API_KEY` is optional. If it is absent or empty, the same fixed-run
+requests use Open-Meteo's rate-limited public non-commercial endpoint. Add a
+customer key for commercial use, higher capacity, or more reliable production
+operation:
+
+```dotenv
 OPEN_METEO_API_KEY=...
 ```
 

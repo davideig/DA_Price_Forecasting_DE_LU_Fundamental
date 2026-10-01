@@ -1,0 +1,23 @@
+{
+  "2026-09-30": {
+    "donor_day": null,
+    "fallback_used": false,
+    "reason": null,
+    "recorded_at_utc": "2026-09-29T08:43:28.775265+00:00",
+    "weather_run": null
+  },
+  "2026-10-01": {
+    "donor_day": null,
+    "fallback_used": false,
+    "reason": null,
+    "recorded_at_utc": "2026-09-30T10:26:24.460191+00:00",
+    "weather_run": null
+  },
+  "2026-10-02": {
+    "donor_day": null,
+    "fallback_used": false,
+    "reason": null,
+    "recorded_at_utc": "2026-10-01T10:41:48.478416+00:00",
+    "weather_run": null
+  }
+}

@@ -1,0 +1,202 @@
+{
+  "datasets": [
+    {
+      "allowed_missing_days": 1,
+      "allowed_missing_ranges": [
+        {
+          "end": "2026-06-12",
+          "start": "2026-06-12"
+        }
+      ],
+      "archive_start": "2026-04-03",
+      "audit_end": "2026-09-29",
+      "cache": "data/processed/open_meteo/open_meteo_icon_d2_single_run03_c25_grid_mean_p10_weather.csv",
+      "config": "configs/deployment/cutoff_preprocessing/load_open_meteo_history_run03.yaml",
+      "configured_start": "2025-09-01",
+      "fallback_days": 3,
+      "first_genuine_date": "2026-04-03",
+      "genuine_days": 176,
+      "invalid_provenance": [],
+      "last_genuine_date": "2026-09-29",
+      "missing_within_archive_days": 0,
+      "missing_within_archive_ranges": [],
+      "model": "load",
+      "provenance": "data/processed/open_meteo/open_meteo_icon_d2_single_run03_c25_grid_mean_p10_weather.csv.run_provenance.json",
+      "provenance_without_cache_days": 0,
+      "provenance_without_cache_ranges": [],
+      "requested_run_utc": "03:00",
+      "status": "transition",
+      "transition_missing_days": 214,
+      "transition_missing_ranges": [
+        {
+          "end": "2026-04-02",
+          "start": "2025-09-01"
+        }
+      ],
+      "unverified_cached_days": 0,
+      "unverified_cached_ranges": []
+    },
+    {
+      "allowed_missing_days": 1,
+      "allowed_missing_ranges": [
+        {
+          "end": "2026-06-12",
+          "start": "2026-06-12"
+        }
+      ],
+      "archive_start": "2026-04-03",
+      "audit_end": "2026-09-29",
+      "cache": "data/processed/open_meteo/open_meteo_icon_d2_single_run03_mastr_solar_tso_c25_cloud_cover_weather.csv",
+      "config": "configs/deployment/cutoff_preprocessing/solar_open_meteo_features_run03.yaml",
+      "configured_start": "2025-10-25",
+      "fallback_days": 0,
+      "first_genuine_date": "2026-04-03",
+      "genuine_days": 179,
+      "invalid_provenance": [],
+      "last_genuine_date": "2026-09-29",
+      "missing_within_archive_days": 0,
+      "missing_within_archive_ranges": [],
+      "model": "solar",
+      "provenance": "data/processed/open_meteo/open_meteo_icon_d2_single_run03_mastr_solar_tso_c25_cloud_cover_weather.csv.run_provenance.json",
+      "provenance_without_cache_days": 0,
+      "provenance_without_cache_ranges": [],
+      "requested_run_utc": "03:00",
+      "status": "transition",
+      "transition_missing_days": 160,
+      "transition_missing_ranges": [
+        {
+          "end": "2026-04-02",
+          "start": "2025-10-25"
+        }
+      ],
+      "unverified_cached_days": 0,
+      "unverified_cached_ranges": []
+    },
+    {
+      "allowed_missing_days": 1,
+      "allowed_missing_ranges": [
+        {
+          "end": "2026-06-12",
+          "start": "2026-06-12"
+        }
+      ],
+      "archive_start": "2026-04-03",
+      "audit_end": "2026-09-29",
+      "cache": "data/processed/open_meteo/open_meteo_icon_d2_single_run03_wind_hub_p80_provider_common_weather.csv",
+      "config": "configs/deployment/cutoff_preprocessing/wind_open_meteo_features_run03.yaml",
+      "configured_start": "2025-10-25",
+      "fallback_days": 3,
+      "first_genuine_date": "2026-04-03",
+      "genuine_days": 176,
+      "invalid_provenance": [],
+      "last_genuine_date": "2026-09-29",
+      "missing_within_archive_days": 0,
+      "missing_within_archive_ranges": [],
+      "model": "wind",
+      "provenance": "data/processed/open_meteo/open_meteo_icon_d2_single_run03_wind_hub_p80_provider_common_weather.csv.run_provenance.json",
+      "provenance_without_cache_days": 0,
+      "provenance_without_cache_ranges": [],
+      "requested_run_utc": "03:00",
+      "status": "transition",
+      "transition_missing_days": 160,
+      "transition_missing_ranges": [
+        {
+          "end": "2026-04-02",
+          "start": "2025-10-25"
+        }
+      ],
+      "unverified_cached_days": 0,
+      "unverified_cached_ranges": []
+    },
+    {
+      "allowed_missing_days": 0,
+      "allowed_missing_ranges": [],
+      "archive_start": "2026-04-03",
+      "audit_end": "2026-09-29",
+      "cache": "data/processed/open_meteo/open_meteo_icon_d2_single_run06_c25_grid_mean_p10_weather.csv",
+      "config": "configs/deployment/cutoff_preprocessing/load_open_meteo_history_run06.yaml",
+      "configured_start": "2025-09-01",
+      "fallback_days": 3,
+      "first_genuine_date": "2026-04-03",
+      "genuine_days": 177,
+      "invalid_provenance": [],
+      "last_genuine_date": "2026-09-29",
+      "missing_within_archive_days": 0,
+      "missing_within_archive_ranges": [],
+      "model": "load",
+      "provenance": "data/processed/open_meteo/open_meteo_icon_d2_single_run06_c25_grid_mean_p10_weather.csv.run_provenance.json",
+      "provenance_without_cache_days": 0,
+      "provenance_without_cache_ranges": [],
+      "requested_run_utc": "06:00",
+      "status": "transition",
+      "transition_missing_days": 214,
+      "transition_missing_ranges": [
+        {
+          "end": "2026-04-02",
+          "start": "2025-09-01"
+        }
+      ],
+      "unverified_cached_days": 0,
+      "unverified_cached_ranges": []
+    },
+    {
+      "allowed_missing_days": 0,
+      "allowed_missing_ranges": [],
+      "archive_start": "2026-07-01",
+      "audit_end": "2026-09-29",
+      "cache": "data/processed/open_meteo/open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover_weather.csv",
+      "config": "configs/deployment/cutoff_preprocessing/solar_open_meteo_features_run06.yaml",
+      "configured_start": "2025-10-25",
+      "fallback_days": 0,
+      "first_genuine_date": "2026-07-01",
+      "genuine_days": 91,
+      "invalid_provenance": [],
+      "last_genuine_date": "2026-09-29",
+      "missing_within_archive_days": 0,
+      "missing_within_archive_ranges": [],
+      "model": "solar",
+      "provenance": "data/processed/open_meteo/open_meteo_icon_d2_single_run06_mastr_solar_tso_c25_cloud_cover_weather.csv.run_provenance.json",
+      "provenance_without_cache_days": 0,
+      "provenance_without_cache_ranges": [],
+      "requested_run_utc": "06:00",
+      "status": "transition",
+      "transition_missing_days": 249,
+      "transition_missing_ranges": [
+        {
+          "end": "2026-06-30",
+          "start": "2025-10-25"
+        }
+      ],
+      "unverified_cached_days": 0,
+      "unverified_cached_ranges": []
+    },
+    {
+      "allowed_missing_days": 0,
+      "allowed_missing_ranges": [],
+      "archive_start": "2026-07-01",
+      "audit_end": "2026-09-29",
+      "cache": "data/processed/open_meteo/open_meteo_icon_d2_single_run06_wind_hub_p80_provider_common_weather.csv",
+      "config": "configs/deployment/cutoff_preprocessing/wind_open_meteo_features_run06.yaml",
+      "configured_start": "2026-07-01",
+      "fallback_days": 2,
+      "first_genuine_date": "2026-07-01",
+      "genuine_days": 89,
+      "invalid_provenance": [],
+      "last_genuine_date": "2026-09-29",
+      "missing_within_archive_days": 0,
+      "missing_within_archive_ranges": [],
+      "model": "wind",
+      "provenance": "data/processed/open_meteo/open_meteo_icon_d2_single_run06_wind_hub_p80_provider_common_weather.csv.run_provenance.json",
+      "provenance_without_cache_days": 0,
+      "provenance_without_cache_ranges": [],
+      "requested_run_utc": "06:00",
+      "status": "ok",
+      "transition_missing_days": 0,
+      "transition_missing_ranges": [],
+      "unverified_cached_days": 0,
+      "unverified_cached_ranges": []
+    }
+  ],
+  "schema_version": 1,
+  "status": "ok"
+}

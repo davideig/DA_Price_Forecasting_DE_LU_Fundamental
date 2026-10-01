@@ -1,0 +1,33 @@
+{
+  "2026-09-30": {
+    "donor_day": null,
+    "fallback_used": false,
+    "reason": null,
+    "recorded_at_utc": "2026-09-29T08:43:08.541170+00:00",
+    "weather_run": null
+  },
+  "2026-10-01": {
+    "donor_day": null,
+    "fallback_used": true,
+    "reason": "Open-Meteo run 2026-09-30T06:00 has no finite target-day values for required variable(s): wind_direction_120m, wind_direction_180m, wind_direction_80m, wind_speed_120m, wind_speed_180m, wind_speed_80m",
+    "recorded_at_utc": "2026-09-30T10:26:10.241560+00:00",
+    "weather_run": {
+      "actual_run_utc": "2026-09-30T03:00",
+      "fallback_used": true,
+      "reason": "Open-Meteo run 2026-09-30T06:00 has no finite target-day values for required variable(s): wind_direction_120m, wind_direction_180m, wind_direction_80m, wind_speed_120m, wind_speed_180m, wind_speed_80m",
+      "requested_run_utc": "2026-09-30T06:00"
+    }
+  },
+  "2026-10-02": {
+    "donor_day": null,
+    "fallback_used": true,
+    "reason": "Open-Meteo run 2026-10-01T06:00 has no finite target-day values for required variable(s): wind_direction_120m, wind_direction_180m, wind_direction_80m, wind_speed_120m, wind_speed_180m, wind_speed_80m",
+    "recorded_at_utc": "2026-10-01T10:41:30.778852+00:00",
+    "weather_run": {
+      "actual_run_utc": "2026-10-01T03:00",
+      "fallback_used": true,
+      "reason": "Open-Meteo run 2026-10-01T06:00 has no finite target-day values for required variable(s): wind_direction_120m, wind_direction_180m, wind_direction_80m, wind_speed_120m, wind_speed_180m, wind_speed_80m",
+      "requested_run_utc": "2026-10-01T06:00"
+    }
+  }
+}

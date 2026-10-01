@@ -48,6 +48,24 @@ Status: 2026-09-28. All four models specified; reserve timing (5.5) measured;
 | Realized values (load, generation) | Stored in a local history. On each run, **re-fetch and overwrite the last 7-14 days**, because ENTSO-E revises published values (first estimate, later measured data). Then append the new data |
 | Cutoff limits | Applied **when data is used** (features, labels, bias correction), not when it is stored. The stored history always holds everything published so far |
 
+**Persistent realized-data gaps.** Missing load or generation values remain
+untouched during a 14-day provider-retry window. After that window, the
+post-deadline repair task may fill a short gap of at most four quarter-hours by
+bounded linear interpolation. Longer gaps use the median of previously
+observed values for the same weekday and quarter-hour over the preceding eight
+weeks, falling back to the prior-history median for that quarter-hour. Donor
+values must be original observations, not earlier imputations. Values are
+written only to the processed cache; raw provider responses are never changed.
+Every filled cell is recorded in
+`data/processed/operational_quality/persistent_gap_imputations.csv`, and
+unresolved gaps remain visible in the dated quality report without blocking
+the next day's retry or forecast schedule.
+
+This policy does not numerically impute missing weather runs or reserve-market
+auction outcomes. Weather uses the provenance-marked previous-run rule above;
+an unavailable historical weather day is excluded from training. Reserve data
+is re-fetched and a missing auction remains missing rather than being invented.
+
 **Transition for the early run (03 UTC).** Until a run has its own
 history covering the full training window (90 days solar, 180 days wind,
 224 days load), a model using that run is trained partly on another run's

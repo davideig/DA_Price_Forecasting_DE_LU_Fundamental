@@ -30,6 +30,10 @@ from ..preprocessing.dwd_icon_operational import (
     dwd_run_provenance_path,
     processed_weather_folder,
 )
+from ..preprocessing.regional_renewable_features import (
+    build_capacity_timeseries_artifact,
+    build_weather_weights_artifact,
+)
 from .run import run_from_config
 
 
@@ -364,6 +368,8 @@ def _run_feature_payload_incrementally(
 
     has_target = _feature_cache_has_day(existing, forecast_day, config.target_tz)
     if has_target and not force_refresh and not _feature_source_is_newer(config, forecast_day):
+        if existing is not None:
+            _ensure_capacity_artifacts(config, existing)
         print(f"[cache] Renewable feature cache already covers {forecast_day}; skipping rebuild.", flush=True)
         return
 
@@ -394,6 +400,7 @@ def _run_feature_payload_incrementally(
         combined = pd.concat([existing, fallback_frame])
         combined = combined.loc[~combined.index.duplicated(keep="last")].sort_index()
         save_timestamp_csv(combined, config.output_file)
+        _ensure_capacity_artifacts(config, combined)
         _record_feature_provenance(
             config,
             forecast_day,
@@ -412,6 +419,7 @@ def _run_feature_payload_incrementally(
         refreshed = pd.concat([existing, refreshed])
         refreshed = refreshed.loc[~refreshed.index.duplicated(keep="last")].sort_index()
     save_timestamp_csv(refreshed, config.output_file)
+    _ensure_capacity_artifacts(config, refreshed)
     weather_run = _weather_run_fallback(config, forecast_day)
     _record_feature_provenance(
         config,
@@ -421,6 +429,51 @@ def _run_feature_payload_incrementally(
         weather_run=weather_run,
     )
     print(f"[cache] Renewable feature cache updated through {forecast_day}.", flush=True)
+
+
+def _artifact_covers_latest_month(path: Path, latest_month: pd.Timestamp) -> bool:
+    if not path.exists():
+        return False
+    try:
+        artifact = pd.read_csv(path, usecols=["month"])
+        months = pd.to_datetime(artifact["month"], errors="coerce", utc=True).dropna()
+    except (OSError, ValueError, KeyError):
+        return False
+    if months.empty:
+        return False
+    newest = months.max()
+    return (newest.year, newest.month) >= (latest_month.year, latest_month.month)
+
+
+def _ensure_capacity_artifacts(
+    config: RegionalRenewableFeatureConfig,
+    features: pd.DataFrame,
+) -> None:
+    """Regenerate missing/stale static artifacts from the complete live history."""
+    artifacts = [
+        path
+        for path in (config.capacity_timeseries_file, config.weather_weights_file)
+        if path is not None
+    ]
+    if not artifacts or features.empty:
+        return
+    latest_month = pd.DatetimeIndex(features.index).max()
+    if all(_artifact_covers_latest_month(path, latest_month) for path in artifacts):
+        return
+    if not config.capacity_map_file.exists():
+        raise FileNotFoundError(f"Cannot build capacity artifacts without {config.capacity_map_file}.")
+
+    capacity_map = pd.read_csv(config.capacity_map_file)
+    if config.capacity_timeseries_file is not None:
+        capacity_timeseries = build_capacity_timeseries_artifact(capacity_map, features.index, config)
+        config.capacity_timeseries_file.parent.mkdir(parents=True, exist_ok=True)
+        capacity_timeseries.to_csv(config.capacity_timeseries_file, index=False)
+        print(f"[cache] Saved capacity time series: {config.capacity_timeseries_file}", flush=True)
+    if config.weather_weights_file is not None:
+        weather_weights = build_weather_weights_artifact(capacity_map, features.index, config)
+        config.weather_weights_file.parent.mkdir(parents=True, exist_ok=True)
+        weather_weights.to_csv(config.weather_weights_file, index=False)
+        print(f"[cache] Saved weather weights: {config.weather_weights_file}", flush=True)
 
 
 def build_renewable_model_payload(

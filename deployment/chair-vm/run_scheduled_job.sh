@@ -320,6 +320,7 @@ case "$job" in
 
     repair_step "run03 renewable features" refresh_weather_features 03 --force-feature-refresh
     repair_step "run06 renewable features" refresh_weather_features 06 --force-feature-refresh
+    repair_step "persistent realized-data gaps" "$PIXI" run operational-gap-repair
     repair_step "operational quality report" "$PIXI" run operational-data-quality
 
     if [ "${#repair_failures[@]}" -gt 0 ]; then

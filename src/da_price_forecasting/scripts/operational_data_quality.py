@@ -103,6 +103,23 @@ def _collect_submission_responses(repo_root: Path, forecast_date: date) -> list[
     )
 
 
+def _collect_persistent_gap_status(repo_root: Path, operation_date: date) -> dict[str, object] | None:
+    path = repo_root / DEFAULT_REPORT_DIR / f"persistent_gap_repair_{operation_date.isoformat()}.json"
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"report": path.relative_to(repo_root).as_posix(), "invalid": True}
+    return {
+        "report": path.relative_to(repo_root).as_posix(),
+        "invalid": False,
+        "imputed_cells": int(payload.get("imputed_cells", 0)),
+        "unresolved_cells": int(payload.get("unresolved_cells", 0)),
+        "missing_files": list(payload.get("missing_files", [])),
+    }
+
+
 def build_quality_report(
     *,
     repo_root: Path,
@@ -114,10 +131,20 @@ def build_quality_report(
     required_count, missing_inputs = _collect_required_inputs(repo_root)
     fallback_events = _collect_fallback_events(repo_root, operation_date)
     submission_responses = _collect_submission_responses(repo_root, forecast_date)
+    persistent_gaps = _collect_persistent_gap_status(repo_root, operation_date)
     degraded = (
         any(not item["ready"] or bool(item.get("fallback_used")) for item in dwd_weather)
         or bool(missing_inputs)
         or bool(fallback_events)
+        or bool(
+            persistent_gaps
+            and (
+                persistent_gaps.get("invalid")
+                or persistent_gaps.get("imputed_cells")
+                or persistent_gaps.get("unresolved_cells")
+                or persistent_gaps.get("missing_files")
+            )
+        )
     )
 
     return {
@@ -133,6 +160,7 @@ def build_quality_report(
             "missing": missing_inputs,
         },
         "fallback_events": fallback_events,
+        "persistent_gaps": persistent_gaps,
         "submission_responses": submission_responses,
     }
 
@@ -172,6 +200,12 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[quality] DWD processed inputs ready: {dwd_ready}/{len(report['dwd_weather'])}")
     print(f"[quality] Required inputs present: {required['present']}/{required['checked']}")
     print(f"[quality] Fallback events today: {len(report['fallback_events'])}")
+    persistent_gaps = report["persistent_gaps"]
+    if persistent_gaps is not None:
+        print(
+            f"[quality] Persistent gaps: imputed={persistent_gaps.get('imputed_cells', 0)}; "
+            f"unresolved={persistent_gaps.get('unresolved_cells', 0)}"
+        )
     print(f"[quality] Submission responses for {forecast_date}: {len(report['submission_responses'])}")
     print(f"[quality] Saved report: {output}")
     return 1 if args.strict and report["status"] != "ok" else 0

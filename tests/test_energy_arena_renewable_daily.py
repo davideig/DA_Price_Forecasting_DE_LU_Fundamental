@@ -188,6 +188,38 @@ def test_incremental_feature_refresh_only_runs_two_days_and_merges_history(monke
     assert (updated.loc[daily._local_day_index(target_day, "Europe/Berlin"), "feature"] == 2.0).all()
 
 
+def test_ensure_capacity_artifacts_regenerates_missing_files(monkeypatch, tmp_path: Path) -> None:
+    capacity_map_file = tmp_path / "capacity_map.csv"
+    capacity_map_file.write_text("technology_group,region,capacity_mw\nsolar,north,1\n", encoding="utf-8")
+    capacity_file = tmp_path / "capacity_monthly.csv"
+    weights_file = tmp_path / "weather_weights.csv"
+    config = daily.RegionalRenewableFeatureConfig(
+        repo_root=tmp_path,
+        capacity_map_file=capacity_map_file,
+        capacity_timeseries_file=capacity_file,
+        weather_weights_file=weights_file,
+    )
+    features = pd.DataFrame(
+        {"feature": 1.0},
+        index=pd.date_range("2026-07-01", "2026-09-02", freq="D", tz="Europe/Berlin"),
+    )
+    monkeypatch.setattr(
+        daily,
+        "build_capacity_timeseries_artifact",
+        lambda capacity_map, timestamps, config: pd.DataFrame({"month": ["2026-09-01"], "capacity": [1.0]}),
+    )
+    monkeypatch.setattr(
+        daily,
+        "build_weather_weights_artifact",
+        lambda capacity_map, timestamps, config: pd.DataFrame({"month": ["2026-09-01"], "weight": [1.0]}),
+    )
+
+    daily._ensure_capacity_artifacts(config, features)
+
+    assert capacity_file.exists()
+    assert weights_file.exists()
+
+
 def test_incremental_feature_refresh_skips_complete_unchanged_target(monkeypatch, tmp_path: Path) -> None:
     output_file = tmp_path / "features.csv"
     target_day = date(2026, 9, 24)

@@ -2815,7 +2815,7 @@ packages:
 - pypi: ./
   name: da-price-forecasting
   version: 0.1.0
-  sha256: 24564853633119954372762ece627f3cf83c0d29cbe7a7683c37ade63c3a8edd
+  sha256: b005af3263d407f386092b99c59a28f73d979685a6204430410fbd4ee7fce5cd
   requires_dist:
   - pydantic>=2.11,<3
   - pyyaml>=6.0,<7

@@ -50,3 +50,25 @@ def test_build_quality_report_marks_fallback_as_degraded(monkeypatch, tmp_path: 
     assert report["status"] == "degraded"
     assert report["required_inputs"] == {"checked": 3, "present": 3, "missing": []}
     assert report["submission_responses"] == ["results/submission_response.json"]
+
+
+def test_collect_persistent_gap_status_marks_imputation_as_degraded(monkeypatch, tmp_path: Path) -> None:
+    report_dir = tmp_path / "data" / "processed" / "operational_quality"
+    report_dir.mkdir(parents=True)
+    report_dir.joinpath("persistent_gap_repair_2026-09-25.json").write_text(
+        '{"imputed_cells": 4, "unresolved_cells": 0, "missing_files": []}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(quality, "_collect_dwd_weather", lambda repo_root, forecast_date: [{"ready": True}])
+    monkeypatch.setattr(quality, "_collect_required_inputs", lambda repo_root: (1, []))
+    monkeypatch.setattr(quality, "_collect_fallback_events", lambda repo_root, operation_date: [])
+    monkeypatch.setattr(quality, "_collect_submission_responses", lambda repo_root, forecast_date: [])
+
+    report = quality.build_quality_report(
+        repo_root=tmp_path,
+        operation_date=date(2026, 9, 25),
+        forecast_date=date(2026, 9, 26),
+    )
+
+    assert report["status"] == "degraded"
+    assert report["persistent_gaps"]["imputed_cells"] == 4

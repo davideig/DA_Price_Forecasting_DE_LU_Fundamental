@@ -38,6 +38,7 @@ da-price-create-feature-pack = "da_price_forecasting.scripts.create_feature_pack
 da-price-check-data-pack = "da_price_forecasting.scripts.check_data_pack:main"
 da-price-operational-archive = "da_price_forecasting.scripts.operational_archive:main"
 da-price-operational-data-quality = "da_price_forecasting.scripts.operational_data_quality:main"
+da-price-operational-gap-repair = "da_price_forecasting.scripts.operational_gap_repair:main"
 da-price-open-meteo-coverage = "da_price_forecasting.scripts.open_meteo_coverage:main"
 da-price-forecast-next-day = "da_price_forecasting.scripts.forecast_next_day:main"
 da-price-poll-reserve-publication = "da_price_forecasting.scripts.reserve_publication_poll:main"

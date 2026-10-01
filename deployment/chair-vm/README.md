@@ -228,11 +228,22 @@ feature day so a morning fallback can be replaced, and writes a dated report to
 `data/processed/operational_quality/`. A failed source remains visible in that
 report and in the task result; it does not block the next day's retry.
 
+The repair also resolves realized load/generation gaps older than 14 days.
+Short gaps (up to one hour) are interpolated; longer gaps use prior seasonal
+quarter-hour medians. Raw provider data is never modified. Each filled cell and
+any unresolved gap are written under `data/processed/operational_quality/` and
+included in the operational archive. The command is non-strict in the schedule,
+so an unresolved provider gap remains visible but does not stop later repair,
+archive, or forecast tasks.
+
 `commit-operational-archive` waits for the repair job if necessary. It then
 exports the updated live caches and quality report to
 `data/archive/operational/`, verifies every artifact against the manifest,
 commits changed archive files, and pushes them to Git so the repository data
 archive stays current. Unchanged artifacts are reused on later exports.
+Missing or stale derived solar capacity/weight artifacts are regenerated from
+the complete accumulated feature history during the renewable repair, so these
+reconstructible files cannot leave the archive permanently blocked.
 
 `backup-operational-artifacts` waits for the archive job if necessary and is
 optional. If `SYNERGIE_BACKUP_DIR` is set in

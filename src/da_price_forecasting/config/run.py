@@ -34,7 +34,6 @@ class RunKind(str, Enum):
     RENEWABLE_PROXY = "renewable_proxy"
     RESERVE_MARKET = "reserve_market"
     ENERGY_ARENA_SUBMIT = "energy_arena_submit"
-    VISUALIZATION_REPORT = "visualization_report"
     EVALUATION = "evaluation"
 
 

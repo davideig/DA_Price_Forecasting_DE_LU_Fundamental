@@ -1,11 +1,11 @@
-# Final Configs
+# Final Profile Configs
 
-These configs reproduce the fixed thesis/reference models.
+These are the released configs selected by `forecast-next-day --cutoff final`.
 
-- `load/`: final direct and residual load models.
-- `load/price_inputs/`: load forecasts used as generated inputs in RQ2 price models.
-- `renewable/`: final solar and wind generation models, plus retained comparison variants.
-- `renewable/price_inputs/`: renewable forecasts used as generated inputs in RQ2 price models.
-- `benchmarks/`: ENTSO-E benchmark and RQ1 evaluation configs.
+- `load/`: direct and residual load models.
+- `load/price_inputs/`: load history used by the generated-input price model.
+- `renewable/`: released solar and wind generation models.
+- `renewable/price_inputs/`: solar and wind histories used by the price model.
+- `price/`: the released generated-input price model.
 
-Start from `configs/FINAL_MODELS.md` for the runnable command list.
+See `configs/FINAL_MODELS.md` for the public command interface.

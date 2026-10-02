@@ -8,5 +8,5 @@ These configs rebuild the feature files consumed by the final models.
 - `weather_aggregation/`: LSDF/DWD ICON aggregation and daily update configs.
 - `capacity/`: MaStR capacity and population-weight preprocessing.
 
-The RQ3 cutoff-grid preprocessing remains self-contained in
-`configs/rq3_cutoff_grid/`.
+The live fixed-run preprocessing configs are kept separately in
+`configs/deployment/cutoff_preprocessing/`.

@@ -77,9 +77,9 @@ overwritten by imputation. The task also writes a dated quality report there.
 The later
 `DAForecast-commit-operational-archive` task waits for repair to finish, exports
 and verifies the bounded `operational` profile, commits changed archive files,
-and pushes them. The profile contains the inputs used by the deployed final and
-RQ3 cutoff configs plus the quality reports; it does not sweep every research
-file under `data/processed/`.
+and pushes them. The profile contains the inputs used by the deployed cutoff
+configs plus the quality reports; it does not sweep unrelated files under
+`data/processed/`.
 
 ## What The Data Pack Contains
 
@@ -99,15 +99,13 @@ Open-Meteo archives, DWD/ICON aggregations, MaStR-derived renewable proxy
 features, population weights, reserve-market features, clustering maps, and the
 small Natural Earth country shapefile needed for DWD Germany masking.
 
-If you also want users to run price experiments immediately without regenerating
-first-stage forecasts, include model outputs too:
+To run price forecasts immediately without regenerating first-stage histories,
+include model outputs too:
 
 ```text
 results/load_forecast_results/
 results/renewable_generation_results/
 results/price_forecast_results/
-results/sqra_results/
-results/evaluation/
 ```
 
 ## Create A Data Pack
@@ -169,7 +167,7 @@ pixi run forecast-wind-final
 pixi run energy-arena-price-final-daily --dry-run --skip-first-stage-refresh
 ```
 
-For price experiments that rely on generated first-stage forecasts, either:
+For price models that rely on generated first-stage forecasts, either:
 
 1. unpack a pack created with `--include-results`, or
 2. run the load, solar, and wind configs first so their `results/` files exist.
@@ -179,7 +177,7 @@ caches before submitting. If a refresh fails, it logs a `[fallback]` message and
 tries the already cached CSVs. This is deliberately auditable cache reuse, not
 silent imputation.
 
-RQ3 cutoff dry runs use the same data pack, the same
+Cutoff dry runs use the same data pack, the same
 `ENERGY_ARENA_PRICE_CHALLENGE_ID`, and the cutoff-grid configs. Energy-Arena
 assigns the submitted forecast to cutoff leaderboards from the submission time.
 Pass `--submit-first-stage` to submit the generated load, solar, and onshore
@@ -190,11 +188,8 @@ pixi run energy-arena-price-cutoff-daily --cutoff 0700 --dry-run --skip-first-st
 pixi run energy-arena-price-cutoff-daily --cutoff 1200 --dry-run --skip-first-stage-refresh
 ```
 
-The chair-VM deployment submits the RQ3 grid at 07:00 through 11:00. It computes
-the RQ3 12:00 forecasts in dry-run mode, while the dedicated final-paper load,
-solar, wind, and price jobs provide the participant's effective 12:00
-submissions. This avoids a later RQ3 submission superseding a final-paper model
-within the same Energy-Arena cutoff interval.
+The chair-VM deployment submits the matching load, solar, wind, and price
+forecasts at every cutoff from 07:00 through 12:00.
 
 ## Verify Data Availability
 
@@ -204,13 +199,7 @@ Check the final first-stage configs:
 pixi run check-data-final
 ```
 
-Check all fixed thesis configs:
-
-```bash
-pixi run check-data-pack --profile thesis
-```
-
-Check the final paper price stack inputs:
+Check the final generated-input price stack:
 
 ```bash
 pixi run check-data-price-final

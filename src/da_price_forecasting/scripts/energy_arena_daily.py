@@ -20,10 +20,6 @@ from ..paths import find_repo_root, resolve_path
 from .run import run_from_config
 
 
-DEFAULT_POINT_CONFIG = Path("configs/deployment/energy_arena_point_submission.yaml")
-DEFAULT_QUANTILE_CONFIG = Path("configs/deployment/energy_arena_sqra_quantile_submission.yaml")
-
-
 @dataclass(frozen=True)
 class DailyPaths:
     work_dir: Path
@@ -445,8 +441,8 @@ def _run_quantile_submission(config_path: Path, submit: bool, repo_root: Path) -
 
 
 def run_daily_energy_arena(
-    point_config_path: Path = DEFAULT_POINT_CONFIG,
-    quantile_config_path: Path = DEFAULT_QUANTILE_CONFIG,
+    point_config_path: Path,
+    quantile_config_path: Path,
     forecast_date: date | None = None,
     target_tz: str = "Europe/Berlin",
     work_root: Path | None = None,
@@ -561,8 +557,8 @@ def run_daily_energy_arena_with_retries(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the daily Energy Arena EXAA-only point + SQRA submission workflow.")
-    parser.add_argument("--point-config", type=Path, default=DEFAULT_POINT_CONFIG)
-    parser.add_argument("--quantile-config", type=Path, default=DEFAULT_QUANTILE_CONFIG)
+    parser.add_argument("--point-config", type=Path, required=True)
+    parser.add_argument("--quantile-config", type=Path, required=True)
     parser.add_argument("--forecast-date", type=date.fromisoformat, default=None, help="Target date; defaults to tomorrow.")
     parser.add_argument("--target-tz", default="Europe/Berlin")
     parser.add_argument("--work-root", type=Path, default=None)

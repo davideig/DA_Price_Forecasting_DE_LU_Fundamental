@@ -22,7 +22,7 @@ from .energy_arena_renewable_daily import update_actual_generation_cache
 from .run import run_from_config
 
 
-DEFAULT_PRICE_CONFIG = Path("configs/pricebase_sweep/oos_pgen_c2_d70.yaml")
+DEFAULT_PRICE_CONFIG = Path("configs/final/price/price_pgen_lightgbm_c2_d70.yaml")
 DEFAULT_LOAD_INPUT_CONFIG = Path(
     "configs/final/load/price_inputs/"
     "load_forecast_hybrid_entsoe_residual_open_meteo_p10_morning1015_daily_weather_lightgbm_"
@@ -341,7 +341,7 @@ def run_cached_price_safety_submission(
     work_root: Path | None = None,
     submit: bool = True,
     approach_name: str = "price_pgen_lightgbm_c2_run06_d70",
-    approach_description: str = "Final paper P_gen LightGBM price model using own load, solar, and wind forecasts.",
+    approach_description: str = "Released P_gen LightGBM price model using own load, solar, and wind forecasts.",
 ) -> Path:
     """Submit the best cached price forecast shortly before the hard deadline."""
     repo_root = find_repo_root()
@@ -408,7 +408,7 @@ def run_daily_price_final_energy_arena(
     first_stage_history_days: int | None = None,
     point_history_days: int = 0,
     approach_name: str = "price_pgen_lightgbm_c2_run06_d70",
-    approach_description: str = "Final paper P_gen LightGBM price model using own load, solar, and wind forecasts.",
+    approach_description: str = "Released P_gen LightGBM price model using own load, solar, and wind forecasts.",
 ) -> DailyPricePaths:
     repo_root = find_repo_root()
     day = forecast_date or tomorrow_in_tz(target_tz)
@@ -593,7 +593,7 @@ def run_daily_price_final_energy_arena_with_retries(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run the final paper P_gen Energy Arena price submission workflow.")
+    parser = argparse.ArgumentParser(description="Run the released P_gen Energy Arena price submission workflow.")
     parser.add_argument("--price-config", type=Path, default=DEFAULT_PRICE_CONFIG)
     parser.add_argument("--load-input-config", type=Path, default=DEFAULT_LOAD_INPUT_CONFIG)
     parser.add_argument("--solar-input-config", type=Path, default=DEFAULT_SOLAR_INPUT_CONFIG)
@@ -635,12 +635,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--point-history-days",
         type=int,
         default=0,
-        help="Also produce prior price forecast days before the target day. Use this for later SQRA calibration.",
+        help="Also produce prior price forecast days before the target day for downstream calibration.",
     )
     parser.add_argument("--approach-name", default="price_pgen_lightgbm_c2_run06_d70")
     parser.add_argument(
         "--approach-description",
-        default="Final paper P_gen LightGBM price model using own load, solar, and wind forecasts.",
+        default="Released P_gen LightGBM price model using own load, solar, and wind forecasts.",
     )
     parser.add_argument("--retry-until", type=_parse_retry_until, default=None)
     parser.add_argument("--retry-interval-minutes", type=float, default=10.0)

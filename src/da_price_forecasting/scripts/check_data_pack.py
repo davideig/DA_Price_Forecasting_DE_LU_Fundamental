@@ -20,35 +20,18 @@ PROFILE_PATTERNS = {
         "configs/final/load/load_forecast_direct_actual_open_meteo_p10_morning0915_daily_weather_lightgbm_paper_febjul_tw224_f180_pop_weighted_quantiles.yaml",
         "configs/final/renewable/renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_cloud_geometry_physics_residual_own_region_daylight_suspicious_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_paper_febjul.yaml",
         "configs/final/renewable/renewable_generation_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_summary_meanstd_onoff_split_wind_hub_p80_common_hgb_wind_struct_minleaf60_maxfeat08_bias30_mtu_s08_d180_cutoff1000_paper_febjul.yaml",
-        "configs/final/benchmarks/*.yaml",
-    ),
-    "final-comparisons": (
-        "configs/final/load/*.yaml",
-        "configs/final/renewable/*.yaml",
-        "configs/final/benchmarks/*.yaml",
-    ),
-    "rq2": (
-        "configs/pricebase_sweep/*.yaml",
+        "configs/final/price/price_pgen_lightgbm_c2_d70.yaml",
     ),
     "price-final": (
         "configs/final/load/price_inputs/*.yaml",
         "configs/final/renewable/price_inputs/*.yaml",
-        "configs/pricebase_sweep/oos_pgen_c2_d70.yaml",
+        "configs/final/price/price_pgen_lightgbm_c2_d70.yaml",
     ),
-    "rq3": (
-        "configs/rq3_cutoff_grid/load_*.yaml",
-        "configs/rq3_cutoff_grid/solar_*.yaml",
-        "configs/rq3_cutoff_grid/wind_*.yaml",
-        "configs/rq3_cutoff_grid/price_*.yaml",
-        "configs/rq3_cutoff_grid/evaluation_*.yaml",
+    "models": (
+        "configs/final/**/*.yaml",
+        "configs/models/**/*.yaml",
     ),
 }
-PROFILE_PATTERNS["thesis"] = (
-    PROFILE_PATTERNS["final"]
-    + PROFILE_PATTERNS["price-final"]
-    + PROFILE_PATTERNS["rq2"]
-    + PROFILE_PATTERNS["rq3"]
-)
 
 PATH_KEY_SUFFIXES = ("_file", "_files", "_dir", "_path", "_paths")
 OUTPUT_KEY_PARTS = ("export", "output", "report", "figure")

@@ -2,56 +2,34 @@
 
 ## Target
 
-EPEX DE-LU day-ahead price.
+EPEX DE-LU day-ahead price at quarter-hour resolution.
 
-## Main Experiment Families
+## Released Profiles
 
-- RQ2: price model with baseline weather/calendar/price information versus
-  generated load and renewable forecasts.
-- RQ3: cutoff-grid price models with different operational information sets
-  from 07:00 to 12:00 on day `D-1`.
+The operational profiles cover 07:00 through 12:00 on day D-1 and use only
+inputs observable by the selected cutoff. Their fixed configs are in
+`configs/deployment/cutoffs/`.
+
+The `final` profile is the released generated-input LightGBM model at
+`configs/final/price/price_pgen_lightgbm_c2_d70.yaml`. It uses calendar,
+lagged-price, clustered DWD ICON-D2 weather, and self-generated load, solar,
+wind, and residual-load forecasts with a 70-day rolling training window.
 
 ## Commands
 
-RQ2:
+Generate a stable CSV for reuse:
 
 ```bash
-pixi run -e forecast da-price-forecast --config configs/pricebase_sweep/oos_pbase_c2_d70.yaml
-pixi run -e forecast da-price-forecast --config configs/pricebase_sweep/oos_pgen_c2_d70.yaml
+pixi run forecast-next-day --model price --cutoff 1200
+pixi run forecast-next-day --model price --cutoff final
 ```
 
-Operational final paper stack:
-
-```bash
-pixi run energy-arena-price-final-daily --dry-run
-```
-
-This submission path uses `configs/pricebase_sweep/oos_pgen_c2_d70.yaml` and
-refreshes the generated load, solar, and wind input forecasts before submitting.
-
-RQ3:
-
-```text
-configs/rq3_cutoff_grid/RUN_ORDER.md
-```
-
-Operational RQ3 cutoff submission examples:
+Build cutoff submission payloads without contacting Energy Arena:
 
 ```bash
 pixi run energy-arena-price-cutoff-daily --cutoff 0700 --dry-run
 pixi run energy-arena-price-cutoff-daily --cutoff 1200 --dry-run
 ```
 
-All cutoff submissions use the DE-LU point price challenge ID from
-`ENERGY_ARENA_PRICE_CHALLENGE_ID`; Energy-Arena assigns them to cutoff
-leaderboards based on the submission timestamp.
-
-The deployment tasks run the cutoff runner with `--submit-first-stage` from
-07:00 through 11:00, so those cutoffs also submit the generated load, solar,
-and onshore wind forecasts that feed the price model. The 12:00 RQ3 workflow is
-compute-only; the dedicated final-paper jobs provide the effective 12:00
-submissions for all four targets.
-
-## Output
-
-The main forecast column is `y_pred`.
+Selecting a price profile refreshes and runs its matching load, solar, and wind
+dependencies first. The main forecast column is `y_pred`.

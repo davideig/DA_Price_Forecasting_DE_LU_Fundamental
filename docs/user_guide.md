@@ -82,10 +82,10 @@ For the final generated-input price model:
 pixi run check-data-price-final
 ```
 
-For every fixed thesis config:
+For every retained runnable model config:
 
 ```bash
-pixi run check-data-thesis
+pixi run check-data-models
 ```
 
 Do not start a long model run until its check reports `Missing: 0`.
@@ -171,17 +171,17 @@ Use `--forecast-date YYYY-MM-DD` to override tomorrow, or
 | `0800`, `0900` | 03 UTC | Direct |
 | `1000` | 06 UTC | Direct |
 | `1100`, `1200` | 06 UTC | Residual |
-| `final` | 06 UTC | Final paper model family |
+| `final` | 06 UTC | Released generated-input model family |
 
 The cutoff profiles use the deployment configs in
 `configs/deployment/cutoffs/` and follow
-`docs/operational_cutoff_data_spec.md`. The separate `final` profile preserves
-the final-paper model family for research reproduction; it is not scheduled by
-the cutoff deployment.
+`docs/operational_cutoff_data_spec.md`. The separate `final` profile exposes
+the released generated-input model family for direct reuse.
 
 ### Direct config execution
 
-The lower-level tasks remain useful for historical experiments and debugging.
+The lower-level tasks are useful for running individual released models and
+debugging their inputs.
 
 Run first-stage forecasts:
 
@@ -190,6 +190,10 @@ pixi run forecast-load-final
 pixi run forecast-solar-final
 pixi run forecast-wind-final
 ```
+
+Additional price and renewable model variants are listed in
+`configs/FINAL_MODELS.md` and exposed through the `forecast-price-*`,
+`forecast-solar-ensemble`, and `forecast-wind-full-weather` tasks.
 
 The corresponding outputs are written below:
 
@@ -219,7 +223,7 @@ Dry-run payloads and live response files are written under:
 results/energy_arena_submissions/
 ```
 
-## 7. Run RQ3 Cutoffs Directly
+## 7. Run Cutoffs Directly
 
 The operational runner supports `0700`, `0800`, `0900`, `1000`, `1100`, and
 `1200`:
@@ -232,9 +236,7 @@ pixi run energy-arena-price-cutoff-daily \
 ```
 
 `--dry-run` builds forecasts and payloads but never contacts the submission
-endpoint. The exact retrospective paper workflow is different from the live
-weather-availability adapter and is documented in
-`configs/rq3_cutoff_grid/RUN_ORDER.md`.
+endpoint.
 
 For cutoff runs, wind uses ICON-D2 only, Open-Meteo requests the configured
 03/06 UTC primary run explicitly, and every price run first stores immutable
@@ -279,7 +281,7 @@ git commit -m "Update operational data archive YYYY-MM-DD"
 git push
 ```
 
-For immutable paper snapshots, create a separate versioned pack:
+For immutable data snapshots, create a separate versioned pack:
 
 ```bash
 pixi run create-feature-pack --include-results

@@ -3,10 +3,10 @@
 Reusable load, solar, onshore wind, and day-ahead electricity price forecasting
 pipelines for the German-Luxembourg bidding zone.
 
-The repository contains the fixed model configurations used for the thesis
-experiments and the operational adapters used for daily Energy Arena
-submissions. The implementation lives in `src/da_price_forecasting/`; YAML
-files select data sources, information cutoffs, models, and output paths.
+The repository contains the released forecasting models, their fixed runtime
+configurations, and the adapters used for daily Energy Arena submissions. The
+implementation lives in `src/da_price_forecasting/`; YAML files select data
+sources, information cutoffs, models, and output paths.
 
 ## Release Status
 
@@ -38,8 +38,8 @@ The fixed first-stage models are:
   forecasts in addition to calendar, lagged-price, and weather inputs.
 
 The exact config index is [configs/FINAL_MODELS.md](configs/FINAL_MODELS.md).
-RQ3 cutoff experiments are documented in
-[configs/rq3_cutoff_grid/RUN_ORDER.md](configs/rq3_cutoff_grid/RUN_ORDER.md).
+It also lists the retained alternative model specifications that users can run
+directly for their own applications.
 
 ## Quick Start
 
@@ -84,9 +84,8 @@ opt-in:
 pixi run forecast-next-day --model all --cutoff final --submit
 ```
 
-The older config-specific tasks remain available for exact historical
-experiments. See [docs/quickstart.md](docs/quickstart.md) for the complete
-cutoff matrix and offline-cache options.
+See [docs/quickstart.md](docs/quickstart.md) for the complete cutoff matrix and
+offline-cache options.
 
 ## Credentials
 
@@ -127,8 +126,8 @@ Useful checks:
 ```bash
 pixi run check-data-final
 pixi run check-data-price-final
+pixi run check-data-models
 pixi run check-data-pack --profile operational
-pixi run check-data-thesis
 ```
 
 The checks only report availability. They do not download data.
@@ -144,9 +143,9 @@ Deployment instructions are isolated in
 [deployment/chair-vm/README.md](deployment/chair-vm/README.md). Normal users do
 not need the VM scripts or access to the institutional Synergie drive.
 
-The operational RQ3 adapters preserve the paper model structures while using
-weather runs that are actually available at the live cutoff. The retrospective
-paper availability convention remains documented separately in `RUN_ORDER.md`.
+The cutoff adapters use weather runs and realized observations that are
+available at each live cutoff. Their data contract is documented in
+[docs/operational_cutoff_data_spec.md](docs/operational_cutoff_data_spec.md).
 
 ## Repository Layout
 

@@ -44,27 +44,10 @@ def _write_synthetic_forecast(path: Path) -> None:
     frame.to_csv(path)
 
 
-def _write_synthetic_load_forecast(path: Path) -> None:
-    index = pd.date_range("2026-05-15T00:00:00+02:00", periods=24, freq="1h")
-    actual = pd.Series([50_000.0 + value for value in range(len(index))], index=index)
-    frame = pd.DataFrame(
-        {
-            "Load_Actual_MW": actual,
-            "Load_Model_MW": actual + 100.0,
-            "Load_Benchmark_MW": actual + 500.0,
-        },
-        index=index,
-    )
-    frame.index.name = "timestamp"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    frame.to_csv(path)
-
-
-def test_evaluation_then_visualization_run_through_dispatcher(tmp_path: Path) -> None:
+def test_evaluation_runs_through_dispatcher(tmp_path: Path) -> None:
     repo_root = _repo_root()
     forecast_path = tmp_path / "forecast.csv"
     evaluation_dir = tmp_path / "evaluation"
-    figures_dir = tmp_path / "figures"
     _write_synthetic_forecast(forecast_path)
 
     run_from_config(
@@ -91,84 +74,6 @@ def test_evaluation_then_visualization_run_through_dispatcher(tmp_path: Path) ->
 
     assert (evaluation_dir / "point_metrics.csv").exists()
     assert (evaluation_dir / "quantile_coverage.csv").exists()
-
-    run_from_config(
-        RunConfig(
-            repo_root=repo_root,
-            kind=RunKind.VISUALIZATION_REPORT,
-            config={
-                "output_dir": str(figures_dir),
-                "evaluation_report": {
-                    "enabled": True,
-                    "evaluation_dir": str(evaluation_dir),
-                    "output_dir": str(figures_dir),
-                    "formats": ["png"],
-                    "plots": [
-                        "point_forecast",
-                        "quantile_fan",
-                        "metric_summary",
-                        "coverage",
-                        "error_by_hour",
-                    ],
-                    "models": ["toy_model"],
-                    "start": "2026-03-01T00:00:00+01:00",
-                    "end": "2026-03-03T12:00:00+01:00",
-                    "dpi": 80,
-                    "show": False,
-                },
-            },
-        )
-    )
-
-    expected_figures = [
-        "point_forecast.png",
-        "quantile_fan_toy_model.png",
-        "metric_summary.png",
-        "coverage.png",
-        "error_by_hour.png",
-    ]
-    for name in expected_figures:
-        output = figures_dir / name
-        assert output.exists()
-        assert output.stat().st_size > 0
-
-
-def test_visualization_report_can_plot_load_forecast(tmp_path: Path) -> None:
-    repo_root = _repo_root()
-    forecast_path = tmp_path / "load_forecast.csv"
-    figures_dir = tmp_path / "figures"
-    _write_synthetic_load_forecast(forecast_path)
-
-    run_from_config(
-        RunConfig(
-            repo_root=repo_root,
-            kind=RunKind.VISUALIZATION_REPORT,
-            config={
-                "output_dir": str(figures_dir),
-                "mae_table": {"enabled": False},
-                "runtime_table": {"enabled": False},
-                "probabilistic_forecast": {"enabled": False},
-                "load_forecast_plot": {
-                    "enabled": True,
-                    "forecast_path": str(forecast_path),
-                    "output": str(figures_dir / "load_forecast_comparison"),
-                    "formats": ["png"],
-                    "start": "2026-05-15T00:00:00+02:00",
-                    "end": "2026-05-15T23:00:00+02:00",
-                    "dpi": 80,
-                    "show": False,
-                },
-                "anc_bars": {"enabled": False},
-                "anc_heatmaps": {"enabled": False},
-                "evaluation_report": {"enabled": False},
-            },
-        )
-    )
-
-    output = figures_dir / "load_forecast_comparison.png"
-    assert output.exists()
-    assert output.stat().st_size > 0
-
 
 def test_cli_main_runs_evaluation_config_file(tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()

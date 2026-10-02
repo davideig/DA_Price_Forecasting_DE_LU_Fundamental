@@ -19,6 +19,7 @@ class LoadForecastModelConfig(RepoConfigModel):
     entsoe_start_date: date = date(2025, 8, 1)
     entsoe_end_date: date = date(2026, 4, 23)
     chunk_days: int = 90
+    allow_data_refresh: bool = True
 
     actual_load_file: Path = Path("data/processed/load_forecast/actual_load.csv")
     icon_dir: Path = Path("data/processed/icon_aggregated_c5")

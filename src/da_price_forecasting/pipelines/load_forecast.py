@@ -198,6 +198,7 @@ def _load_or_fetch_windowed_cache(
     end: pd.Timestamp,
     fetch_window,
     label: str,
+    allow_fetch: bool = True,
 ) -> pd.DataFrame:
     frames: list[pd.DataFrame] = []
     fetched_new_data = False
@@ -222,6 +223,8 @@ def _load_or_fetch_windowed_cache(
     for fetch_start, fetch_end in missing_ranges:
         if fetch_start > fetch_end:
             continue
+        if not allow_fetch:
+            continue
         try:
             fetched = fetch_window(fetch_start, fetch_end)
         except Exception as exc:
@@ -239,7 +242,8 @@ def _load_or_fetch_windowed_cache(
             fetched_new_data = True
 
     if not frames:
-        raise ValueError(f"No {label} data available for {start.date()}..{end.date()}.")
+        mode = " in cache-only mode" if not allow_fetch else ""
+        raise ValueError(f"No {label} data available{mode} for {start.date()}..{end.date()}.")
 
     df = _combine_timestamp_frames(frames)
     if fetched_new_data or not path.exists():
@@ -249,6 +253,7 @@ def _load_or_fetch_windowed_cache(
 
 def _load_or_fetch_actual_load(config: LoadForecastModelConfig | EntsoeLoadForecastBenchmarkConfig) -> pd.DataFrame:
     start, end = _actual_load_fetch_window(config)
+    allow_refresh = getattr(config, "allow_data_refresh", True)
     actual = _load_or_fetch_windowed_cache(
         path=config.actual_load_file,
         target_tz=config.target_tz,
@@ -263,7 +268,11 @@ def _load_or_fetch_actual_load(config: LoadForecastModelConfig | EntsoeLoadForec
             target_tz=config.target_tz,
             chunk_days=config.chunk_days,
         ),
+        allow_fetch=allow_refresh,
     )
+
+    if not allow_refresh:
+        return actual
 
     full_actual_end = end
     if isinstance(config, LoadForecastModelConfig):
@@ -405,6 +414,7 @@ def _load_or_fetch_load_forecast_to_file(
         end=end,
         label="ENTSO-E load forecast",
         fetch_window=fetch_window,
+        allow_fetch=getattr(config, "allow_data_refresh", True),
     )
 
 
@@ -1743,6 +1753,7 @@ def _build_load_open_meteo_weather_features(config: LoadForecastModelConfig) -> 
         timeout_seconds=config.open_meteo_timeout_seconds,
         target_tz=config.target_tz,
         force_download=config.open_meteo_force_download,
+        allow_download=config.allow_data_refresh,
         point_selection=config.open_meteo_point_selection,
         max_points_per_cluster=config.open_meteo_max_points_per_cluster,
         api_mode=config.open_meteo_api_mode,

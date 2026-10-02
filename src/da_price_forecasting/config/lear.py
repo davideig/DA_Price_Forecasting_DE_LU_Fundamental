@@ -13,6 +13,7 @@ from .features import CovariateConfig
 
 class LearOperationalConfig(RepoConfigModel):
     target_tz: str = "Europe/Berlin"
+    allow_data_refresh: bool = True
     post_regime_start: datetime = Field(
         default_factory=lambda: _default_datetime("2025-10-01T00:00:00+02:00")
     )

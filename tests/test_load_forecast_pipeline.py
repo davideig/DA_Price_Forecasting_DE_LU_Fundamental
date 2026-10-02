@@ -101,6 +101,31 @@ def test_actual_load_refreshes_configured_revision_window(monkeypatch, tmp_path:
     assert result.loc[pd.Timestamp("2026-05-08T00:00:00+02:00"), "load_actual"] == 2.0
 
 
+def test_actual_load_cache_only_mode_never_fetches(monkeypatch, tmp_path: Path) -> None:
+    actual_file = tmp_path / "actual_load.csv"
+    cached_index = pd.date_range("2026-05-01T00:00:00+02:00", periods=20 * 96, freq="15min")
+    pd.DataFrame({"load_actual": 1.0}, index=cached_index).to_csv(actual_file)
+
+    monkeypatch.setattr(
+        lf,
+        "fetch_actual_load",
+        lambda **kwargs: pytest.fail(f"cache-only mode attempted an ENTSO-E fetch: {kwargs}"),
+    )
+    config = _config(
+        tmp_path,
+        actual_load_file=actual_file,
+        entsoe_start_date=date(2026, 5, 1),
+        entsoe_end_date=date(2026, 5, 21),
+        actual_load_refresh_lookback_days=14,
+        allow_data_refresh=False,
+    )
+
+    result = lf._load_or_fetch_actual_load(config)
+
+    assert not result.empty
+    assert result.index.max() == cached_index[-1]
+
+
 def test_windowed_cache_uses_available_cache_when_refresh_fails(tmp_path: Path) -> None:
     cache_file = tmp_path / "actual_load.csv"
     cached_index = pd.date_range("2026-05-20T00:00:00+02:00", periods=96, freq="15min")

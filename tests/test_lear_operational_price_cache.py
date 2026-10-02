@@ -87,3 +87,25 @@ def test_price_cache_uses_available_cache_when_refresh_fails(tmp_path: Path) -> 
     assert result.index.min() == cached_index[0]
     assert result.index.max() == cached_index[-1]
     assert result["price_da"].notna().all()
+
+
+def test_price_cache_only_mode_never_fetches(tmp_path: Path) -> None:
+    cache_file = tmp_path / "prices.csv"
+    cached_index = pd.date_range("2026-05-20T00:00:00+02:00", periods=96, freq="15min")
+    pd.DataFrame({"price_da": np.arange(96, dtype=float)}, index=cached_index).to_csv(cache_file)
+
+    def unexpected_fetch(fetch_start: pd.Timestamp, fetch_end: pd.Timestamp) -> pd.DataFrame:
+        pytest.fail(f"cache-only mode attempted an ENTSO-E fetch: {fetch_start}..{fetch_end}")
+
+    result = lear._load_or_fetch_price_cache(
+        path=cache_file,
+        target_tz="Europe/Berlin",
+        start=pd.Timestamp("2026-05-20", tz="Europe/Berlin"),
+        end=pd.Timestamp("2026-05-21", tz="Europe/Berlin"),
+        fetch_window=unexpected_fetch,
+        label="ENTSO-E day-ahead prices",
+        allow_fetch=False,
+    )
+
+    assert result.index.min() == cached_index[0]
+    assert result.index.max() == cached_index[-1]

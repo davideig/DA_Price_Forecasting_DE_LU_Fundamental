@@ -100,6 +100,7 @@ def _load_or_fetch_price_cache(
     end: pd.Timestamp,
     fetch_window,
     label: str,
+    allow_fetch: bool = True,
 ) -> pd.DataFrame:
     start = _as_local_day(start, target_tz)
     end = _as_local_day(end, target_tz)
@@ -126,6 +127,8 @@ def _load_or_fetch_price_cache(
     for fetch_start, fetch_end in missing_ranges:
         if fetch_start > fetch_end:
             continue
+        if not allow_fetch:
+            continue
         try:
             fetched = fetch_window(fetch_start, fetch_end)
         except Exception as exc:
@@ -143,7 +146,8 @@ def _load_or_fetch_price_cache(
             fetched_new_data = True
 
     if not frames:
-        raise ValueError(f"No {label} data available for {start.date()}..{end.date()}.")
+        mode = " in cache-only mode" if not allow_fetch else ""
+        raise ValueError(f"No {label} data available{mode} for {start.date()}..{end.date()}.")
 
     df = _combine_timestamp_frames(frames)
     if fetched_new_data or not path.exists():
@@ -381,6 +385,7 @@ def prepare_lear_operational_dataset(config: LearOperationalConfig) -> dict[str,
             api_key_env=config.entsoe_api_key_env,
             target_tz=config.target_tz,
         ),
+        allow_fetch=config.allow_data_refresh,
     )
 
     df_prices_exaa_15 = None
@@ -398,6 +403,7 @@ def prepare_lear_operational_dataset(config: LearOperationalConfig) -> dict[str,
                 api_key_env=config.entsoe_api_key_env,
                 target_tz=config.target_tz,
             ),
+            allow_fetch=config.allow_data_refresh,
         )
 
     daily_index = df_prices_15.index.normalize().unique().sort_values()
@@ -622,6 +628,7 @@ def prepare_lear_operational_prediction_dataset(
             api_key_env=config.entsoe_api_key_env,
             target_tz=config.target_tz,
         ),
+        allow_fetch=config.allow_data_refresh,
     )
 
     df_prices_exaa_15 = None
@@ -639,6 +646,7 @@ def prepare_lear_operational_prediction_dataset(
                 api_key_env=config.entsoe_api_key_env,
                 target_tz=config.target_tz,
             ),
+            allow_fetch=config.allow_data_refresh,
         )
 
     extra_feature_blocks = [

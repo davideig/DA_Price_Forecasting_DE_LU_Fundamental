@@ -189,7 +189,13 @@ def _missing_first_stage_days(
     return missing
 
 
-def _run_first_stage_payload(payload: dict, repo_root: Path, forecast_date: date) -> None:
+def _run_first_stage_payload(
+    payload: dict,
+    repo_root: Path,
+    forecast_date: date,
+    *,
+    refresh_external_data: bool = True,
+) -> None:
     config = _config_body(payload)
     target_tz = str(config.get("target_tz", "Europe/Berlin"))
     requested_start = pd.Timestamp(config["test_start"]).date()
@@ -233,7 +239,8 @@ def _run_first_stage_payload(payload: dict, repo_root: Path, forecast_date: date
             RenewableGenerationModelConfig,
             repo_root=repo_root,
         )
-        update_actual_generation_cache(renewable_config, forecast_date=forecast_date)
+        if refresh_external_data:
+            update_actual_generation_cache(renewable_config, forecast_date=forecast_date)
 
     run_config = validate_config_payload(incremental_payload, RunConfig, repo_root=repo_root)
     try:

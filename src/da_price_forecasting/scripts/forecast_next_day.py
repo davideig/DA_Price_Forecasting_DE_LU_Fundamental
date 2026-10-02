@@ -296,6 +296,7 @@ def _run_first_stage_config(
     forecast_date: date,
     history_start: date,
     target_tz: str,
+    refresh_data: bool = True,
 ) -> Path:
     payload = _mutate_first_stage_payload(
         _load_payload(config_path, repo_root),
@@ -303,7 +304,16 @@ def _run_first_stage_config(
         history_start=history_start,
         target_tz=target_tz,
     )
-    _run_first_stage_payload(payload, repo_root=repo_root, forecast_date=forecast_date)
+    if not refresh_data and payload.get("kind") == "load_forecast_model":
+        config = dict(_config_body(payload))
+        config["allow_data_refresh"] = False
+        payload["config"] = config
+    _run_first_stage_payload(
+        payload,
+        repo_root=repo_root,
+        forecast_date=forecast_date,
+        refresh_external_data=refresh_data,
+    )
     forecast_path = _first_stage_forecast_path(payload, repo_root)
     if not forecast_path.exists():
         raise FileNotFoundError(f"Forecast CSV was not created: {forecast_path}")
@@ -317,6 +327,7 @@ def _run_price_config(
     forecast_date: date,
     target_tz: str,
     work_root: Path,
+    refresh_data: bool = True,
 ) -> Path:
     raw_price_payload = _load_payload(profile.price_config, repo_root)
     first_stage_start = forecast_date - timedelta(days=_price_train_days(raw_price_payload))
@@ -330,6 +341,7 @@ def _run_price_config(
             forecast_date=forecast_date,
             history_start=first_stage_start,
             target_tz=target_tz,
+            refresh_data=refresh_data,
         )
 
     export_dir = resolve_path(work_root, repo_root) / profile.name / forecast_date.isoformat() / "price"
@@ -356,6 +368,10 @@ def _run_price_config(
         export_dir=export_dir,
         target_tz=target_tz,
     )
+    if not refresh_data:
+        config = dict(_config_body(price_payload))
+        config["allow_data_refresh"] = False
+        price_payload["config"] = config
     price_config = validate_config_payload(
         _config_body(price_payload),
         LearOperationalConfig,
@@ -493,6 +509,7 @@ def run_next_day_forecast(
                 forecast_date=day,
                 target_tz=target_tz,
                 work_root=work_root,
+                refresh_data=refresh_data,
             )
         else:
             print(f"\n--- Running {profile.name} {selected_model} forecast ---")
@@ -502,6 +519,7 @@ def run_next_day_forecast(
                 forecast_date=day,
                 history_start=day,
                 target_tz=target_tz,
+                refresh_data=refresh_data,
             )
 
         output_path = _write_target_day_csv(
@@ -573,7 +591,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--skip-data-refresh",
         action="store_true",
-        help="Use restored/cached inputs without fetching the target day's updates.",
+        help=(
+            "Use restored/cached inputs only. Do not contact external data providers; "
+            "fail clearly if a required target-day cache is unavailable."
+        ),
     )
     parser.add_argument(
         "--skip-archive-restore",

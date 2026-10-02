@@ -4,6 +4,7 @@ from datetime import date
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from da_price_forecasting.pipelines.common import load_timestamp_csv, save_timestamp_csv
 from da_price_forecasting.scripts import forecast_next_day as module
@@ -189,3 +190,77 @@ def test_submission_is_explicit_opt_in(monkeypatch, tmp_path: Path) -> None:
         submit=True,
     )
     assert [result.model for result in submissions] == ["load"]
+
+
+def test_skip_data_refresh_propagates_cache_only_mode(monkeypatch, tmp_path: Path) -> None:
+    calls: dict[str, bool] = {}
+    day = date(2026, 9, 28)
+
+    monkeypatch.setattr(module, "find_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(module, "_ensure_archive_restored", lambda repo_root: None)
+    monkeypatch.setattr(
+        module,
+        "_refresh_data",
+        lambda **kwargs: pytest.fail("top-level refresh should be skipped"),
+    )
+
+    def fake_first_stage(**kwargs) -> Path:
+        calls["refresh_data"] = kwargs["refresh_data"]
+        return tmp_path / "source.csv"
+
+    def fake_publish(**kwargs) -> Path:
+        output_path = kwargs["output_path"]
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.touch()
+        return output_path
+
+    monkeypatch.setattr(module, "_run_first_stage_config", fake_first_stage)
+    monkeypatch.setattr(module, "_write_target_day_csv", fake_publish)
+
+    module.run_next_day_forecast(
+        model="load",
+        cutoff="1200",
+        forecast_date=day,
+        output_root=Path("outputs"),
+        refresh_data=False,
+    )
+
+    assert calls == {"refresh_data": False}
+
+
+def test_first_stage_cache_only_mode_mutates_load_config(monkeypatch, tmp_path: Path) -> None:
+    forecast_path = tmp_path / "forecast.csv"
+    forecast_path.touch()
+    captured: dict[str, object] = {}
+    payload = {
+        "kind": "load_forecast_model",
+        "config": {
+            "test_start": "2026-09-28",
+            "test_end": "2026-09-28",
+        },
+    }
+
+    monkeypatch.setattr(module, "_load_payload", lambda config_path, repo_root: payload)
+    monkeypatch.setattr(module, "_mutate_first_stage_payload", lambda payload, **kwargs: payload)
+    monkeypatch.setattr(module, "_first_stage_forecast_path", lambda payload, repo_root: forecast_path)
+
+    def fake_run(payload, **kwargs) -> None:  # noqa: ANN001
+        captured["allow_data_refresh"] = payload["config"]["allow_data_refresh"]
+        captured["refresh_external_data"] = kwargs["refresh_external_data"]
+
+    monkeypatch.setattr(module, "_run_first_stage_payload", fake_run)
+
+    result = module._run_first_stage_config(
+        config_path=Path("load.yaml"),
+        repo_root=tmp_path,
+        forecast_date=date(2026, 9, 28),
+        history_start=date(2026, 9, 28),
+        target_tz="Europe/Berlin",
+        refresh_data=False,
+    )
+
+    assert result == forecast_path
+    assert captured == {
+        "allow_data_refresh": False,
+        "refresh_external_data": False,
+    }

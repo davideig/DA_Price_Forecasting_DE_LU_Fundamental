@@ -70,11 +70,10 @@ The operational profiles use information available by each live cutoff:
 | `0700`-`0900` | ICON-D2 03 UTC | Direct load |
 | `1000` | ICON-D2 06 UTC | Direct load |
 | `1100`-`1200` | ICON-D2 06 UTC | Residual load |
-| `final` | ICON-D2 06 UTC | Final paper model family |
+| `final` | ICON-D2 06 UTC | Released generated-input model family |
 
-The early operational profiles are causally deployable adaptations. The exact
-retrospective thesis grid is retained separately in
-`configs/rq3_cutoff_grid/RUN_ORDER.md`.
+Every cutoff profile is configured for the information available at its live
+run time.
 
 ## Verify Or Restore Data Manually
 
@@ -129,4 +128,4 @@ Historical reproduction from a complete archive does not require Energy Arena
 credentials. Never commit `.env`.
 
 See [user_guide.md](user_guide.md) for data distribution, output locations,
-RQ3 cutoff runs, and integration guidance.
+cutoff runs, and integration guidance.

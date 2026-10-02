@@ -65,7 +65,7 @@ foreach ($entry in $jobs) {
             -Action $action `
             -Trigger $trigger `
             -Settings $settings `
-            -Description "DA Price Forecasting Pipeline RQ3 cutoff job: $($entry.Job)" `
+            -Description "DA Price Forecasting Pipeline cutoff job: $($entry.Job)" `
             -Force | Out-Null
     }
 }

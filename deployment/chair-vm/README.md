@@ -97,7 +97,7 @@ The preferred workflow is to restore the Git-tracked Parquet archive:
 git lfs pull
 pixi run operational-archive verify
 pixi run operational-archive restore
-pixi run check-data-thesis
+pixi run check-data-pack --profile operational
 ```
 
 The archive lives under `data/archive/operational/` in Git. It contains compact,
@@ -225,7 +225,7 @@ The general task file now owns maintenance only:
 14:30 backup-operational-artifacts
 ```
 
-Registering it removes the obsolete duplicate DWD and final-paper submission
+Registering it removes obsolete duplicate DWD and submission
 tasks. All live load, solar, wind, and price submissions are owned by the
 cutoff task file below.
 
@@ -262,7 +262,7 @@ optional. If `SYNERGIE_BACKUP_DIR` is set in
 `data/archive/operational/` and `logs/chair_vm_tasks/` to the Synergie drive. If
 the variable is unset, it exits successfully after logging a skip.
 
-To additionally register the RQ3 cutoff submissions, run this separate
+To register the cutoff submissions, run this separate
 PowerShell script after filling `ENERGY_ARENA_PRICE_CHALLENGE_ID` in `.env`:
 
 ```powershell

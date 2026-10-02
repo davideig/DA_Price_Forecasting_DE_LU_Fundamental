@@ -34,7 +34,6 @@ from ..config import (
     SqraConfig,
     TabpfnLocalConfig,
     TabpfnTsConfig,
-    VisualizationReportConfig,
     load_config,
     validate_config_payload,
 )
@@ -246,13 +245,6 @@ def run_from_config(run_config: RunConfig, submit_override: bool = False) -> Non
             submission_config=config,
             submit=submit_override or run_config.submit,
         )
-        return
-
-    if kind == RunKind.VISUALIZATION_REPORT:
-        from ..visualization import run_visualization_report
-
-        config = _load_nested_config(run_config, VisualizationReportConfig)
-        run_visualization_report(config)
         return
 
     if kind == RunKind.EVALUATION:

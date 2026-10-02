@@ -29,5 +29,12 @@
       "reason": "Open-Meteo run 2026-10-01T03:00 has no finite target-day values for required variable(s): wind_direction_120m, wind_direction_180m, wind_direction_80m, wind_speed_120m, wind_speed_180m, wind_speed_80m",
       "requested_run_utc": "2026-10-01T03:00"
     }
+  },
+  "2026-10-03": {
+    "donor_day": null,
+    "fallback_used": false,
+    "reason": null,
+    "recorded_at_utc": "2026-10-02T10:25:32.207272+00:00",
+    "weather_run": null
   }
 }

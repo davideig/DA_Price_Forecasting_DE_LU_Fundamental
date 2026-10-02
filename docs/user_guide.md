@@ -82,6 +82,12 @@ For the final generated-input price model:
 pixi run check-data-price-final
 ```
 
+For every retained runnable model config:
+
+```bash
+pixi run check-data-models
+```
+
 Do not start a long model run until its check reports `Missing: 0`.
 
 ## 5. Configure API Access
@@ -184,6 +190,10 @@ pixi run forecast-load-final
 pixi run forecast-solar-final
 pixi run forecast-wind-final
 ```
+
+Additional price and renewable model variants are listed in
+`configs/FINAL_MODELS.md` and exposed through the `forecast-price-*`,
+`forecast-solar-ensemble`, and `forecast-wind-full-weather` tasks.
 
 The corresponding outputs are written below:
 

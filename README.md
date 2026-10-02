@@ -38,6 +38,8 @@ The fixed first-stage models are:
   forecasts in addition to calendar, lagged-price, and weather inputs.
 
 The exact config index is [configs/FINAL_MODELS.md](configs/FINAL_MODELS.md).
+It also lists the retained alternative model specifications that users can run
+directly for their own applications.
 
 ## Quick Start
 
@@ -124,6 +126,7 @@ Useful checks:
 ```bash
 pixi run check-data-final
 pixi run check-data-price-final
+pixi run check-data-models
 pixi run check-data-pack --profile operational
 ```
 

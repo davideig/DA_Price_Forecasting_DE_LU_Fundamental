@@ -10,6 +10,8 @@ in the separate thesis reproducibility repository.
   reserve-market refresh jobs used by those cutoffs.
 - `configs/final/`: released load, solar, wind, and generated-input price model
   family exposed by `forecast-next-day --cutoff final`.
+- `configs/models/`: additional runnable model specifications retained for
+  reuse, including the generated-input price variants and renewable alternatives.
 - `configs/preprocessing/`: rebuild configurations for model input histories.
 - `configs/feature_allowlists/`: fixed feature selections used by released
   models.

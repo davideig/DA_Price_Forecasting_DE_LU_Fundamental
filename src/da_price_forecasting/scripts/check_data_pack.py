@@ -27,6 +27,10 @@ PROFILE_PATTERNS = {
         "configs/final/renewable/price_inputs/*.yaml",
         "configs/final/price/price_pgen_lightgbm_c2_d70.yaml",
     ),
+    "models": (
+        "configs/final/**/*.yaml",
+        "configs/models/**/*.yaml",
+    ),
 }
 
 PATH_KEY_SUFFIXES = ("_file", "_files", "_dir", "_path", "_paths")

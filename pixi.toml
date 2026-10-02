@@ -128,6 +128,7 @@ create-feature-pack = { cmd = "da-price-create-feature-pack", default-environmen
 check-data-pack = { cmd = "da-price-check-data-pack", default-environment = "core" }
 check-data-final = { cmd = "da-price-check-data-pack --profile final", default-environment = "core" }
 check-data-price-final = { cmd = "da-price-check-data-pack --profile price-final", default-environment = "core" }
+check-data-models = { cmd = "da-price-check-data-pack --profile models", default-environment = "core" }
 operational-archive = { cmd = "da-price-operational-archive", default-environment = "core" }
 operational-data-quality = { cmd = "da-price-operational-data-quality", default-environment = "core" }
 operational-gap-repair = { cmd = "da-price-operational-gap-repair", default-environment = "core" }
@@ -138,4 +139,13 @@ forecast-load-final = { cmd = "da-price-forecast --config configs/final/load/loa
 forecast-load-direct = { cmd = "da-price-forecast --config configs/final/load/load_forecast_direct_actual_open_meteo_p10_morning0915_daily_weather_lightgbm_paper_febjul_tw224_f180_pop_weighted_quantiles.yaml", default-environment = "forecast" }
 forecast-solar-final = { cmd = "da-price-forecast --config configs/final/renewable/renewable_generation_dwd_icon_mastr_solar_tso_c25_run06_tso_components_cloud_geometry_physics_residual_own_region_daylight_suspicious_totalbias_hgb_solar_bias45_hour_s075_d90_cutoff1000_paper_febjul.yaml", default-environment = "forecast" }
 forecast-wind-final = { cmd = "da-price-forecast --config configs/final/renewable/renewable_generation_hybrid_dwd_mastr_wind_c100_multi_provider7_run06_summary_meanstd_onoff_split_wind_hub_p80_common_hgb_wind_struct_minleaf60_maxfeat08_bias30_mtu_s08_d180_cutoff1000_paper_febjul.yaml", default-environment = "forecast" }
+forecast-price-pbase = { cmd = "da-price-forecast --config configs/models/price/price_pbase_lightgbm_c2_d70.yaml", default-environment = "forecast" }
+forecast-price-pload = { cmd = "da-price-forecast --config configs/models/price/price_pload_lightgbm_c2_d70.yaml", default-environment = "forecast" }
+forecast-price-pload-no-weather = { cmd = "da-price-forecast --config configs/models/price/price_pload_no_weather_lightgbm_c2_d70.yaml", default-environment = "forecast" }
+forecast-price-pren = { cmd = "da-price-forecast --config configs/models/price/price_pren_lightgbm_c2_d70.yaml", default-environment = "forecast" }
+forecast-price-pren-no-weather = { cmd = "da-price-forecast --config configs/models/price/price_pren_no_weather_lightgbm_c2_d70.yaml", default-environment = "forecast" }
+forecast-price-pgen = { cmd = "da-price-forecast --config configs/final/price/price_pgen_lightgbm_c2_d70.yaml", default-environment = "forecast" }
+forecast-price-pgen-no-weather = { cmd = "da-price-forecast --config configs/models/price/price_pgen_no_weather_lightgbm_c2_d70.yaml", default-environment = "forecast" }
+forecast-solar-ensemble = { cmd = "da-price-forecast --config configs/models/renewable/solar_multi_provider_ensemble.yaml", default-environment = "forecast" }
+forecast-wind-full-weather = { cmd = "da-price-forecast --config configs/models/renewable/wind_full_weather.yaml", default-environment = "forecast" }
 test = { cmd = "pytest", default-environment = "dev" }

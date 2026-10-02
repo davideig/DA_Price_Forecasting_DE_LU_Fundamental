@@ -50,3 +50,24 @@ pixi run forecast-solar-final
 pixi run forecast-wind-final
 pixi run energy-arena-price-final-daily --dry-run
 ```
+
+## Additional Runnable Models
+
+The model configs used to compare alternative information sets remain
+available for reuse; only their retrospective evaluation/report configs were
+removed:
+
+```bash
+pixi run forecast-price-pbase
+pixi run forecast-price-pload
+pixi run forecast-price-pload-no-weather
+pixi run forecast-price-pren
+pixi run forecast-price-pren-no-weather
+pixi run forecast-price-pgen
+pixi run forecast-price-pgen-no-weather
+pixi run forecast-solar-ensemble
+pixi run forecast-wind-full-weather
+```
+
+The corresponding alternative YAML files live under `configs/models/`.
+Check all retained model inputs with `pixi run check-data-models`.

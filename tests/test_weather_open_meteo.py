@@ -562,6 +562,35 @@ def test_load_open_meteo_retries_cached_fallback_for_requested_day(
     assert calls == [(target, target, {target})]
 
 
+def test_load_open_meteo_cache_only_rejects_missing_day_without_fetching(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cluster_file = tmp_path / "clusters.csv"
+    cluster_file.write_text("cluster_id,lat,lon\n0,52.0,13.0\n", encoding="utf-8")
+    cache_file = tmp_path / "open_meteo.csv"
+    cached_day = date(2026, 10, 1)
+    target_day = date(2026, 10, 2)
+    index = pd.date_range("2026-10-01", periods=24, freq="h", tz="Europe/Berlin")
+    pd.DataFrame({"t2m_cluster_0": 280.0}, index=index).to_csv(cache_file)
+    _write_provenance_days(cache_file, [cached_day.isoformat()])
+
+    def unexpected_fetch(**kwargs):  # noqa: ANN003
+        raise AssertionError(f"cache-only mode attempted a network fetch: {kwargs}")
+
+    monkeypatch.setattr(weather, "fetch_open_meteo_cluster_weather", unexpected_fetch)
+
+    with pytest.raises(FileNotFoundError, match="cache-only mode.*2026-10-02"):
+        weather.load_open_meteo(
+            cluster_file=cluster_file,
+            start_date=cached_day,
+            end_date=target_day,
+            cache_file=cache_file,
+            api_mode="single_run",
+            allow_download=False,
+        )
+
+
 def test_load_open_meteo_clamps_requests_to_archive_start(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

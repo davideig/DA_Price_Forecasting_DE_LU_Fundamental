@@ -1706,6 +1706,7 @@ def load_open_meteo(
     timeout_seconds: int = 60,
     target_tz: str = "Europe/Berlin",
     force_download: bool = False,
+    allow_download: bool = True,
     point_selection: str = "centroid",
     max_points_per_cluster: int | None = None,
     api_mode: str = "historical_forecast",
@@ -1725,6 +1726,8 @@ def load_open_meteo(
     retry_fallback_date: date | None = None,
 ) -> pd.DataFrame:
     """Load cached Open-Meteo cluster weather or fetch it from the API."""
+    if force_download and not allow_download:
+        raise ValueError("force_download cannot be used when Open-Meteo downloads are disabled.")
     excluded_days = set(excluded_dates or [])
     fetch_start_date = (
         max(start_date, archive_start_date)
@@ -1763,6 +1766,11 @@ def load_open_meteo(
             )
 
         missing_ranges = _contiguous_day_ranges(missing_days)
+        if not allow_download:
+            raise FileNotFoundError(
+                "Open-Meteo cache-only mode cannot satisfy the requested date range; "
+                f"missing range(s): {_format_day_ranges(missing_ranges)} in {cache_file}."
+            )
         print(
             "[OPEN-METEO] Single-run cache is incomplete: "
             f"{cached_count}/{expected_count} days cached. "
@@ -1804,6 +1812,11 @@ def load_open_meteo(
             start_date=start_date,
             end_date=end_date,
             target_tz=target_tz,
+        )
+
+    if not allow_download:
+        raise FileNotFoundError(
+            f"Open-Meteo cache-only mode requires an existing cache file: {cache_file}."
         )
 
     return fetch_open_meteo_cluster_weather(

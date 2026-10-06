@@ -12,6 +12,7 @@ config:
 
   start_folder_date: "2025-10-25"
   required_run: "06"
+  forecast_tail_hours: 1
   dwd_folder_offset_date: "2025-10-26"
   skip_dates:
     - "2025-10-26"

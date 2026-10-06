@@ -1284,6 +1284,7 @@ def _load_dwd_icon_weather(config: RegionalRenewableFeatureConfig) -> pd.DataFra
         skip_dates=set(config.skip_dates),
         folder_offset_date=config.dwd_folder_offset_date,
         target_tz=config.target_tz,
+        latest_day_tail_hours=config.forecast_tail_hours,
     )
     df_hourly = _deduplicate_mean(df_hourly)
     df_qh = _deduplicate_mean(df_qh)
@@ -1343,6 +1344,7 @@ def _load_weather(config: RegionalRenewableFeatureConfig) -> pd.DataFrame:
             api_mode=config.open_meteo_api_mode,
             single_run_hour_utc=config.open_meteo_single_run_hour_utc,
             single_run_forecast_days=config.open_meteo_single_run_forecast_days,
+            single_run_tail_hours=config.forecast_tail_hours,
             request_pause_seconds=config.open_meteo_request_pause_seconds,
             retry_attempts=config.open_meteo_retry_attempts,
             retry_backoff_seconds=config.open_meteo_retry_backoff_seconds,
@@ -1379,6 +1381,7 @@ def _load_open_meteo_capacity_point_weather(
         api_mode=config.open_meteo_api_mode,
         single_run_hour_utc=config.open_meteo_single_run_hour_utc,
         single_run_forecast_days=config.open_meteo_single_run_forecast_days,
+        single_run_tail_hours=config.forecast_tail_hours,
         request_pause_seconds=config.open_meteo_request_pause_seconds,
         retry_attempts=config.open_meteo_retry_attempts,
         retry_backoff_seconds=config.open_meteo_retry_backoff_seconds,

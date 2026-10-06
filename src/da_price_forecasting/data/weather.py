@@ -452,13 +452,35 @@ def load_dwd(
     skip_dates: set[date] = frozenset(),
     folder_offset_date: date = date(2025, 10, 26),
     target_tz: str = "Europe/Berlin",
+    latest_day_tail_hours: int = 0,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Load clustered DWD ICON-D2 forecast data from the daily folder structure."""
     if not icon_dir.exists():
         raise FileNotFoundError(f"ICON directory not found: {icon_dir}")
 
+    if latest_day_tail_hours < 0:
+        raise ValueError("latest_day_tail_hours must be non-negative.")
+
     hourly_dfs = []
     qh_dfs = []
+    eligible_folder_dates: list[date] = []
+    for folder_name in sorted(os.listdir(icon_dir)):
+        folder_path = icon_dir / folder_name
+        if not folder_path.is_dir():
+            continue
+        try:
+            folder_parts = folder_name.split("_")
+            folder_date = datetime.strptime(folder_parts[3], "%Y%m%d").date()
+        except Exception:
+            continue
+        folder_run = ""
+        if len(folder_parts) > 4 and folder_parts[4].isdigit() and len(folder_parts[4]) == 2:
+            folder_run = folder_parts[4]
+        if folder_run and folder_run != required_run:
+            continue
+        if folder_date >= start_folder_date and folder_date not in skip_dates:
+            eligible_folder_dates.append(folder_date)
+    latest_folder_date = max(eligible_folder_dates, default=None)
 
     for folder_name in sorted(os.listdir(icon_dir)):
         folder_path = icon_dir / folder_name
@@ -515,6 +537,8 @@ def load_dwd(
 
         start = pd.Timestamp(forecast_date, tz=target_tz)
         end = start + pd.Timedelta(days=1)
+        if folder_date == latest_folder_date:
+            end += pd.Timedelta(hours=latest_day_tail_hours)
 
         hourly_cols = ["timestamp"] + [
             col
@@ -842,10 +866,29 @@ def _slice_open_meteo_days(
     start_date: date,
     end_date: date,
     target_tz: str,
+    tail_hours: int = 0,
 ) -> pd.DataFrame:
     start = pd.Timestamp(start_date, tz=target_tz)
-    end = pd.Timestamp(end_date, tz=target_tz) + pd.DateOffset(days=1)
+    end = (
+        pd.Timestamp(end_date, tz=target_tz)
+        + pd.DateOffset(days=1)
+        + pd.Timedelta(hours=tail_hours)
+    )
     return cached.loc[(cached.index >= start) & (cached.index < end)]
+
+
+def _single_run_tail_is_missing(
+    cached: pd.DataFrame,
+    *,
+    end_date: date,
+    target_tz: str,
+    tail_hours: int,
+) -> bool:
+    if tail_hours <= 0:
+        return False
+    tail_start = pd.Timestamp(end_date, tz=target_tz) + pd.DateOffset(days=1)
+    expected = pd.date_range(tail_start, periods=tail_hours, freq="h")
+    return not expected.isin(cached.index).all()
 
 
 def _contiguous_day_ranges(days: pd.DatetimeIndex) -> list[tuple[date, date]]:
@@ -1027,6 +1070,7 @@ def fetch_open_meteo_cluster_weather(
     api_mode: str = "historical_forecast",
     single_run_hour_utc: str = "06:00",
     single_run_forecast_days: int = 2,
+    single_run_tail_hours: int = 0,
     request_pause_seconds: float = 0.0,
     retry_attempts: int = 5,
     retry_backoff_seconds: float = 30.0,
@@ -1148,6 +1192,13 @@ def fetch_open_meteo_cluster_weather(
             retry_fallback_days=retry_fallback_days,
         )
         completed_days.difference_update(pd.Timestamp(value).normalize() for value in invalid_days)
+        if _single_run_tail_is_missing(
+            completed_weather,
+            end_date=end_date,
+            target_tz=target_tz,
+            tail_hours=single_run_tail_hours,
+        ):
+            completed_days.discard(pd.Timestamp(end_date, tz=target_tz).normalize())
 
     for target_day, run in requests_to_make:
         if target_day is not None and target_day.normalize() in completed_days:
@@ -1228,6 +1279,8 @@ def fetch_open_meteo_cluster_weather(
                 if target_day is not None:
                     target_start = target_day
                     target_end = target_start + pd.Timedelta(days=1)
+                    if target_day.date() == end_date:
+                        target_end += pd.Timedelta(hours=single_run_tail_hours)
                     df_cluster = df_cluster.loc[(df_cluster.index >= target_start) & (df_cluster.index < target_end)]
                 df_cluster = _normalise_open_meteo_units(df_cluster)
 
@@ -1266,13 +1319,19 @@ def fetch_open_meteo_cluster_weather(
 
     if api_mode == "single_run" and completed_weather is not None and output_file is not None:
         start_ts = pd.Timestamp(start_date, tz=target_tz)
-        end_ts = pd.Timestamp(end_date + timedelta(days=1), tz=target_tz)
+        end_ts = (
+            pd.Timestamp(end_date + timedelta(days=1), tz=target_tz)
+            + pd.Timedelta(hours=single_run_tail_hours)
+        )
         return completed_weather.loc[(completed_weather.index >= start_ts) & (completed_weather.index < end_ts)]
 
     if not frames:
         if completed_weather is not None:
             start_ts = pd.Timestamp(start_date, tz=target_tz)
-            end_ts = pd.Timestamp(end_date + timedelta(days=1), tz=target_tz)
+            end_ts = (
+                pd.Timestamp(end_date + timedelta(days=1), tz=target_tz)
+                + pd.Timedelta(hours=single_run_tail_hours)
+            )
             return completed_weather.loc[(completed_weather.index >= start_ts) & (completed_weather.index < end_ts)]
         raise ValueError("No Open-Meteo weather data was fetched.")
 
@@ -1282,7 +1341,10 @@ def fetch_open_meteo_cluster_weather(
         weather = weather.loc[~weather.index.duplicated(keep="last")]
 
     start_ts = pd.Timestamp(start_date, tz=target_tz)
-    end_ts = pd.Timestamp(end_date + timedelta(days=1), tz=target_tz)
+    end_ts = (
+        pd.Timestamp(end_date + timedelta(days=1), tz=target_tz)
+        + pd.Timedelta(hours=single_run_tail_hours)
+    )
     weather = weather.loc[(weather.index >= start_ts) & (weather.index < end_ts)]
 
     if output_file is not None:
@@ -1329,6 +1391,7 @@ def fetch_open_meteo_point_weather(
     api_mode: str = "historical_forecast",
     single_run_hour_utc: str = "06:00",
     single_run_forecast_days: int = 2,
+    single_run_tail_hours: int = 0,
     request_pause_seconds: float = 0.0,
     retry_attempts: int = 5,
     retry_backoff_seconds: float = 30.0,
@@ -1407,6 +1470,13 @@ def fetch_open_meteo_point_weather(
             retry_fallback_days=retry_fallback_days,
         )
         completed_days.difference_update(pd.Timestamp(value).normalize() for value in invalid_days)
+        if _single_run_tail_is_missing(
+            completed_weather,
+            end_date=end_date,
+            target_tz=target_tz,
+            tail_hours=single_run_tail_hours,
+        ):
+            completed_days.discard(pd.Timestamp(end_date, tz=target_tz).normalize())
 
     for target_day, run in requests_to_make:
         if target_day is not None and target_day.normalize() in completed_days:
@@ -1486,6 +1556,8 @@ def fetch_open_meteo_point_weather(
                 if target_day is not None:
                     target_start = target_day
                     target_end = target_start + pd.Timedelta(days=1)
+                    if target_day.date() == end_date:
+                        target_end += pd.Timedelta(hours=single_run_tail_hours)
                     df_point = df_point.loc[(df_point.index >= target_start) & (df_point.index < target_end)]
                 df_point = _normalise_open_meteo_units(df_point)
 
@@ -1569,6 +1641,7 @@ def load_open_meteo_points(
     api_mode: str = "historical_forecast",
     single_run_hour_utc: str = "06:00",
     single_run_forecast_days: int = 2,
+    single_run_tail_hours: int = 0,
     request_pause_seconds: float = 0.0,
     retry_attempts: int = 5,
     retry_backoff_seconds: float = 30.0,
@@ -1612,12 +1685,22 @@ def load_open_meteo_points(
             excluded_days=excluded_days,
             retry_fallback_days=retry_fallback_days,
         )
+        if _single_run_tail_is_missing(
+            df,
+            end_date=end_date,
+            target_tz=target_tz,
+            tail_hours=single_run_tail_hours,
+        ):
+            missing_days = missing_days.union(
+                pd.DatetimeIndex([pd.Timestamp(end_date, tz=target_tz)])
+            )
         if missing_days.empty:
             return _slice_open_meteo_days(
                 df,
                 start_date=start_date,
                 end_date=end_date,
                 target_tz=target_tz,
+                tail_hours=single_run_tail_hours,
             )
 
         missing_ranges = _contiguous_day_ranges(missing_days)
@@ -1643,6 +1726,9 @@ def load_open_meteo_points(
                 api_mode=api_mode,
                 single_run_hour_utc=single_run_hour_utc,
                 single_run_forecast_days=single_run_forecast_days,
+                single_run_tail_hours=(
+                    single_run_tail_hours if missing_end == end_date else 0
+                ),
                 request_pause_seconds=request_pause_seconds,
                 retry_attempts=retry_attempts,
                 retry_backoff_seconds=retry_backoff_seconds,
@@ -1660,6 +1746,7 @@ def load_open_meteo_points(
             start_date=start_date,
             end_date=end_date,
             target_tz=target_tz,
+            tail_hours=single_run_tail_hours,
         )
 
     return fetch_open_meteo_point_weather(
@@ -1677,6 +1764,7 @@ def load_open_meteo_points(
         api_mode=api_mode,
         single_run_hour_utc=single_run_hour_utc,
         single_run_forecast_days=single_run_forecast_days,
+        single_run_tail_hours=single_run_tail_hours,
         request_pause_seconds=request_pause_seconds,
         retry_attempts=retry_attempts,
         retry_backoff_seconds=retry_backoff_seconds,
@@ -1712,6 +1800,7 @@ def load_open_meteo(
     api_mode: str = "historical_forecast",
     single_run_hour_utc: str = "06:00",
     single_run_forecast_days: int = 2,
+    single_run_tail_hours: int = 0,
     request_pause_seconds: float = 0.0,
     retry_attempts: int = 5,
     retry_backoff_seconds: float = 30.0,
@@ -1757,12 +1846,22 @@ def load_open_meteo(
             excluded_days=excluded_days,
             retry_fallback_days=retry_fallback_days,
         )
+        if _single_run_tail_is_missing(
+            df,
+            end_date=end_date,
+            target_tz=target_tz,
+            tail_hours=single_run_tail_hours,
+        ):
+            missing_days = missing_days.union(
+                pd.DatetimeIndex([pd.Timestamp(end_date, tz=target_tz)])
+            )
         if missing_days.empty:
             return _slice_open_meteo_days(
                 df,
                 start_date=start_date,
                 end_date=end_date,
                 target_tz=target_tz,
+                tail_hours=single_run_tail_hours,
             )
 
         missing_ranges = _contiguous_day_ranges(missing_days)
@@ -1795,6 +1894,9 @@ def load_open_meteo(
                 api_mode=api_mode,
                 single_run_hour_utc=single_run_hour_utc,
                 single_run_forecast_days=single_run_forecast_days,
+                single_run_tail_hours=(
+                    single_run_tail_hours if missing_end == end_date else 0
+                ),
                 request_pause_seconds=request_pause_seconds,
                 retry_attempts=retry_attempts,
                 retry_backoff_seconds=retry_backoff_seconds,
@@ -1812,6 +1914,7 @@ def load_open_meteo(
             start_date=start_date,
             end_date=end_date,
             target_tz=target_tz,
+            tail_hours=single_run_tail_hours,
         )
 
     if not allow_download:
@@ -1836,6 +1939,7 @@ def load_open_meteo(
         api_mode=api_mode,
         single_run_hour_utc=single_run_hour_utc,
         single_run_forecast_days=single_run_forecast_days,
+        single_run_tail_hours=single_run_tail_hours,
         request_pause_seconds=request_pause_seconds,
         retry_attempts=retry_attempts,
         retry_backoff_seconds=retry_backoff_seconds,

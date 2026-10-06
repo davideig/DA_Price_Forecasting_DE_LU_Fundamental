@@ -419,6 +419,122 @@ def test_load_dwd_accepts_csvs_in_requested_run_folder_when_file_run_differs(tmp
     assert qh.loc[pd.Timestamp("2025-10-25T00:00:00Z"), "ASWDIR_cluster_0"] == 100.0
 
 
+def test_load_dwd_keeps_same_run_tail_only_for_latest_delivery_day(tmp_path: Path) -> None:
+    icon_dir = tmp_path / "icon"
+    for day in ("20251024", "20251025"):
+        folder = icon_dir / f"dwd_icon_daily_{day}_09"
+        folder.mkdir(parents=True)
+        start = pd.Timestamp(day, tz="UTC")
+        next_day = start + pd.Timedelta(days=1)
+        (folder / f"t2m_K_{day}09_raw.csv").write_text(
+            "# Variable: t2m\n"
+            "timestamp,cluster_0\n"
+            f"{start.isoformat()},280.0\n"
+            f"{next_day.isoformat()},281.0\n"
+        )
+        (folder / f"ASWDIR_S_W_m-2_{day}09_instantaneous.csv").write_text(
+            "# Variable: ASWDIR_S\n"
+            "timestamp,cluster_0\n"
+            f"{(start + pd.Timedelta(minutes=15)).isoformat()},100.0\n"
+            f"{(next_day + pd.Timedelta(minutes=15)).isoformat()},101.0\n"
+        )
+
+    hourly, qh = load_dwd(
+        icon_dir=icon_dir,
+        start_folder_date=date(2025, 10, 24),
+        required_run="09",
+        folder_offset_date=date(2025, 10, 26),
+        target_tz="UTC",
+        latest_day_tail_hours=1,
+    )
+
+    assert hourly.index.max() == pd.Timestamp("2025-10-26T00:00:00Z")
+    assert qh.index.max() == pd.Timestamp("2025-10-26T00:00:00Z")
+    assert hourly.index.is_unique
+    assert qh.index.is_unique
+
+
+def test_single_run_point_weather_keeps_same_run_tail(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    points = pd.DataFrame({"weather_point_id": [0], "lat": [52.0], "lon": [8.0]})
+
+    def fake_fetch_open_meteo_batch(**kwargs):  # noqa: ANN003, ARG001
+        return [
+            {
+                "hourly": {
+                    "time": ["2026-03-21T23:00", "2026-03-22T00:00"],
+                    "wind_speed_80m": [5.0, 6.0],
+                    "wind_direction_80m": [270.0, 270.0],
+                }
+            }
+        ]
+
+    monkeypatch.setattr(weather, "_fetch_open_meteo_batch", fake_fetch_open_meteo_batch)
+
+    result = fetch_open_meteo_point_weather(
+        points=points,
+        start_date=date(2026, 3, 21),
+        end_date=date(2026, 3, 21),
+        hourly_variables=["wind_speed_80m", "wind_direction_80m"],
+        batch_size=1,
+        target_tz="UTC",
+        api_mode="single_run",
+        single_run_hour_utc="03:00",
+        single_run_tail_hours=1,
+    )
+
+    assert result.index.tolist() == [
+        pd.Timestamp("2026-03-21T23:00:00Z"),
+        pd.Timestamp("2026-03-22T00:00:00Z"),
+    ]
+
+
+def test_single_run_point_weather_refetches_cached_day_when_tail_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    target = date(2026, 3, 21)
+    points = pd.DataFrame({"weather_point_id": [0], "lat": [52.0], "lon": [8.0]})
+    cache_file = tmp_path / "open_meteo_points.csv"
+    cached_index = pd.date_range("2026-03-21", periods=24, freq="h", tz="UTC")
+    pd.DataFrame({"u80_point_0": 1.0}, index=cached_index).to_csv(cache_file)
+    _write_provenance_days(cache_file, [target.isoformat()], run_hour="03:00")
+    calls = 0
+
+    def fake_fetch_open_meteo_batch(**kwargs):  # noqa: ANN003, ARG001
+        nonlocal calls
+        calls += 1
+        return [
+            {
+                "hourly": {
+                    "time": ["2026-03-21T23:00", "2026-03-22T00:00"],
+                    "wind_speed_80m": [5.0, 6.0],
+                    "wind_direction_80m": [270.0, 270.0],
+                }
+            }
+        ]
+
+    monkeypatch.setattr(weather, "_fetch_open_meteo_batch", fake_fetch_open_meteo_batch)
+
+    result = fetch_open_meteo_point_weather(
+        points=points,
+        start_date=target,
+        end_date=target,
+        output_file=cache_file,
+        hourly_variables=["wind_speed_80m", "wind_direction_80m"],
+        batch_size=1,
+        target_tz="UTC",
+        api_mode="single_run",
+        single_run_hour_utc="03:00",
+        single_run_tail_hours=1,
+    )
+
+    assert calls == 1
+    assert pd.Timestamp("2026-03-22T00:00:00Z") in result.index
+
+
 def test_single_run_backfill_preserves_existing_cache_days(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

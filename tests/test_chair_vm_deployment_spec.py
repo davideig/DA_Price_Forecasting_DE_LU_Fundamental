@@ -92,3 +92,11 @@ def test_all_deployment_preprocessing_uses_fixed_static_snapshots() -> None:
     }
     assert cluster_paths["load"] == {"data/clustering/icon_d2_clustering_c25.parquet"}
     assert capacity_paths == {"data/raw/renewable_capacity/installed_capacity.csv"}
+
+
+def test_live_wind_weather_retains_same_run_tail_for_lead_features() -> None:
+    paths = Path("configs/deployment/cutoff_preprocessing").glob("wind_*_features_run*.yaml")
+    configs = [yaml.safe_load(path.read_text(encoding="utf-8"))["config"] for path in paths]
+
+    assert len(configs) == 4
+    assert all(config["forecast_tail_hours"] == 1 for config in configs)

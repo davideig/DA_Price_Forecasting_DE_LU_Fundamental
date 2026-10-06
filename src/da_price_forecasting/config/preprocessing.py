@@ -364,6 +364,7 @@ class RegionalRenewableFeatureConfig(RepoConfigModel):
     open_meteo_api_mode: Literal["historical_forecast", "single_run"] = "historical_forecast"
     open_meteo_single_run_hour_utc: str = "06:00"
     open_meteo_single_run_forecast_days: int = 2
+    forecast_tail_hours: int = Field(default=0, ge=0, le=24)
     open_meteo_request_pause_seconds: float = 0.0
     open_meteo_retry_attempts: int = 5
     open_meteo_retry_backoff_seconds: float = 30.0

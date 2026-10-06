@@ -313,6 +313,10 @@ immediately preceding run and requires complete delivery-day coverage. Wind
 uses DWD ICON-D2 plus Open-Meteo ICON-D2
 only.
 
+Wind preprocessing also retains the first hour after the delivery day from the
+same ICON-D2 issue. The model's four-quarter-hour weather leads therefore remain
+defined through 23:45 without borrowing values from a later issue run.
+
 At 09:23 the deployment downloads and aggregates the newly available `06` UTC
 weather for the 10:00-12:00 models. The 09:38 feature job waits for that
 download, and the 09:40 model job waits for feature preparation if necessary.

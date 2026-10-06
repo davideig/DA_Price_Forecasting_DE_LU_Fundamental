@@ -24,6 +24,7 @@ config:
   open_meteo_model: icon_d2
   open_meteo_single_run_hour_utc: "06:00"
   open_meteo_single_run_forecast_days: 2
+  forecast_tail_hours: 1
   open_meteo_archive_start_date: "2026-07-01"
   open_meteo_start_date: "2026-07-01"
   open_meteo_end_date: "2026-07-31"

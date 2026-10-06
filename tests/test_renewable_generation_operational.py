@@ -16,6 +16,7 @@ from da_price_forecasting.pipelines.renewable_generation import (
     _build_solar_physics_proxy_baselines,
     _build_wind_cutout_risk_features,
     _build_wind_ensemble_regime_features,
+    _add_lag_diff_features,
     _load_renewable_proxy,
     _solar_weather_regime_labels,
     _solar_training_row_mask,
@@ -26,6 +27,25 @@ from da_price_forecasting.pipelines.renewable_generation import (
     build_stacked_renewable_generation_forecast,
     build_renewable_generation_dataset,
 )
+
+
+def test_same_run_weather_tail_populates_final_hour_lead_features() -> None:
+    index = pd.date_range(
+        "2026-10-02T00:00:00+02:00",
+        "2026-10-03T00:45:00+02:00",
+        freq="15min",
+    )
+    weather = pd.DataFrame({"wind_proxy_mw": np.arange(len(index), dtype=float)}, index=index)
+
+    features = _add_lag_diff_features(
+        weather,
+        lag_steps=[],
+        lead_steps=[4],
+        diff_steps=[],
+    )
+    delivery_day = features.loc["2026-10-02"]
+
+    assert delivery_day.loc["2026-10-02 23:00":"2026-10-02 23:45", "wind_proxy_mw_lead_4"].notna().all()
 
 
 def test_renewable_generation_dataset_keeps_future_proxy_rows_without_actuals(tmp_path: Path) -> None:

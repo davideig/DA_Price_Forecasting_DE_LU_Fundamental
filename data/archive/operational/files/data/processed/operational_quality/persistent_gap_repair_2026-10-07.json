@@ -1,0 +1,53 @@
+{
+  "datasets": [
+    {
+      "columns": [],
+      "dataset": "load",
+      "eligible_through": "2026-09-23",
+      "imputed_cells": 0,
+      "source_path": "data/processed/load_forecast/actual_load.csv",
+      "unresolved_cells": 0
+    },
+    {
+      "columns": [
+        "Solar_50Hertz_Actual_MW",
+        "Solar_Amprion_Actual_MW",
+        "Solar_TenneT_Actual_MW",
+        "Solar_TransnetBW_Actual_MW",
+        "Solar_Actual_MW",
+        "Wind_Offshore_Actual_MW",
+        "Wind_Onshore_Actual_MW",
+        "Wind_Total_Actual_MW",
+        "Renewable_Total_Actual_MW",
+        "Solar_Control_Area_Total_Actual_MW"
+      ],
+      "dataset": "solar",
+      "eligible_through": "2026-09-23",
+      "imputed_cells": 0,
+      "source_path": "data/processed/renewable_generation/actual_generation_solar_control_areas_2025_20260731.csv",
+      "unresolved_cells": 0
+    },
+    {
+      "columns": [
+        "Wind_Onshore_Actual_MW",
+        "Wind_Offshore_Actual_MW",
+        "Solar_Actual_MW",
+        "Wind_Total_Actual_MW",
+        "Renewable_Total_Actual_MW"
+      ],
+      "dataset": "wind",
+      "eligible_through": "2026-09-23",
+      "imputed_cells": 0,
+      "source_path": "data/processed/renewable_generation/actual_generation_2025_20260731.csv",
+      "unresolved_cells": 0
+    }
+  ],
+  "dry_run": false,
+  "generated_at": "2026-10-07T12:26:31.081565+02:00",
+  "grace_days": 14,
+  "imputed_cells": 0,
+  "missing_files": [],
+  "operation_date": "2026-10-07",
+  "schema_version": 1,
+  "unresolved_cells": 0
+}

@@ -1126,5 +1126,11 @@
     "fallback_used": false,
     "reason": null,
     "requested_run_utc": "2026-10-07T03:00"
+  },
+  "2026-10-09": {
+    "actual_run_utc": "2026-10-08T03:00",
+    "fallback_used": false,
+    "reason": null,
+    "requested_run_utc": "2026-10-08T03:00"
   }
 }

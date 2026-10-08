@@ -1,0 +1,114 @@
+{
+  "dwd_weather": [
+    {
+      "actual_run_utc": "2026-10-08T03:00",
+      "config": "configs/deployment/cutoff_preprocessing/dwd_wind_run03.yaml",
+      "csv_files": 8,
+      "expected_csv_files": 8,
+      "fallback_used": false,
+      "issue_day": "2026-10-08",
+      "processed_folder": "data/processed/icon_aggregated_mastr_wind_c100_run03/dwd_icon_daily_20261008_03",
+      "ready": true,
+      "run_hour_utc": "03"
+    },
+    {
+      "actual_run_utc": "2026-10-08T03:00",
+      "config": "configs/deployment/cutoff_preprocessing/dwd_solar_run03.yaml",
+      "csv_files": 10,
+      "expected_csv_files": 10,
+      "fallback_used": false,
+      "issue_day": "2026-10-08",
+      "processed_folder": "data/processed/icon_aggregated_mastr_solar_tso_c25_run03/dwd_icon_daily_20261008_03",
+      "ready": true,
+      "run_hour_utc": "03"
+    },
+    {
+      "actual_run_utc": "2026-10-08T03:00",
+      "config": "configs/deployment/cutoff_preprocessing/dwd_icon_c2_run03.yaml",
+      "csv_files": 5,
+      "expected_csv_files": 5,
+      "fallback_used": false,
+      "issue_day": "2026-10-08",
+      "processed_folder": "data/processed/icon_aggregated_c2_run03/dwd_icon_daily_20261008_03",
+      "ready": true,
+      "run_hour_utc": "03"
+    },
+    {
+      "actual_run_utc": "2026-10-08T06:00",
+      "config": "configs/deployment/cutoff_preprocessing/dwd_wind_run06.yaml",
+      "csv_files": 8,
+      "expected_csv_files": 8,
+      "fallback_used": false,
+      "issue_day": "2026-10-08",
+      "processed_folder": "data/processed/icon_aggregated_mastr_wind_c100_run06/dwd_icon_daily_20261008_06",
+      "ready": true,
+      "run_hour_utc": "06"
+    },
+    {
+      "actual_run_utc": "2026-10-08T06:00",
+      "config": "configs/deployment/cutoff_preprocessing/dwd_solar_run06.yaml",
+      "csv_files": 10,
+      "expected_csv_files": 10,
+      "fallback_used": false,
+      "issue_day": "2026-10-08",
+      "processed_folder": "data/processed/icon_aggregated_mastr_solar_tso_c25_run06/dwd_icon_daily_20261008_06",
+      "ready": true,
+      "run_hour_utc": "06"
+    },
+    {
+      "actual_run_utc": "2026-10-08T06:00",
+      "config": "configs/deployment/cutoff_preprocessing/dwd_icon_c2_run06.yaml",
+      "csv_files": 5,
+      "expected_csv_files": 5,
+      "fallback_used": false,
+      "issue_day": "2026-10-08",
+      "processed_folder": "data/processed/icon_aggregated_c2_run06/dwd_icon_daily_20261008_06",
+      "ready": true,
+      "run_hour_utc": "06"
+    }
+  ],
+  "fallback_events": [],
+  "forecast_date": "2026-10-09",
+  "generated_at": "2026-10-08T12:26:33.327902+02:00",
+  "operation_date": "2026-10-08",
+  "persistent_gaps": {
+    "imputed_cells": 0,
+    "invalid": false,
+    "missing_files": [],
+    "report": "data/processed/operational_quality/persistent_gap_repair_2026-10-08.json",
+    "unresolved_cells": 0
+  },
+  "required_inputs": {
+    "checked": 181,
+    "missing": [],
+    "present": 181
+  },
+  "schema_version": 1,
+  "status": "ok",
+  "submission_responses": [
+    "results/energy_arena_submissions/challenge_2/2026-10-09/price_cutoff_0700_noexaa_direct_pgen_lightgbm_c2_d70/submission_response.json",
+    "results/energy_arena_submissions/challenge_2/2026-10-09/price_cutoff_0800_noexaa_direct_pgen_lightgbm_c2_d70/submission_response.json",
+    "results/energy_arena_submissions/challenge_2/2026-10-09/price_cutoff_0900_noexaa_direct_pgen_reserve_fcr_lightgbm_c2_d70/submission_response.json",
+    "results/energy_arena_submissions/challenge_2/2026-10-09/price_cutoff_1000_noexaa_direct_pgen_reserve_fcr_afrr_lightgbm_c2_d70/submission_response.json",
+    "results/energy_arena_submissions/challenge_2/2026-10-09/price_cutoff_1100_noexaa_residual_pgen_reserve_all_lightgbm_c2_d70/submission_response.json",
+    "results/energy_arena_submissions/challenge_2/2026-10-09/price_cutoff_1200_exaa_residual_pgen_reserve_all_lightgbm_c2_d70/submission_response.json",
+    "results/energy_arena_submissions/challenge_20/2026-10-09/load_cutoff_0700/submission_response.json",
+    "results/energy_arena_submissions/challenge_20/2026-10-09/load_cutoff_0800/submission_response.json",
+    "results/energy_arena_submissions/challenge_20/2026-10-09/load_cutoff_0900/submission_response.json",
+    "results/energy_arena_submissions/challenge_20/2026-10-09/load_cutoff_1000/submission_response.json",
+    "results/energy_arena_submissions/challenge_20/2026-10-09/load_cutoff_1100/submission_response.json",
+    "results/energy_arena_submissions/challenge_20/2026-10-09/load_cutoff_1200/submission_response.json",
+    "results/energy_arena_submissions/challenge_4/2026-10-09/solar_cutoff_0700/submission_response.json",
+    "results/energy_arena_submissions/challenge_4/2026-10-09/solar_cutoff_0800/submission_response.json",
+    "results/energy_arena_submissions/challenge_4/2026-10-09/solar_cutoff_0900/submission_response.json",
+    "results/energy_arena_submissions/challenge_4/2026-10-09/solar_cutoff_1000/submission_response.json",
+    "results/energy_arena_submissions/challenge_4/2026-10-09/solar_cutoff_1100/submission_response.json",
+    "results/energy_arena_submissions/challenge_4/2026-10-09/solar_cutoff_1200/submission_response.json",
+    "results/energy_arena_submissions/challenge_6/2026-10-09/wind_onshore_cutoff_0700/submission_response.json",
+    "results/energy_arena_submissions/challenge_6/2026-10-09/wind_onshore_cutoff_0800/submission_response.json",
+    "results/energy_arena_submissions/challenge_6/2026-10-09/wind_onshore_cutoff_0900/submission_response.json",
+    "results/energy_arena_submissions/challenge_6/2026-10-09/wind_onshore_cutoff_1000/submission_response.json",
+    "results/energy_arena_submissions/challenge_6/2026-10-09/wind_onshore_cutoff_1100/submission_response.json",
+    "results/energy_arena_submissions/challenge_6/2026-10-09/wind_onshore_cutoff_1200/submission_response.json"
+  ]
+}

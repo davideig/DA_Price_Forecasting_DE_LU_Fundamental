@@ -155,5 +155,12 @@
     "reason": null,
     "recorded_at_utc": "2026-10-19T10:26:11.472585+00:00",
     "weather_run": null
+  },
+  "2026-10-21": {
+    "donor_day": null,
+    "fallback_used": false,
+    "reason": null,
+    "recorded_at_utc": "2026-10-20T10:26:11.312806+00:00",
+    "weather_run": null
   }
 }
